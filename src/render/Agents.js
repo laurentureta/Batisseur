@@ -1,0 +1,246 @@
+// La ville vivante : passants sur les chemins, voitures sur les routes pavées.
+import * as THREE from 'three';
+import { SIZE, N, T } from '../world/constants.js';
+import { BUILDINGS } from '../data/buildings.js';
+import { GeoBuilder } from './geom.js';
+import { toGeometry } from './TerrainView.js';
+
+const HALF = SIZE / 2;
+const SHIRTS = [0xe94b5a, 0x3f7fd1, 0x4caf50, 0xf2c94c, 0x9b6bd1, 0xf08b3a, 0x2a9d8f, 0xffffff, 0x455a64, 0xd81b60];
+const SKINS = [0xf2c9a6, 0xe0ac85, 0xc68863, 0x8d5a3b, 0xf5d5bd];
+const CARS = [0xd9443a, 0x3f7fd1, 0xf2f2f2, 0x2b2b30, 0xf2c94c, 0x4caf50, 0x9aa5b1, 0x1e3a6e];
+
+export class Agents {
+  constructor(renderer) {
+    this.r = renderer;
+    this.group = new THREE.Group();
+    this.maxPeople = 90;
+    this.maxCars = 36;
+    // passants : corps + tête
+    const body = new GeoBuilder();
+    body.box(0, 0.0, 0, 0.022, 0.05, 0.018, 0x3a3f4a); // jambes
+    body.box(0, 0.05, 0, 0.042, 0.06, 0.028, 0xffffff); // torse (teinté)
+    const head = new GeoBuilder();
+    head.ico(0, 0.13, 0, 0.022, 0xffffff, 1, 0, 1);
+    const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    this.bodies = new THREE.InstancedMesh(toGeometry(body.body), mat, this.maxPeople);
+    this.heads = new THREE.InstancedMesh(toGeometry(head.body), mat, this.maxPeople);
+    // voitures
+    const car = new GeoBuilder();
+    car.box(0, 0.012, 0, 0.075, 0.04, 0.15, 0xffffff);
+    car.box(0, 0.052, -0.01, 0.066, 0.034, 0.08, 0xdfe6ee);
+    car.layer('glass');
+    car.box(0, 0.056, -0.01, 0.068, 0.024, 0.07, 0x2e4157);
+    car.layer('body');
+    for (const [x, z] of [[-0.038, 0.045], [0.038, 0.045], [-0.038, -0.05], [0.038, -0.05]]) car.box(x, 0, z, 0.012, 0.028, 0.03, 0x222222);
+    this.cars = new THREE.InstancedMesh(toGeometry(car.body), mat, this.maxCars);
+    for (const m of [this.bodies, this.heads, this.cars]) {
+      m.count = 0;
+      m.castShadow = true;
+      m.frustumCulled = false;
+      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      this.group.add(m);
+    }
+    this.people = [];
+    this.vehicles = [];
+    this.dummy = new THREE.Object3D();
+    this.color = new THREE.Color();
+    // tampons de recherche de chemin
+    this.parent = new Int32Array(N);
+    this.stamp = new Uint32Array(N);
+    this.depth = new Uint16Array(N);
+    this.queue = new Int32Array(N);
+    this.gen = 1;
+    this.spawnAcc = 0;
+  }
+
+  setWorld(world, sim) {
+    this.world = world;
+    this.sim = sim;
+    this.people = [];
+    this.vehicles = [];
+  }
+
+  /** Marche au hasard sur le réseau (BFS limité), renvoie un chemin de cases. */
+  randomPath(start, paved, minLen, maxLen) {
+    const w = this.world;
+    const road = w.road;
+    const ok = (i) => (paved ? road[i] === 2 : road[i] > 0);
+    if (!ok(start)) return null;
+    const g = ++this.gen;
+    let qh = 0, qt = 0;
+    this.queue[qt++] = start;
+    this.stamp[start] = g;
+    this.parent[start] = -1;
+    this.depth[start] = 0;
+    const candidates = [];
+    while (qh < qt) {
+      const i = this.queue[qh++];
+      const d = this.depth[i];
+      if (d >= minLen) candidates.push(i);
+      if (d >= maxLen) continue;
+      const x = i % SIZE, z = (i / SIZE) | 0;
+      const nb = [];
+      if (x > 0) nb.push(i - 1);
+      if (x < SIZE - 1) nb.push(i + 1);
+      if (z > 0) nb.push(i - SIZE);
+      if (z < SIZE - 1) nb.push(i + SIZE);
+      for (const j of nb) {
+        if (this.stamp[j] === g || !ok(j)) continue;
+        this.stamp[j] = g;
+        this.parent[j] = i;
+        this.depth[j] = d + 1;
+        this.queue[qt++] = j;
+      }
+    }
+    if (!candidates.length) return null;
+    let end = candidates[Math.floor(Math.random() * candidates.length)];
+    const path = [];
+    while (end !== -1) {
+      path.push(end);
+      end = this.parent[end];
+    }
+    path.reverse();
+    return path;
+  }
+
+  spawnPerson() {
+    const w = this.world;
+    const houses = [];
+    for (const b of w.buildings.values()) if (BUILDINGS[b.type].residents && b.residents >= 1) houses.push(b);
+    if (!houses.length) return;
+    const h = houses[Math.floor(Math.random() * houses.length)];
+    const starts = w.perimeter(h).filter((i) => w.road[i]);
+    if (!starts.length) return;
+    const path = this.randomPath(starts[Math.floor(Math.random() * starts.length)], false, 3, 18);
+    if (!path || path.length < 2) return;
+    this.people.push(this.makeAgent(path, 0.32 + Math.random() * 0.15, (Math.random() < 0.5 ? -1 : 1) * (0.3 + Math.random() * 0.05), {
+      shirt: SHIRTS[Math.floor(Math.random() * SHIRTS.length)],
+      skin: SKINS[Math.floor(Math.random() * SKINS.length)],
+    }));
+  }
+
+  spawnCar() {
+    const w = this.world;
+    const paved = [];
+    for (let i = 0; i < N; i += 1) if (w.road[i] === 2) paved.push(i);
+    if (paved.length < 4) return;
+    const start = paved[Math.floor(Math.random() * paved.length)];
+    const path = this.randomPath(start, true, 4, 26);
+    if (!path || path.length < 3) return;
+    this.vehicles.push(this.makeAgent(path, 1.1 + Math.random() * 0.4, 0.17, { paint: CARS[Math.floor(Math.random() * CARS.length)] }));
+  }
+
+  makeAgent(path, speed, lane, extra) {
+    const w = this.world;
+    const pts = [];
+    for (let k = 0; k < path.length; k++) {
+      const i = path[k];
+      const x = (i % SIZE) + 0.5 - HALF, z = ((i / SIZE) | 0) + 0.5 - HALF;
+      const j = k < path.length - 1 ? path[k + 1] : path[k - 1];
+      let dx = (j % SIZE) - (i % SIZE), dz = ((j / SIZE) | 0) - ((i / SIZE) | 0);
+      if (k === path.length - 1) {
+        dx = -dx;
+        dz = -dz;
+      }
+      // côté droit de la marche
+      const rx = -dz, rz = dx;
+      const t = w.terrain[i];
+      const y = t === T.WATER || t === T.DEEP ? 0.11 : 0.03;
+      pts.push([x + rx * lane, y, z + rz * lane]);
+    }
+    return { pts, seg: 0, t: 0, speed, fade: 0, ...extra };
+  }
+
+  update(dt, gameSpeed, night, population) {
+    if (!this.world) return;
+    const w = this.world;
+    const move = gameSpeed > 0 ? Math.min(gameSpeed, 3) : 0;
+    // nombre souhaité
+    const wantPeople = Math.min(this.maxPeople, Math.floor(population / 3) + (population > 0 ? 2 : 0)) * (night > 0.6 ? 0.35 : 1);
+    const pavedCount = this.pavedCountCache ?? 0;
+    const wantCars = Math.min(this.maxCars, Math.floor(pavedCount / 4), Math.floor(population / 8));
+    this.spawnAcc += dt;
+    if (this.spawnAcc > 0.25) {
+      this.spawnAcc = 0;
+      this.pavedCountCache = w.countRoads(2);
+      if (this.people.length < wantPeople && move > 0) this.spawnPerson();
+      if (this.vehicles.length < wantCars && move > 0) this.spawnCar();
+    }
+    this.advance(this.people, dt * move);
+    this.advance(this.vehicles, dt * move);
+    this.write(dt);
+  }
+
+  advance(list, dt) {
+    for (let k = list.length - 1; k >= 0; k--) {
+      const a = list[k];
+      // routes supprimées : on retire l'agent
+      if (dt > 0) {
+        a.t += (a.speed * dt) / 1;
+        while (a.t >= 1) {
+          a.t -= 1;
+          a.seg++;
+          if (a.seg >= a.pts.length - 1) break;
+        }
+      }
+      if (a.seg >= a.pts.length - 1) list.splice(k, 1);
+    }
+  }
+
+  write() {
+    const d = this.dummy;
+    let n = 0;
+    for (const a of this.people) {
+      if (n >= this.maxPeople) break;
+      const p0 = a.pts[a.seg], p1 = a.pts[a.seg + 1];
+      const x = p0[0] + (p1[0] - p0[0]) * a.t, y = p0[1] + (p1[1] - p0[1]) * a.t, z = p0[2] + (p1[2] - p0[2]) * a.t;
+      const bob = Math.abs(Math.sin((a.seg + a.t) * Math.PI * 4)) * 0.008;
+      d.position.set(x, y + bob, z);
+      d.rotation.set(0, Math.atan2(p1[0] - p0[0], p1[2] - p0[2]), 0);
+      d.scale.setScalar(1);
+      d.updateMatrix();
+      this.bodies.setMatrixAt(n, d.matrix);
+      this.heads.setMatrixAt(n, d.matrix);
+      this.bodies.setColorAt(n, this.color.setHex(a.shirt));
+      this.heads.setColorAt(n, this.color.setHex(a.skin));
+      n++;
+    }
+    this.bodies.count = n;
+    this.heads.count = n;
+    let c = 0;
+    for (const a of this.vehicles) {
+      if (c >= this.maxCars) break;
+      const p0 = a.pts[a.seg], p1 = a.pts[a.seg + 1];
+      const x = p0[0] + (p1[0] - p0[0]) * a.t, y = p0[1] + (p1[1] - p0[1]) * a.t, z = p0[2] + (p1[2] - p0[2]) * a.t;
+      d.position.set(x, y, z);
+      d.rotation.set(0, Math.atan2(p1[0] - p0[0], p1[2] - p0[2]), 0);
+      d.updateMatrix();
+      this.cars.setMatrixAt(c, d.matrix);
+      this.cars.setColorAt(c, this.color.setHex(a.paint));
+      c++;
+    }
+    this.cars.count = c;
+    for (const m of [this.bodies, this.heads, this.cars]) {
+      m.instanceMatrix.needsUpdate = true;
+      if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    }
+  }
+
+  /** Après une modification des routes, on supprime les agents dont le trajet est coupé. */
+  validate() {
+    const road = this.world.road;
+    const check = (list, paved) => {
+      for (let k = list.length - 1; k >= 0; k--) {
+        const a = list[k];
+        // on vérifie la case suivante
+        const p = a.pts[Math.min(a.seg + 1, a.pts.length - 1)];
+        const tx = Math.floor(p[0] + HALF), tz = Math.floor(p[2] + HALF);
+        const i = tz * SIZE + tx;
+        if (tx < 0 || tz < 0 || tx >= SIZE || tz >= SIZE || (paved ? road[i] !== 2 : !road[i])) list.splice(k, 1);
+      }
+    };
+    check(this.people, false);
+    check(this.vehicles, true);
+  }
+}

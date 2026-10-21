@@ -1,0 +1,327 @@
+// Affichage des bâtiments : maillages fusionnés par zone, animations de construction, pièces mobiles.
+import * as THREE from 'three';
+import { SIZE, ZONE, ZONES } from '../world/constants.js';
+import { BUILDINGS, sizeOf } from '../data/buildings.js';
+import { buildModel, variantOf } from './models.js';
+
+const HALF = SIZE / 2;
+const ROT = [[1, 0], [0, 1], [-1, 0], [0, -1]]; // [cos, sin] pour rot * 90°
+
+/** Fusionne des calques de modèles (avec leur position) en une géométrie. */
+export function mergeLayers(items) {
+  let count = 0;
+  for (const it of items) count += it.layer.count;
+  if (!count) return null;
+  const pos = new Float32Array(count * 3), nor = new Float32Array(count * 3), col = new Float32Array(count * 3);
+  let o = 0;
+  for (const it of items) {
+    const L = it.layer;
+    const [c, s] = ROT[it.rot & 3];
+    const P = L.pos, Nn = L.nor, Cc = L.col;
+    const n = L.count * 3;
+    for (let k = 0; k < n; k += 3) {
+      const px = P[k], py = P[k + 1], pz = P[k + 2];
+      pos[o] = px * c + pz * s + it.cx;
+      pos[o + 1] = py + (it.y || 0);
+      pos[o + 2] = -px * s + pz * c + it.cz;
+      const nx = Nn[k], nz = Nn[k + 2];
+      nor[o] = nx * c + nz * s;
+      nor[o + 1] = Nn[k + 1];
+      nor[o + 2] = -nx * s + nz * c;
+      col[o] = Cc[k];
+      col[o + 1] = Cc[k + 1];
+      col[o + 2] = Cc[k + 2];
+      o += 3;
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.computeBoundingSphere();
+  return geo;
+}
+
+export function buildingCenter(b) {
+  const [w, d] = sizeOf(BUILDINGS[b.type], b.rot);
+  return { cx: b.x + w / 2 - HALF, cz: b.z + d / 2 - HALF, w, d };
+}
+
+export class BuildingView {
+  constructor(renderer) {
+    this.r = renderer;
+    this.group = new THREE.Group();
+    this.bodyMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    this.glassMat = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0xffc35a, emissiveIntensity: 0 });
+    this.zones = Array.from({ length: ZONES * ZONES }, () => ({ body: null, glass: null }));
+    this.dirty = new Set();
+    this.models = new Map();
+    this.boxes = new Map();
+    this.parts = new Map(); // id -> [{ group, inner, kind, axis, speed, amp, phase }]
+    this.emitters = new Map(); // id -> [{ x, y, z, kind }]
+    this.pops = new Map(); // id -> { group, t, dur, kind }
+    this.season = 1;
+    this.time = 0;
+  }
+
+  setWorld(world, season) {
+    this.world = world;
+    this.season = season;
+    this.clear();
+    for (const b of world.buildings.values()) this.registerBuilding(b);
+    for (let zi = 0; zi < ZONES * ZONES; zi++) this.dirty.add(zi);
+    this.flush(true);
+  }
+
+  clear() {
+    for (const z of this.zones) {
+      for (const k of ['body', 'glass']) {
+        if (z[k]) {
+          this.group.remove(z[k]);
+          z[k].geometry.dispose();
+          z[k] = null;
+        }
+      }
+    }
+    for (const list of this.parts.values()) for (const p of list) this.group.remove(p.group);
+    for (const p of this.pops.values()) this.group.remove(p.group);
+    this.parts.clear();
+    this.emitters.clear();
+    this.boxes.clear();
+    this.pops.clear();
+  }
+
+  setSeason(season) {
+    if (season === this.season) return;
+    this.season = season;
+    this.models.clear();
+    for (const b of this.world.buildings.values()) this.registerBuilding(b);
+    for (let zi = 0; zi < ZONES * ZONES; zi++) this.dirty.add(zi);
+  }
+
+  model(b) {
+    const v = variantOf(b.id) & 15;
+    const key = `${b.type}|${b.level}|${v}|${this.season}`;
+    let m = this.models.get(key);
+    if (!m) {
+      m = buildModel(b.type, b.level, v, this.season);
+      // boîte englobante locale
+      const p = m.body.pos;
+      let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+      for (let k = 0; k < p.length; k += 3) {
+        if (p[k] < x0) x0 = p[k];
+        if (p[k] > x1) x1 = p[k];
+        if (p[k + 1] < y0) y0 = p[k + 1];
+        if (p[k + 1] > y1) y1 = p[k + 1];
+        if (p[k + 2] < z0) z0 = p[k + 2];
+        if (p[k + 2] > z1) z1 = p[k + 2];
+      }
+      m.bbox = [x0, y0, z0, x1, y1, z1];
+      this.models.set(key, m);
+    }
+    return m;
+  }
+
+  zoneOf(b) {
+    return Math.floor(b.z / ZONE) * ZONES + Math.floor(b.x / ZONE);
+  }
+
+  /** Enregistre les pièces mobiles, émetteurs et la boîte de sélection d'un bâtiment. */
+  registerBuilding(b) {
+    this.unregisterParts(b.id);
+    const m = this.model(b);
+    const { cx, cz } = buildingCenter(b);
+    const [c, s] = ROT[b.rot & 3];
+    const tr = (px, pz) => [px * c + pz * s + cx, -px * s + pz * c + cz];
+    // boîte englobante monde
+    const [x0, y0, z0, x1, y1, z1] = m.bbox;
+    const a = tr(x0, z0), bb = tr(x1, z1);
+    this.boxes.set(b.id, new THREE.Box3(new THREE.Vector3(Math.min(a[0], bb[0]), y0, Math.min(a[1], bb[1])), new THREE.Vector3(Math.max(a[0], bb[0]), Math.max(y1, 0.3), Math.max(a[1], bb[1]))));
+    // émetteurs (fumée, eau)
+    if (m.emitters.length) {
+      this.emitters.set(b.id, m.emitters.map((e) => {
+        const [wx, wz] = tr(e.pos[0], e.pos[2]);
+        return { x: wx, y: e.pos[1], z: wz, kind: e.kind };
+      }));
+    } else this.emitters.delete(b.id);
+    // pièces mobiles
+    if (m.parts.length) {
+      const list = [];
+      for (const p of m.parts) {
+        const group = new THREE.Group();
+        const [wx, wz] = tr(p.pivot[0], p.pivot[2]);
+        group.position.set(wx, p.pivot[1], wz);
+        group.rotation.y = (b.rot & 3) * (Math.PI / 2);
+        const inner = new THREE.Group();
+        group.add(inner);
+        const geoB = mergeLayers([{ layer: p.body, cx: 0, cz: 0, rot: 0 }]);
+        if (geoB) {
+          const mesh = new THREE.Mesh(geoB, this.bodyMat);
+          mesh.castShadow = true;
+          inner.add(mesh);
+        }
+        this.group.add(group);
+        list.push({ group, inner, kind: p.kind, axis: p.axis, speed: p.speed, amp: p.amp || 0, phase: (b.id * 1.7) % 6.28 });
+      }
+      this.parts.set(b.id, list);
+    }
+  }
+
+  unregisterParts(id) {
+    const list = this.parts.get(id);
+    if (list) {
+      for (const p of list) {
+        this.group.remove(p.group);
+        p.group.traverse((o) => o.geometry?.dispose());
+      }
+      this.parts.delete(id);
+    }
+  }
+
+  onPlaced(b, opts = {}) {
+    this.registerBuilding(b);
+    if (!opts.silent) this.startPop(b, 'build');
+    this.dirty.add(this.zoneOf(b));
+  }
+
+  onRemoved(b) {
+    this.unregisterParts(b.id);
+    this.emitters.delete(b.id);
+    this.boxes.delete(b.id);
+    const pop = this.pops.get(b.id);
+    if (pop) {
+      this.group.remove(pop.group);
+      this.pops.delete(b.id);
+    }
+    this.dirty.add(this.zoneOf(b));
+  }
+
+  onUpgraded(b, opts = {}) {
+    this.registerBuilding(b);
+    if (!opts.silent) this.startPop(b, 'upgrade');
+    this.dirty.add(this.zoneOf(b));
+  }
+
+  onMoved(b, from) {
+    this.registerBuilding(b);
+    this.dirty.add(this.zoneOf(b));
+    if (from) this.dirty.add(Math.floor(from.z / ZONE) * ZONES + Math.floor(from.x / ZONE));
+    this.startPop(b, 'move');
+  }
+
+  /** Animation : le bâtiment « pousse » du sol. */
+  startPop(b, kind) {
+    const old = this.pops.get(b.id);
+    if (old) this.group.remove(old.group);
+    const m = this.model(b);
+    const { cx, cz } = buildingCenter(b);
+    const group = new THREE.Group();
+    group.position.set(cx, 0, cz);
+    const gb = mergeLayers([{ layer: m.body, cx: 0, cz: 0, rot: b.rot }]);
+    const gg = mergeLayers([{ layer: m.glass, cx: 0, cz: 0, rot: b.rot }]);
+    if (gb) {
+      const mesh = new THREE.Mesh(gb, this.bodyMat);
+      mesh.castShadow = true;
+      group.add(mesh);
+    }
+    if (gg) group.add(new THREE.Mesh(gg, this.glassMat));
+    group.scale.set(1, 0.01, 1);
+    this.group.add(group);
+    this.pops.set(b.id, { group, t: 0, dur: kind === 'build' ? 0.55 : 0.45, kind });
+  }
+
+  flush(all = false) {
+    let n = 0;
+    for (const zi of [...this.dirty]) {
+      this.rebuildZone(zi);
+      this.dirty.delete(zi);
+      if (!all && ++n >= 4) break;
+    }
+  }
+
+  rebuildZone(zi) {
+    const items = [];
+    const glass = [];
+    for (const b of this.world.buildings.values()) {
+      if (this.zoneOf(b) !== zi || this.pops.has(b.id)) continue;
+      const m = this.model(b);
+      const { cx, cz } = buildingCenter(b);
+      items.push({ layer: m.body, cx, cz, rot: b.rot });
+      if (m.glass.count) glass.push({ layer: m.glass, cx, cz, rot: b.rot });
+    }
+    const z = this.zones[zi];
+    for (const k of ['body', 'glass']) {
+      if (z[k]) {
+        this.group.remove(z[k]);
+        z[k].geometry.dispose();
+        z[k] = null;
+      }
+    }
+    const gb = mergeLayers(items);
+    if (gb) {
+      z.body = new THREE.Mesh(gb, this.bodyMat);
+      z.body.castShadow = true;
+      z.body.receiveShadow = true;
+      this.group.add(z.body);
+    }
+    const gg = mergeLayers(glass);
+    if (gg) {
+      z.glass = new THREE.Mesh(gg, this.glassMat);
+      z.glass.receiveShadow = true;
+      this.group.add(z.glass);
+    }
+  }
+
+  update(dt, night, speed) {
+    this.time += dt;
+    this.glassMat.emissiveIntensity = night * 1.1;
+    // animations de construction
+    for (const [id, p] of this.pops) {
+      p.t += dt;
+      const k = Math.min(1, p.t / p.dur);
+      let sy;
+      if (p.kind === 'build') {
+        const c1 = 1.70158, c3 = c1 + 1;
+        sy = 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); // easeOutBack
+      } else sy = 1 + Math.sin(k * Math.PI) * 0.12;
+      p.group.scale.set(p.kind === 'build' ? 0.9 + 0.1 * k : 1 + Math.sin(k * Math.PI) * 0.05, Math.max(0.01, sy), p.kind === 'build' ? 0.9 + 0.1 * k : 1 + Math.sin(k * Math.PI) * 0.05);
+      if (k >= 1) {
+        this.pops.delete(id);
+        const b = this.world.buildings.get(id);
+        if (b) this.rebuildZone(this.zoneOf(b));
+        this.group.remove(p.group);
+        p.group.traverse((o) => o.geometry?.dispose());
+      }
+    }
+    // pièces mobiles
+    for (const list of this.parts.values()) {
+      for (const p of list) {
+        if (p.kind === 'spin') {
+          const v = p.speed * dt * (speed > 0 ? 1 : 0.15);
+          if (p.axis === 'z') p.inner.rotation.z += v;
+          else if (p.axis === 'y') p.inner.rotation.y += v;
+          else p.inner.rotation.x += v;
+        } else {
+          p.inner.rotation.y = Math.sin(this.time * p.speed + p.phase) * p.amp - 0.2;
+        }
+      }
+    }
+    this.flush();
+  }
+
+  /** Bâtiment touché par un rayon (le plus proche). */
+  pick(ray) {
+    let best = null, bestD = Infinity;
+    const hit = new THREE.Vector3();
+    for (const [id, box] of this.boxes) {
+      if (ray.intersectBox(box, hit)) {
+        const d = hit.distanceToSquared(ray.origin);
+        if (d < bestD) {
+          bestD = d;
+          best = id;
+        }
+      }
+    }
+    return best;
+  }
+}

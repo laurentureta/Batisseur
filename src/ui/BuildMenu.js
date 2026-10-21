@@ -1,0 +1,75 @@
+// Menu de construction : catégories et cartes des bâtiments.
+import { h, costChips } from './dom.js';
+import { CATEGORIES, BUILDING_LIST, ROAD_TYPES, sizeOf } from '../data/buildings.js';
+
+export function renderBuildMenu(ui, body, sheet) {
+  const game = ui.game;
+  const st = game.state;
+  const libre = st.mode === 'libre';
+  const tabs = h('div.tabs');
+  for (const c of CATEGORIES) {
+    tabs.appendChild(h('button.tab' + (ui.buildCat === c.id ? '.on' : ''), {
+      onclick: () => {
+        ui.buildCat = c.id;
+        sheet.refresh();
+      },
+    }, h('span.ti', c.icon), h('span.tl', c.name)));
+  }
+  body.appendChild(tabs);
+  const grid = h('div.cards');
+  body.appendChild(grid);
+
+  if (ui.buildCat === 'roads') {
+    for (const t of [1, 2]) {
+      const rt = ROAD_TYPES[t];
+      const unlocked = game.prog.roadUnlocked(t);
+      grid.appendChild(card({
+        icon: rt.icon, name: rt.name, desc: rt.desc, cost: rt.cost, res: st.res, libre, unlocked, unlockLevel: rt.unlock,
+        onclick: () => {
+          if (!unlocked) return ui.toast(`${rt.name} : se débloque au niveau ${rt.unlock}`, 'error');
+          ui.lastRoadType = t;
+          ui.setTool({ kind: 'road', roadType: t });
+        },
+      }));
+    }
+    grid.appendChild(h('div.card-note', '🌉 Les ponts se posent automatiquement quand tu traces une route sur une rivière (dès le niveau 8).'));
+    return;
+  }
+
+  const list = BUILDING_LIST.filter((d) => d.cat === ui.buildCat && !d.notBuildable).sort((a, b) => a.unlock - b.unlock);
+  for (const def of list) {
+    const unlocked = game.prog.isUnlocked(def.id);
+    const owned = def.unique && game.prog.countType(def.id) > 0;
+    const [w, d] = sizeOf(def, 0);
+    grid.appendChild(card({
+      img: unlocked ? game.renderer.thumbs.get(def.id, 1) : null,
+      icon: def.icon,
+      name: def.name,
+      desc: def.desc,
+      cost: def.costs[0],
+      res: st.res,
+      libre,
+      unlocked,
+      unlockLevel: def.unlock,
+      owned,
+      size: w * d > 1 ? `${w}×${d}` : '',
+      onclick: () => {
+        if (!unlocked) return ui.toast(`${def.name} : se débloque au niveau ${def.unlock}`, 'error');
+        if (owned) return ui.toast('Ce monument est unique et déjà construit', 'error');
+        ui.setTool({ kind: 'build', type: def.id, rot: null });
+      },
+    }));
+  }
+}
+
+function card({ img, icon, name, desc, cost, res, libre, unlocked, unlockLevel, owned, size, onclick }) {
+  const el = h('button.card' + (unlocked ? '' : '.locked') + (owned ? '.owned' : ''), { onclick, title: desc });
+  const pic = h('div.card-pic');
+  if (img) pic.appendChild(h('img', { src: img, alt: '', loading: 'lazy' }));
+  else pic.appendChild(h('span.card-emoji', icon));
+  if (!unlocked) pic.appendChild(h('span.lock-badge', `🔒 Niv. ${unlockLevel}`));
+  if (owned) pic.appendChild(h('span.lock-badge.ok', '✓ Construit'));
+  if (size) pic.appendChild(h('span.size-badge', size));
+  el.append(pic, h('div.card-name', name), unlocked ? costChips(cost, res, { compact: true, libre }) : h('div.card-desc', desc));
+  return el;
+}

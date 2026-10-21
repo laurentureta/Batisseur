@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="Bâtisseur : construis ton village en 3D, améliore-le et fais-le grandir jusqu'à la métropole.">
+  <meta name="theme-color" content="#6cb2ef">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bâtisseur">
+  <meta name="format-detection" content="telephone=no">
+  <title>Bâtisseur</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="icons/favicon-64.png">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+    { "imports": { "three": "./lib/three.module.min.js" } }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <canvas id="scene"></canvas>
+    <div id="labels"></div>
+    <div id="ui"></div>
+    <div id="loading">
+      <img class="ld-logo" src="icons/icon-192.png" alt="">
+      <div class="ld-title">BÂTISSEUR</div>
+      <div class="ld-bar"><i></i></div>
+      <div class="ld-msg">Chargement…</div>
+    </div>
+  </div>
+  <script>
+    // Si le jeu ne démarre pas (ancien navigateur), on l'explique.
+    setTimeout(function () {
+      if (!window.__booted) {
+        var el = document.querySelector('#loading .ld-msg');
+        if (el) el.textContent = 'Le chargement est long… Vérifie ta connexion ou mets à jour iOS (Safari 16.4 minimum).';
+      }
+    }, 12000);
+  </script>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

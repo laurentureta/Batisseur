@@ -1,0 +1,89 @@
+// Service worker : le jeu fonctionne hors ligne une fois chargé.
+// Pense à changer VERSION à chaque mise à jour pour que les joueurs reçoivent la nouvelle version.
+const VERSION = 'batisseur-v1.0.0';
+const FILES = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './css/style.css',
+  './lib/three.module.min.js',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/apple-touch-icon.png',
+  './icons/icon-maskable-512.png',
+  './icons/favicon-64.png',
+  './src/core/Actions.js',
+  './src/core/EventBus.js',
+  './src/core/Game.js',
+  './src/core/GameCore.js',
+  './src/core/audio.js',
+  './src/core/demo.js',
+  './src/core/rng.js',
+  './src/core/save.js',
+  './src/core/state.js',
+  './src/core/util.js',
+  './src/data/buildings.js',
+  './src/data/presets.js',
+  './src/data/progression.js',
+  './src/data/quests.js',
+  './src/data/resources.js',
+  './src/input/Input.js',
+  './src/main.js',
+  './src/render/Agents.js',
+  './src/render/BuildingView.js',
+  './src/render/CameraController.js',
+  './src/render/Labels.js',
+  './src/render/Overlays.js',
+  './src/render/Particles.js',
+  './src/render/Renderer.js',
+  './src/render/RoadView.js',
+  './src/render/Sky.js',
+  './src/render/TerrainView.js',
+  './src/render/Thumbnails.js',
+  './src/render/geom.js',
+  './src/render/models.js',
+  './src/sim/Progression.js',
+  './src/sim/RandomEvents.js',
+  './src/sim/Simulation.js',
+  './src/ui/BuildMenu.js',
+  './src/ui/InfoPanel.js',
+  './src/ui/Panels.js',
+  './src/ui/StartScreen.js',
+  './src/ui/UI.js',
+  './src/ui/dom.js',
+  './src/version.js',
+  './src/world/World.js',
+  './src/world/constants.js',
+  './src/world/mapgen.js',
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(caches.open(VERSION).then((cache) => cache.addAll(FILES)));
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k)))).then(() => self.clients.claim()),
+  );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data === 'skipWaiting') self.skipWaiting();
+});
+
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  event.respondWith(
+    caches.match(req, { ignoreSearch: true }).then((cached) => {
+      if (cached) return cached;
+      return fetch(req).then((res) => {
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(VERSION).then((cache) => cache.put(req, copy));
+        }
+        return res;
+      }).catch(() => caches.match('./index.html'));
+    }),
+  );
+});
