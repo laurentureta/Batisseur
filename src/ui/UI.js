@@ -98,6 +98,14 @@ export class UI {
 
   setPlayingUI(on) {
     this.root.classList.toggle('playing', on);
+    if (this.safeTop == null) {
+      const probe = h('div', { style: { position: 'absolute', paddingTop: 'env(safe-area-inset-top)', visibility: 'hidden' } });
+      document.body.appendChild(probe);
+      this.safeTop = parseFloat(getComputedStyle(probe).paddingTop) || 0;
+      probe.remove();
+    }
+    const safeTop = this.safeTop;
+    this.game.renderer.labels.setMargins(on ? 125 + safeTop : 0, on ? 95 : 0);
   }
 
   /* ───────── Mise à jour régulière ───────── */
@@ -143,7 +151,7 @@ export class UI {
       e.quest.classList.toggle('ready', st.quests.mainReady);
       const unit = p.unit || '';
       e.quest.innerHTML = st.quests.mainReady
-        ? `<span class="qi">🎁</span><span class="qt">Quête terminée : récupère ta récompense !</span>`
+        ? `<span class="qi">🎁</span><span class="qt">Récompense prête !</span>`
         : `<span class="qi">🎯</span><span class="qt">${q.title}</span><em>${fmt(Math.min(p.cur, p.target))}${unit}/${fmt(p.target)}${unit}</em>`;
     } else e.quest.classList.add('hidden');
     // pastilles
@@ -180,8 +188,12 @@ export class UI {
       for (const [icon, text, cls, fn] of alerts.slice(0, 3)) e.alerts.appendChild(h('button.alert.' + cls, { onclick: fn }, h('span', icon), h('span.t', text)));
     }
     e.tbUndo.classList.toggle('disabled', !game.actions.undoStack.length);
-    // feuille ouverte
-    if (this.sheet?.live) this.sheet.refresh?.();
+    // feuille ouverte (une fois par seconde)
+    this.sheetAcc = (this.sheetAcc || 0) + 0.25;
+    if (this.sheet?.live && this.sheetAcc >= 1) {
+      this.sheetAcc = 0;
+      this.sheet.refresh();
+    }
     if (this.layer) this.refreshLayer();
   }
 
@@ -254,7 +266,9 @@ export class UI {
   renderBanner(tool) {
     const b = this.banner;
     clear(b);
-    if (tool.kind === 'select' || !this.game.playing) {
+    const active = tool.kind !== 'select' && this.game.playing;
+    this.root.classList.toggle('tool-active', active);
+    if (!active) {
       b.classList.add('hidden');
       return;
     }
@@ -387,14 +401,23 @@ export class UI {
     this.root.appendChild(el);
     requestAnimationFrame(() => el.classList.add('open'));
     const sheet = {
-      kind, el, body, titleEl, live, onClose,
-      refresh: () => {
+      kind, el, body, titleEl, live, onClose, pressed: false,
+      refresh: (force = false) => {
+        if (sheet.pressed && !force) return;
+        const tmp = h('div');
+        render(tmp, sheet);
+        if (!force && tmp.innerHTML === body.innerHTML) return;
         const top = body.scrollTop;
         clear(body);
-        render(body, sheet);
+        while (tmp.firstChild) body.appendChild(tmp.firstChild);
         body.scrollTop = top;
       },
     };
+    el.addEventListener('pointerdown', () => (sheet.pressed = true));
+    const release = () => setTimeout(() => (sheet.pressed = false), 60);
+    el.addEventListener('pointerup', release);
+    el.addEventListener('pointercancel', release);
+    el.addEventListener('pointerleave', release);
     this.sheet = sheet;
     render(body, sheet);
     this.game.sound.play('open');

@@ -51,7 +51,7 @@ export function renderInfo(ui, body, sheet, id) {
             game.sound.play('coin');
             ui.toast('🚒 Feu éteint !', 'good');
           } else ui.toast(r.reason, 'error');
-          sheet.refresh();
+          sheet.refresh(true);
         },
       }, 'Éteindre le feu ', costChips(cost, game.state.res, { libre })),
     ));
@@ -142,7 +142,7 @@ export function renderInfo(ui, body, sheet, id) {
             game.sound.play('error');
             ui.toast(res.reason, 'error');
           }
-          sheet.refresh();
+          sheet.refresh(true);
         },
       }, chk.ok ? `⬆️ Améliorer (niveau ${to})` : reason || 'Impossible');
       box.appendChild(up);

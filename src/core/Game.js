@@ -9,6 +9,7 @@ import { createNewState } from './state.js';
 import { populateDemo } from './demo.js';
 import { showWelcome } from '../ui/Panels.js';
 import { DAY_SECONDS } from '../world/constants.js';
+import { BUILDING_LIST } from '../data/buildings.js';
 
 export class Game extends GameCore {
   constructor() {
@@ -112,6 +113,7 @@ export class Game extends GameCore {
     this.renderer.refreshZoneLabels();
     this.renderer.refreshStatusLabels();
     this.save();
+    this.renderer.thumbs.warmup(BUILDING_LIST.filter((d) => !d.notBuildable && this.prog.isUnlocked(d.id)).map((d) => d.id));
     if (!st.flags.welcome) {
       st.flags.welcome = true;
       showWelcome(this.ui);

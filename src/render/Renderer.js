@@ -144,7 +144,13 @@ export class Renderer {
     });
     bus.on('season:changed', (s) => this.setSeason(s));
     bus.on('weather:changed', (k) => (this.sky.weather = k));
-    bus.on('sim:recalc', () => this.refreshStatusLabels());
+    bus.on('sim:recalc', () => {
+      const now = performance.now();
+      if (now - (this.lastStatusRefresh || 0) > 500) {
+        this.lastStatusRefresh = now;
+        this.refreshStatusLabels();
+      }
+    });
     bus.on('level:up', () => this.refreshZoneLabels());
     bus.on('fire:start', (b) => this.refreshStatusLabels());
     bus.on('xp', () => {});

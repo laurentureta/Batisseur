@@ -30,6 +30,18 @@ export class Thumbnails {
     this.ctx = this.canvas.getContext('2d');
   }
 
+  /** Prépare les vignettes petit à petit, sans bloquer le jeu. */
+  warmup(types) {
+    const queue = types.filter((t) => !this.cache.has(`${t}|1`));
+    const next = () => {
+      const t = queue.shift();
+      if (!t) return;
+      this.get(t, 1);
+      setTimeout(next, 60);
+    };
+    setTimeout(next, 800);
+  }
+
   get(type, level = 1) {
     const key = `${type}|${level}`;
     if (this.cache.has(key)) return this.cache.get(key);

@@ -125,7 +125,9 @@ export class Sky {
     // Brouillard et fond (dégradé CSS derrière le canvas transparent)
     this.fogColor.copy(this.bottom).lerp(this.top, 0.25);
     this.r.scene.fog.color.copy(this.fogColor);
-    const css = `linear-gradient(180deg, #${this.top.getHexString()} 0%, #${this.bottom.getHexString()} 100%)`;
+    this.cssAcc = (this.cssAcc || 0) + dt;
+    const css = this.cssAcc >= 0.25 || !this.lastCss ? `linear-gradient(180deg, #${this.top.getHexString()} 0%, #${this.bottom.getHexString()} 100%)` : this.lastCss;
+    if (this.cssAcc >= 0.25) this.cssAcc = 0;
     if (css !== this.lastCss) {
       this.lastCss = css;
       this.r.canvas.parentElement.style.background = css;

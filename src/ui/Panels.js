@@ -33,7 +33,7 @@ export function renderQuests(ui, body) {
       h('p.qc-desc', q.desc),
       progressBar(p.cur / p.target),
       h('div.qc-row', h('small', `${fmt(Math.min(p.cur, p.target))}${unit} / ${fmt(p.target)}${unit}`), rewardChips(q.reward)),
-      st.quests.mainReady ? h('button.btn.primary.wide', { onclick: () => prog.claimMain() }, '🎁 Récupérer la récompense') : null,
+      st.quests.mainReady ? h('button.btn.primary.wide', { onclick: () => (prog.claimMain(), ui.sheet?.refresh(true)) }, '🎁 Récupérer la récompense') : null,
     ));
   } else body.appendChild(h('div.quest-card.ready', h('div.qc-title', '🏆 Toutes les quêtes sont terminées !'), h('p.qc-desc', 'Tu es un bâtisseur de légende. Continue d\'embellir ta ville !')));
 
@@ -45,7 +45,7 @@ export function renderQuests(ui, body) {
       body.appendChild(h('div.mission' + (m.done ? '.done' : '') + (m.claimed ? '.claimed' : ''),
         h('span.mi', m.def.icon),
         h('div.mm', h('b', m.label), progressBar(m.cur / m.target), h('small', `${fmt(m.cur)} / ${fmt(m.target)}`)),
-        m.claimed ? h('span.claimed-tag', '✓') : m.done ? h('button.btn.primary.small', { onclick: () => prog.claimDaily(m.index) }, 'Récupérer') : rewardChips(m.reward),
+        m.claimed ? h('span.claimed-tag', '✓') : m.done ? h('button.btn.primary.small', { onclick: () => (prog.claimDaily(m.index), ui.sheet?.refresh(true)) }, 'Récupérer') : rewardChips(m.reward),
       ));
     }
     body.appendChild(h('p.hint', 'Nouvelles missions chaque jour à minuit.'));
@@ -78,11 +78,12 @@ export function renderOrders(ui, body) {
       h('div.order-foot',
         rewardChips({ coins: o.coins, xp: o.xp }),
         h('div.order-btns',
-          h('button.btn.small', { onclick: () => prog.discardOrder(s) }, 'Refuser'),
+          h('button.btn.small', { onclick: () => (prog.discardOrder(s), ui.sheet?.refresh(true)) }, 'Refuser'),
           h('button.btn.primary.small', {
             disabled: !can,
             onclick: () => {
               if (!prog.deliverOrder(s)) ui.toast('Il manque des marchandises', 'error');
+              ui.sheet?.refresh(true);
             },
           }, 'Livrer'),
         ),
@@ -104,7 +105,7 @@ export function renderAchievements(ui, body) {
         h('small', a.maxed ? `${a.desc} : tous les paliers atteints !` : `${a.desc} : ${fmt(a.value)}${a.unit || ''} / ${fmt(next)}${a.unit || ''}`),
         a.maxed ? null : progressBar(a.value / next),
       ),
-      a.ready ? h('button.btn.primary.small', { onclick: () => ui.game.prog.claimAchievement(a.id) }, 'Récupérer') : a.reward && !a.maxed ? rewardChips(a.reward) : null,
+      a.ready ? h('button.btn.primary.small', { onclick: () => (ui.game.prog.claimAchievement(a.id), ui.sheet?.refresh(true)) }, 'Récupérer') : a.reward && !a.maxed ? rewardChips(a.reward) : null,
     ));
   }
 }
@@ -177,7 +178,7 @@ export function renderStock(ui, body) {
             const res = fn(r, qty);
             if (res.ok) game.sound.play('coin');
             else ui.toast(res.reason, 'error');
-            ui.sheet?.refresh();
+            ui.sheet?.refresh(true);
           },
         }, label);
         list.appendChild(h('div.trade-row',

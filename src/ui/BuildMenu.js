@@ -11,7 +11,7 @@ export function renderBuildMenu(ui, body, sheet) {
     tabs.appendChild(h('button.tab' + (ui.buildCat === c.id ? '.on' : ''), {
       onclick: () => {
         ui.buildCat = c.id;
-        sheet.refresh();
+        sheet.refresh(true);
       },
     }, h('span.ti', c.icon), h('span.tl', c.name)));
   }

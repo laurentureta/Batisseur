@@ -9,6 +9,13 @@ export class Labels {
     this.camera = camera;
     this.canvas = canvas;
     this.items = new Map();
+    this.marginTop = 0;
+    this.marginBottom = 0;
+  }
+
+  setMargins(top, bottom) {
+    this.marginTop = top;
+    this.marginBottom = bottom;
   }
 
   set(key, { x, y, z, html, cls = '', onTap = null, minDist = 0, maxDist = Infinity }) {
@@ -77,7 +84,17 @@ export class Labels {
         it.hidden = false;
       }
       const sx = (v.x * 0.5 + 0.5) * w, sy = (-v.y * 0.5 + 0.5) * h;
-      it.el.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0) translate(-50%, -100%)`;
+      // on évite de passer sous la barre du haut et la barre du bas
+      if (sy < this.marginTop || sy > h - this.marginBottom) {
+        it.el.style.display = 'none';
+        it.hidden = true;
+        continue;
+      }
+      if (Math.abs(sx - (it.sx ?? -1e9)) > 0.4 || Math.abs(sy - (it.sy ?? -1e9)) > 0.4) {
+        it.sx = sx;
+        it.sy = sy;
+        it.el.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0) translate(-50%, -100%)`;
+      }
     }
   }
 }
