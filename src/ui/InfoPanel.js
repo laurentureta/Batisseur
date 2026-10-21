@@ -36,7 +36,7 @@ export function renderInfo(ui, body, sheet, id) {
   if (status === 'noResource' && def.near) statusText = `Il faut ${nearLabel(def.near.label)} à proximité`;
   if (status === 'noWorkers') statusText += ` (${Math.round((inf.staff ?? d.staffing) * 100)} %)`;
   if (status === 'noInput' && def.consumes) statusText = `En attente de ${Object.keys(def.consumes).map((r) => RESOURCES[r].name.toLowerCase()).join(' et ')}`;
-  if (def.cat === 'decor' && status === 'noRoad') statusText = 'Décor : pas besoin de route';
+  if (def.cat === 'decor' && status === 'noRoad') statusText = def.coverage ? 'Embellit déjà le quartier · relie-le à une route pour les loisirs' : 'Décor : pas besoin de route';
   const okish = status === 'ok' || (def.cat === 'decor');
   body.appendChild(h('div.status-pill.' + (okish ? 'ok' : status === 'fire' ? 'bad' : status === 'empty' ? 'info' : 'warn'), statusText));
 

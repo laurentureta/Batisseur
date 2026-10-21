@@ -8,6 +8,12 @@ import { renderBuildMenu } from './BuildMenu.js';
 import { renderInfo } from './InfoPanel.js';
 import * as Panels from './Panels.js';
 import { StartScreen } from './StartScreen.js';
+import { openShop } from './shop.js';
+import { openPass } from './pass.js';
+import { openProfile } from './profile.js';
+import { showRewards, showLogin } from './rewards.js';
+import { closeScreen } from './screens.js';
+import { BOOSTS } from '../data/shop.js';
 import { COVER_COLORS } from '../render/Renderer.js';
 import { SIZE } from '../world/constants.js';
 
@@ -62,9 +68,11 @@ export class UI {
     e.speed = h('button.speed-btn', { onclick: () => this.cycleSpeed(), 'aria-label': 'Vitesse' }, '▶');
     e.quest = h('button.quest-tracker', { onclick: () => this.openQuests() });
     e.alerts = h('div.alerts');
+    e.boosts = h('div.boost-chips');
     this.hud = h('div.hud',
       h('div.hud-top', e.level, h('div.stats', e.coins, e.pop, e.happy), e.menu),
       h('div.hud-sub', e.quest, h('div.time', e.date, e.speed)),
+      e.boosts,
       e.alerts,
     );
     // boutons latéraux
@@ -73,7 +81,10 @@ export class UI {
       e[key] = b;
       return b;
     };
+    e.sShop = h('button.side-btn.shop-btn', { onclick: () => this.openShop(), 'aria-label': 'Boutique' }, h('span', '🛒'), h('i.badge.hidden'), h('em.gem-count', '💎 0'));
     this.side = h('div.side',
+      e.sShop,
+      side('🎖️', 'Passe de combat', () => this.openPass(), 'sPass'),
       side('🎯', 'Quêtes', () => this.openQuests(), 'sQuests'),
       side('📜', 'Commandes', () => this.openOrders(), 'sOrders'),
       side('🏆', 'Succès', () => this.openAchievements(), 'sAch'),
@@ -111,10 +122,66 @@ export class UI {
   /* ───────── Mise à jour régulière ───────── */
   update(dt) {
     this.hudAcc += dt;
+    this.screenAcc = (this.screenAcc || 0) + dt;
+    if (this.screen && this.screenAcc >= 1) {
+      this.screenAcc = 0;
+      this.screen.refresh();
+    }
     if (this.hudAcc < 0.25) return;
     this.hudAcc = 0;
-    if (!this.game.state || !this.game.playing) return;
+    if (!this.game.state || !this.game.playing) {
+      this.start?.tick?.();
+      return;
+    }
     this.refreshHud();
+  }
+
+  /** Gemmes, pastilles du passe et de la boutique. */
+  refreshMeta() {
+    const meta = this.game.meta, e = this.el;
+    if (!meta || !e?.sShop) return;
+    e.sShop.querySelector('.gem-count').textContent = `💎 ${fmtCompact(meta.p.gems)}`;
+    this.badge(e.sShop, meta.freeChestIn() <= 0 ? 1 : 0);
+    this.badge(e.sPass, meta.passClaimables() + meta.weeklyClaimables());
+  }
+
+  openShop(tab) {
+    this.closeSheet(true);
+    return openShop(this, tab);
+  }
+
+  openPass(tab) {
+    this.closeSheet(true);
+    return openPass(this, tab);
+  }
+
+  openProfile() {
+    openProfile(this);
+  }
+
+  closeScreen() {
+    closeScreen(this);
+  }
+
+  showRewards(items, opts) {
+    showRewards(this, items, opts);
+  }
+
+  showLogin(opts) {
+    return showLogin(this, opts);
+  }
+
+  /** Premier lancement : cadeau de bienvenue. */
+  welcomeGift(then) {
+    const meta = this.game.meta;
+    const body = h('div.welcome-gift',
+      h('div.wg-gem', '💎'),
+      h('p', h('b', `${meta.p.gems} gemmes offertes !`)),
+      h('p', 'Les gemmes servent dans la boutique (coffres, boosts, décorations exclusives) et pour le Passe Royal. Tu en gagnes en jouant : missions, niveaux, défis, passe de combat…'),
+      h('small', 'Aucun achat avec de l\'argent réel : tout se gagne dans le jeu.'),
+    );
+    this.game.sound.play('gem');
+    this.modal({ title: '🎉 Bienvenue, Bâtisseur !', body, cls: 'welcome-modal', actions: [{ label: 'Merci !', cls: 'primary', onclick: () => setTimeout(() => then?.(), 300) }] });
   }
 
   refreshHud() {
@@ -154,6 +221,18 @@ export class UI {
         ? `<span class="qi">🎁</span><span class="qt">Récompense prête !</span>`
         : `<span class="qi">🎯</span><span class="qt">${q.title}</span><em>${fmt(Math.min(p.cur, p.target))}${unit}/${fmt(p.target)}${unit}</em>`;
     } else e.quest.classList.add('hidden');
+    // boosts actifs
+    const active = (st.boosts || []).filter((b) => b.until > st.time.day);
+    const bkey = active.map((b) => b.id + Math.ceil((b.until - st.time.day) * 10)).join(',');
+    if (bkey !== this.boostKey) {
+      this.boostKey = bkey;
+      clear(e.boosts);
+      for (const b of active) {
+        const left = Math.max(0, b.until - st.time.day);
+        e.boosts.appendChild(h('button.boost-chip', { onclick: () => this.openShop('boosts') }, `${BOOSTS[b.id].icon} ${BOOSTS[b.id].name} · ${left >= 1 ? left.toFixed(1) + ' j' : Math.ceil(left * 24) + ' h'}`));
+      }
+    }
+    this.refreshMeta();
     // pastilles
     const c = game.prog.claimables();
     this.badge(e.sQuests, c.quests);
@@ -689,6 +768,22 @@ export class UI {
     bus.on('alert:famine', () => this.toast('🍞 Plus de nourriture ! Les habitants partent. Construis potagers, pêcheurs ou boulangeries.', 'bad'));
     bus.on('season:changed', (s) => this.toast(`${SEASONS[s].icon} ${SEASONS[s].name} arrive`, 'mini'));
     bus.on('undo:changed', () => this.el.tbUndo.classList.toggle('disabled', !game.actions.undoStack.length));
+    bus.on('gems', (total, n, why) => {
+      this.refreshMeta();
+      this.start?.refreshMeta?.();
+      if (n > 0 && why && !['chest', 'pass', 'shop', 'login', 'weekly', 'duplicate'].includes(why)) {
+        game.sound.play('gem');
+        this.toast(`+${n} 💎`, 'gem');
+      }
+    });
+    bus.on('pass:tier', (tier) => {
+      game.sound.play('tier');
+      this.refreshMeta();
+      this.toast(`🎖️ Palier ${tier} du passe atteint !`, 'good', { label: 'Voir', onclick: () => this.openPass() });
+    });
+    bus.on('decor:unlocked', (id) => this.toast(`⭐ Nouvelle décoration : ${BUILDINGS[id].name} (Construire → Exclusifs)`, 'good'));
+    bus.on('boost:on', () => this.refreshHud());
+    bus.on('boost:off', () => this.toast('⏱️ Un boost vient de se terminer', 'mini'));
   }
 }
 

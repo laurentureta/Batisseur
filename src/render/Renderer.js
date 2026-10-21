@@ -266,8 +266,9 @@ export class Renderer {
       for (const b of this.world.buildings.values()) {
         const inf = game.sim.info.get(b.id);
         if (!inf) continue;
-        const icon = icons[inf.status];
         const def = BUILDINGS[b.type];
+        // une simple décoration embellit même sans route : pas d'alerte
+        const icon = inf.status === 'noRoad' && def.cat === 'decor' && !def.coverage ? null : icons[inf.status];
         const box = this.buildings.boxes.get(b.id);
         const y = box ? box.max.y + 0.15 : 0.8;
         const c = buildingCenter(b);

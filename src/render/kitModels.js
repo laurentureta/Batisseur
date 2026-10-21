@@ -588,6 +588,279 @@ KM.castle = (g, L, ctx) => {
   for (const s of [-1, 1]) flag(g, ctx, s * 0.32, 1.36, 2.6, 0);
 };
 
+/* ───────── Décorations exclusives ───────── */
+const GOLD = [1.6, 1.25, 0.45];
+function hw(g, ctx, name, s, o = {}) {
+  return kit(g, 'hw_' + name, { s, snow: ctx.snow, ...o });
+}
+function glowBox(g, x, y, z, w, h, d, color) {
+  g.layer('glass');
+  g.box(x, y, z, w, h, d, color);
+  g.layer('body');
+}
+function giftBox(g, x, z, w, h, color, ribbon = 0xf2c14e, y = 0) {
+  g.box(x, y, z, w, h, w, { top: shade(color, 1.1), side: color });
+  g.box(x, y + h, z, w + 0.004, 0.012, w * 0.22, ribbon);
+  g.box(x, y + h, z, w * 0.22, 0.012, w + 0.004, ribbon);
+  g.box(x, y, z, w * 0.22, h, w + 0.004, ribbon);
+}
+
+KM.x_pumpkins = (g, L, ctx) => {
+  pad(g, ctx, 0.86, 0.86, SOIL, { h: 0.015 });
+  hw(g, ctx, 'pumpkin_orange_jackolantern', 0.2, { x: 0.05, z: 0.05 });
+  for (const [x, z, n, s2] of [[-0.25, -0.22, 'pumpkin_orange', 0.17], [0.27, -0.2, 'pumpkin_yellow', 0.15], [-0.28, 0.25, 'pumpkin_orange_small', 0.2], [0.3, 0.28, 'pumpkin_yellow_small', 0.2], [0.02, -0.33, 'pumpkin_orange_small', 0.16]]) hw(g, ctx, n, s2, { x, z, rot: x * 9 });
+  glowBox(g, 0.05, 0.08, 0.17, 0.08, 0.05, 0.01, 0xffa23a);
+};
+KM.x_lantern = (g, L, ctx) => {
+  hw(g, ctx, 'post_lantern', 0.24, { x: -0.05 });
+  hw(g, ctx, 'pumpkin_orange_small', 0.18, { x: 0.2, z: 0.18 });
+  hw(g, ctx, 'candle_triple', 0.3, { x: -0.22, z: 0.22 });
+};
+KM.x_haunted_tree = (g, L, ctx) => {
+  pad(g, ctx, 0.8, 0.8, 0x6e7a4a, { h: 0.008 });
+  hw(g, ctx, 'tree_dead_large_decorated', 0.25, {});
+  hw(g, ctx, 'gravemarker_A', 0.25, { x: 0.27, z: 0.27, rot: -0.3 });
+  hw(g, ctx, 'pumpkin_orange_jackolantern', 0.14, { x: -0.26, z: 0.22, rot: 0.4 });
+  hw(g, ctx, 'pumpkin_yellow_small', 0.16, { x: -0.05, z: 0.32 });
+  glowBox(g, -0.26, 0.06, 0.3, 0.05, 0.035, 0.01, 0xffa23a);
+};
+KM.x_gate = (g, L, ctx) => {
+  pad(g, ctx, 1.9, 0.6, 0xa9a392, { h: 0.01 });
+  hw(g, ctx, 'arch_gate', 0.4, {});
+  for (const sx of [-1, 1]) {
+    hw(g, ctx, 'fence_pillar', 0.25, { x: sx * 0.88 });
+    hw(g, ctx, 'lantern_standing', 0.18, { x: sx * 0.62, z: 0.25 });
+  }
+};
+KM.x_crypt = (g, L, ctx) => {
+  pad(g, ctx, 1.94, 1.94, 0x8f9a6a, { h: 0.01 });
+  hw(g, ctx, 'crypt', 0.17, { z: -0.25 });
+  for (const [x, z, n] of [[-0.65, 0.45, 'gravestone'], [-0.3, 0.6, 'grave_A'], [0.35, 0.55, 'gravestone'], [0.7, 0.35, 'gravemarker_A']]) hw(g, ctx, n, 0.17, { x, z, rot: x * 0.5 });
+  for (const sx of [-1, 1]) hw(g, ctx, 'post_lantern', 0.18, { x: sx * 0.85, z: -0.7 });
+  hw(g, ctx, 'fence', 0.2, { x: -0.55, z: 0.9 });
+  hw(g, ctx, 'fence', 0.2, { x: 0.55, z: 0.9 });
+  hw(g, ctx, 'candle_triple', 0.3, { x: 0, z: 0.4 });
+};
+KM.x_candles = (g, L, ctx) => {
+  hw(g, ctx, 'shrine_candles', 0.32, {});
+  hw(g, ctx, 'candle_triple', 0.28, { x: 0.28, z: 0.25 });
+  hw(g, ctx, 'candle_triple', 0.24, { x: -0.3, z: 0.22, rot: 1 });
+  hw(g, ctx, 'skull_candle', 0.12, { x: 0.3, z: -0.25 });
+};
+KM.x_snowman = (g, L, ctx) => {
+  pad(g, ctx, 0.6, 0.6, 0xeef3f6, { h: 0.012 });
+  const w = 0xf4f7fa;
+  g.ico(0, 0.13, 0, 0.14, w, 0.95, 0.12, 1);
+  g.ico(0, 0.33, 0, 0.1, w, 0.95, 0.1, 2);
+  g.ico(0, 0.49, 0, 0.075, w, 1, 0.08, 3);
+  g.cyl(0, 0.55, 0, 0.06, 0.012, 8, 0x2b2b30);
+  g.cyl(0, 0.56, 0, 0.042, 0.08, 8, 0x2b2b30);
+  g.cone(0, 0.49, 0.06, 0.016, 0.07, 5, 0xf08a2a);
+  g.push(Math.PI / 2, 0, 0, 0);
+  g.pop();
+  for (const sx of [-1, 1]) g.box(sx * 0.03, 0.51, 0.068, 0.014, 0.014, 0.01, 0x222222);
+  g.box(0, 0.4, 0.07, 0.17, 0.035, 0.05, 0xd2232a);
+  for (const sx of [-1, 1]) g.cylX(sx * 0.16, 0.34, 0, 0.008, 0.14, 4, 0x6b4129);
+};
+KM.x_gifts = (g, L, ctx) => {
+  const cols = [0xd2232a, 0x2f7fc4, 0x00a651, 0x9b59d6, 0xf7a93b];
+  giftBox(g, -0.12, -0.08, 0.2, 0.16, cols[0]);
+  giftBox(g, 0.14, -0.1, 0.17, 0.13, cols[1], 0xffffff);
+  giftBox(g, 0.02, 0.16, 0.18, 0.12, cols[2]);
+  giftBox(g, -0.1, -0.08, 0.12, 0.1, cols[3], 0xffffff, 0.17);
+  giftBox(g, 0.24, 0.2, 0.1, 0.08, cols[4]);
+};
+KM.x_xmas_tree = (g, L, ctx) => {
+  kit(g, 'tree_single_B', { s: 0.75, snow: ctx.snow });
+  const lights = [0xff4d4d, 0xffd34d, 0x4dd2ff, 0x7dff6b];
+  for (let k = 0; k < 18; k++) {
+    const a = k * 2.4, y = 0.12 + (k / 18) * 0.62, r = 0.25 * (1 - (k / 18) * 0.8);
+    glowBox(g, Math.cos(a) * r, y, Math.sin(a) * r, 0.03, 0.03, 0.03, lights[k % 4]);
+  }
+  glowBox(g, 0, 0.86, 0, 0.07, 0.07, 0.03, 0xffe066);
+  giftBox(g, 0.22, 0.24, 0.1, 0.08, 0xd2232a);
+  giftBox(g, -0.2, 0.25, 0.09, 0.07, 0x2f7fc4, 0xffffff);
+};
+KM.x_sleigh = (g, L, ctx) => {
+  const red = 0xc0292b;
+  g.box(0, 0.06, 0, 0.26, 0.1, 0.46, { top: shade(red, 0.8), side: red });
+  g.box(0, 0.16, -0.17, 0.26, 0.12, 0.08, red);
+  for (const sx of [-1, 1]) {
+    g.box(sx * 0.11, 0.0, 0, 0.02, 0.02, 0.52, 0xf2c14e);
+    g.box(sx * 0.11, 0.02, 0.24, 0.02, 0.06, 0.02, 0xf2c14e);
+  }
+  giftBox(g, -0.04, -0.02, 0.1, 0.08, 0x00a651, 0xffffff, 0.16);
+  giftBox(g, 0.06, 0.08, 0.08, 0.07, 0x2f7fc4, 0xf2c14e, 0.16);
+};
+KM.x_ice_rink = (g, L, ctx) => {
+  pad(g, ctx, 1.94, 1.94, 0xe9eef2, { h: 0.012 });
+  g.cyl(0, 0.012, 0, 0.78, 0.015, 20, 0xbfe6f5);
+  for (let k = 0; k < 12; k++) {
+    const a = (k / 12) * Math.PI * 2;
+    g.box(Math.cos(a) * 0.82, 0.01, Math.sin(a) * 0.82, 0.05, 0.12, 0.05, 0x8a5a3a);
+  }
+  for (const [x, z] of [[-0.85, -0.85], [0.85, -0.85], [-0.85, 0.85], [0.85, 0.85]]) hw(g, ctx, 'lantern_standing', 0.2, { x, z });
+  kit(g, 'tree_single_B', { s: 0.45, x: 0.0, z: 0.0, snow: 0.8 });
+};
+KM.x_star_lamp = (g, L, ctx) => {
+  const s2 = 0.8;
+  K(g, ctx, 'c_streetlight', { s: s2, x: 0.08 });
+  glowBox(g, 0.08 - 0.21 * s2, 0.885 * s2, 0, 0.06, 0.03, 0.05, 0xfff1c2);
+  g.layer('glass');
+  const sy = 0.96 * s2 + 0.07;
+  for (let k = 0; k < 5; k++) {
+    const a = (k / 5) * Math.PI * 2 + Math.PI / 2;
+    g.box(0.08 + Math.cos(a) * 0.035, sy + Math.sin(a) * 0.035, 0, 0.03, 0.03, 0.02, 0xffd34d);
+  }
+  g.box(0.08, sy, 0, 0.04, 0.04, 0.025, 0xffe680);
+  g.layer('body');
+  giftBox(g, -0.2, 0.2, 0.09, 0.07, 0xd2232a);
+};
+KM.x_tulips = (g, L, ctx) => {
+  pad(g, ctx, 0.86, 0.86, SOIL, { h: 0.02 });
+  const cols = [0xff4d6d, 0xffd34d, 0xff8fc2, 0xffffff, 0xb36bff, 0xff7a2a];
+  for (let r = 0; r < 4; r++) {
+    for (let k = 0; k < 6; k++) {
+      const x = -0.32 + k * 0.13, z = -0.3 + r * 0.2;
+      g.cyl(x, 0.02, z, 0.006, 0.07, 4, 0x3f9e3a);
+      g.ico(x, 0.1, z, 0.028, cols[(r + k) % cols.length], 1.2, 0.2, r * 7 + k);
+    }
+  }
+};
+KM.x_beehive = (g, L, ctx) => {
+  pad(g, ctx, 0.8, 0.8, 0xb9cf6a, { h: 0.008 });
+  for (const [x, z] of [[-0.2, -0.1], [0.18, -0.12], [0, 0.2]]) {
+    g.box(x, 0.0, z, 0.16, 0.05, 0.16, 0x8a5a3a);
+    for (let k = 0; k < 3; k++) g.box(x, 0.05 + k * 0.06, z, 0.15 - k * 0.012, 0.055, 0.15 - k * 0.012, { top: 0xf2c14e, side: k % 2 ? 0xe0a83a : 0xf0b84a });
+    g.roof(x, 0.23, z, 0.19, 0.19, 0.06, 0.19, 0xb06a3a);
+  }
+  for (let k = 0; k < 8; k++) g.ico(-0.3 + k * 0.09, 0.05, 0.35, 0.025, [0xff4d6d, 0xffd34d, 0xffffff][k % 3], 1, 0, k);
+};
+KM.x_cherry_tree = (g, L, ctx) => {
+  g.cyl(0, 0, 0, 0.05, 0.3, 6, 0x6b4129, 0.035);
+  const pinks = [0xff9ec7, 0xffb3d4, 0xff86b8];
+  g.ico(0, 0.42, 0, 0.24, pinks[0], 0.85, 0.3, 4);
+  g.ico(0.12, 0.52, -0.05, 0.15, pinks[1], 0.9, 0.25, 5);
+  g.ico(-0.12, 0.5, 0.06, 0.14, pinks[2], 0.9, 0.25, 6);
+  for (let k = 0; k < 6; k++) g.box(-0.3 + k * 0.12, 0.002, 0.25 - (k % 2) * 0.4, 0.03, 0.004, 0.03, pinks[k % 3]);
+};
+KM.x_flower_arch = (g, L, ctx) => {
+  pad(g, ctx, 1.9, 0.6, 0xb9cf6a, { h: 0.008 });
+  hw(g, ctx, 'arch', 0.4, { tint: [1.05, 1.02, 0.95] });
+  const cols = [0xff4d6d, 0xffd34d, 0xff8fc2, 0xffffff];
+  for (let k = 0; k < 22; k++) {
+    const a = Math.PI * (k / 21);
+    g.ico(Math.cos(a) * 0.62, 0.98 + Math.sin(a) * 0.62 * 0.9 - 0.4, 0.17, 0.045, cols[k % 4], 1, 0.2, k);
+  }
+  for (const sx of [-1, 1]) bush(g, ctx, sx * 0.8, 0.12, 0.9);
+};
+KM.x_hedge_maze = (g, L, ctx) => {
+  pad(g, ctx, 1.94, 1.94, 0xd9c79e, { h: 0.008 });
+  const hedge = ctx.winter ? 0xdfe8e4 : 0x3f8f3a;
+  const walls = [[0, -0.9, 1.8, 0.1], [0, 0.9, 1.8, 0.1], [-0.9, 0, 0.1, 1.8], [0.9, 0, 0.1, 1.8], [-0.35, -0.5, 0.9, 0.1], [0.4, -0.1, 0.9, 0.1], [-0.4, 0.35, 0.8, 0.1], [0.3, 0.55, 0.1, 0.6], [-0.1, -0.25, 0.1, 0.5]];
+  for (const [x, z, w, d] of walls) g.box(x, 0.008, z, w, 0.16, d, { top: shade(hedge, 1.12), side: hedge });
+  KF(g, ctx, 'k_pavement_fountain', 0.36, 0.36, { x: 0.45, z: 0.25 });
+};
+KM.x_birdbath = (g, L, ctx) => {
+  KF(g, ctx, 'k_pavement_fountain', 0.62, 0.62, {});
+  for (const [x, z, c] of [[0.12, 0.05, 0x5aa0e6], [-0.1, -0.08, 0xe65a5a], [0.02, 0.14, 0xf2c14e]]) {
+    g.ico(x, 0.3, z, 0.03, c, 0.9, 0, 1);
+    g.ico(x + 0.02, 0.33, z, 0.018, c, 1, 0, 2);
+  }
+  ctx.out.emitters.push({ pos: [0, 0.32, 0], kind: 'water' });
+};
+KM.x_gold_coins = (g, L, ctx) => {
+  K(g, ctx, 'crate_open', { s: 1.1, tint: [1.1, 0.95, 0.8] });
+  for (let k = 0; k < 14; k++) g.cyl(-0.12 + (k % 5) * 0.06, 0.12 + Math.floor(k / 5) * 0.015, -0.03 + (k % 3) * 0.03, 0.025, 0.01, 8, 0xf2c14e);
+  for (let k = 0; k < 6; k++) g.cyl(0.2 + (k % 2) * 0.05, 0, 0.18 + Math.floor(k / 2) * 0.05, 0.025, 0.01 + (k % 3) * 0.01, 8, 0xf2c14e);
+  g.ico(-0.25, 0.04, 0.2, 0.04, 0xe53935, 0.7, 0, 3);
+  g.ico(-0.18, 0.035, 0.25, 0.035, 0x2f7fc4, 0.7, 0, 4);
+};
+KM.x_banners = (g, L, ctx) => {
+  for (let k = 0; k < 4; k++) flag(g, ctx, -0.36 + k * 0.24, 0.1 * (k % 2 ? 1 : -1), 1.8, k % 4);
+  pad(g, ctx, 0.9, 0.3, COBBLE, { h: 0.01 });
+};
+KM.x_gold_statue = (g, L, ctx) => {
+  pad(g, ctx, 0.9, 0.9, COBBLE, { h: 0.01 });
+  g.box(0, 0.01, 0, 0.42, 0.1, 0.42, { top: 0xd8d2c4, side: 0xbab3a3 });
+  g.box(0, 0.11, 0, 0.3, 0.24, 0.3, { top: 0xe2dccd, side: 0xcbc4b4 });
+  const gold = 0xf2c14e;
+  g.box(0, 0.35, 0, 0.12, 0.24, 0.09, gold);
+  g.box(0.08, 0.5, 0, 0.18, 0.045, 0.045, gold);
+  g.ico(0, 0.66, 0, 0.065, gold, 1, 0, 1);
+  g.cone(0, 0.71, 0, 0.07, 0.08, 6, shade(gold, 1.1));
+  g.cyl(0.16, 0.5, 0, 0.014, 0.26, 4, gold);
+  for (const [x, z] of [[-0.36, -0.36], [0.36, -0.36], [-0.36, 0.36], [0.36, 0.36]]) bush(g, ctx, x, z, 0.7);
+};
+KM.x_obelisk = (g, L, ctx) => {
+  pad(g, ctx, 0.8, 0.8, COBBLE, { h: 0.01 });
+  g.box(0, 0.01, 0, 0.4, 0.08, 0.4, 0xc9c1ae);
+  g.cyl(0, 0.09, 0, 0.14, 1.1, 4, 0xe2d9c3, 0.07, false);
+  g.cone(0, 1.19, 0, 0.1, 0.14, 4, 0xf2c14e);
+  for (let k = 0; k < 4; k++) g.box(0, 0.4 + k * 0.18, 0.1 - k * 0.006, 0.08, 0.03, 0.01, 0xb8ad94);
+};
+KM.x_royal_fountain = (g, L, ctx) => {
+  pad(g, ctx, 1.94, 1.94, COBBLE, { h: 0.01 });
+  KF(g, ctx, 'k_pavement_fountain', 1.6, 1.6, { tint: [1.12, 1.02, 0.82] });
+  g.cyl(0, 0.5, 0, 0.05, 0.25, 8, 0xf2c14e);
+  g.ico(0, 0.8, 0, 0.08, 0xf2c14e, 1, 0, 2);
+  ctx.out.emitters.push({ pos: [0, 0.86, 0], kind: 'water' });
+  for (const [x, z] of [[-0.85, -0.85], [0.85, -0.85], [-0.85, 0.85], [0.85, 0.85]]) lantern(g, ctx, x, z, 0.2);
+};
+KM.x_throne = (g, L, ctx) => {
+  pad(g, ctx, 0.8, 0.8, 0xb03a3a, { h: 0.012 });
+  const gold = 0xf2c14e, red = 0xc0292b;
+  g.box(0, 0.012, -0.05, 0.36, 0.08, 0.3, gold);
+  g.box(0, 0.09, -0.05, 0.28, 0.12, 0.24, { top: red, side: gold });
+  g.box(0, 0.21, -0.17, 0.3, 0.42, 0.06, { top: gold, side: gold, front: red });
+  g.cone(0, 0.63, -0.17, 0.08, 0.1, 4, gold);
+  for (const sx of [-1, 1]) g.box(sx * 0.16, 0.21, -0.05, 0.04, 0.1, 0.24, gold);
+  for (const sx of [-1, 1]) g.cyl(sx * 0.32, 0.012, -0.3, 0.02, 0.6, 5, gold);
+  g.box(0, 0.62, -0.3, 0.7, 0.02, 0.2, red);
+};
+KM.x_camp = (g, L, ctx) => {
+  K(g, ctx, 'tent', { s: 0.85, x: -0.12, z: -0.14 });
+  barrels(g, ctx, 0.28, -0.25, 2, 0.5);
+  K(g, ctx, 'crate_A_small', { s: 0.8, x: 0.3, z: 0.05 });
+  // feu de camp
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * Math.PI * 2;
+    g.box(0.12 + Math.cos(a) * 0.08, 0, 0.25 + Math.sin(a) * 0.08, 0.04, 0.03, 0.04, 0x8a8a84);
+  }
+  g.layer('glass');
+  g.cone(0.12, 0.01, 0.25, 0.05, 0.1, 5, 0xff8a2a);
+  g.layer('body');
+  smokeAt(ctx, 0.12, 0.12, 0.25);
+};
+KM.x_grove = (g, L, ctx) => {
+  for (const [x, z, s2, k, i] of [[-0.2, -0.2, 0.8, 'pine', 1], [0.2, -0.15, 0.95, 'pine', 2], [-0.05, 0.2, 1.0, 'round', 3], [0.28, 0.28, 0.6, 'pine', 4], [-0.3, 0.25, 0.55, 'round', 5]]) treeKit(g, ctx, x, z, s2, k, i);
+};
+KM.x_fruit_cart = (g, L, ctx) => {
+  K(g, ctx, 'wheelbarrow', { s: 0.95, rot: 0.5 });
+  K(g, ctx, 'crate_long_A', { s: 0.5, x: 0.22, z: 0.25, rot: 1 });
+  K(g, ctx, 'crate_long_B', { s: 0.5, x: -0.22, z: -0.25, rot: -0.4 });
+};
+KM.x_archery = (g, L, ctx) => {
+  pad(g, ctx, 0.9, 0.9, 0xb9cf6a, { h: 0.006 });
+  K(g, ctx, 'target', { s: 1.1, x: -0.2, z: -0.25 });
+  K(g, ctx, 'target', { s: 1.1, x: 0.22, z: -0.25 });
+  K(g, ctx, 'bucket_arrows', { s: 1, x: 0.3, z: 0.25 });
+  K(g, ctx, 'weaponrack', { s: 1, x: -0.25, z: 0.28 });
+};
+KM.x_mini_mill = (g, L, ctx) => {
+  KF(g, ctx, 'windmill', 0.6, 0.45, { spin: 1.2 });
+  bush(g, ctx, 0.3, 0.3, 0.6);
+  K(g, ctx, 'sack', { s: 0.9, x: -0.3, z: 0.3 });
+};
+KM.x_watchtower = (g, L, ctx) => {
+  KF(g, ctx, 'tower_A', 0.62, 0.7, {});
+  flag(g, ctx, 0.3, 0.3, 1.5, ctx.roofVar ?? 0);
+};
+KM.x_catapult = (g, L, ctx) => {
+  KF(g, ctx, 'tower_catapult', 0.66, 0.8, {});
+  K(g, ctx, 'resource_stone', { s: 0.4, x: 0.32, z: 0.3 });
+};
+
 /* ───────── Repli : les modèles faits main restent disponibles ───────── */
 export function hasKitModel(type) {
   return !!KM[type] && kitHas('home_A');

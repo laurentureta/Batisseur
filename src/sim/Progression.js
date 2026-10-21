@@ -33,8 +33,9 @@ export class Progression {
 
   /* ───────── Déblocages ───────── */
   isUnlocked(type) {
-    if (this.libre) return true;
     const def = BUILDINGS[type];
+    if (def?.exclusive) return !!this.game.meta?.ownsDecor(type);
+    if (this.libre) return true;
     return !!def && this.st.level >= def.unlock;
   }
   roadUnlocked(roadType) {

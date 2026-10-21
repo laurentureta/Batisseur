@@ -32,7 +32,11 @@ Sur ordinateur : clic gauche pour déplacer, molette pour zoomer, clic droit pou
 
 ## ✨ Ce que contient le jeu
 
-- **Monde 3D « maquette »** low-poly, généré en code (aucune image à charger), avec cycle jour/nuit, saisons (neige l'hiver !), météo, passants et voitures.
+- **Vrais modèles 3D** : près de 200 modèles — maisons, commerces, châteaux, immeubles, véhicules et décors (packs KayKit et Kenney), du hameau médiéval à la ville moderne, avec chantier animé à chaque construction.
+- **Monde 3D « maquette »** avec cycle jour/nuit, fenêtres et lampadaires allumés la nuit, saisons (neige l'hiver !), météo, nuages, passants et voitures.
+- **Passe de combat** 🎖️ : une saison de 4 semaines (saison 1 : *La Nuit des Citrouilles* 🎃), 40 paliers gratuits + 40 paliers du **Passe Royal**, paliers bonus et 7 défis de la semaine.
+- **Boutique** 🛒 et **gemmes** 💎 : coffres (bois, argent, or, royal), boosts (récolte ×2, impôts ×1,5, fête, afflux d'habitants), packs de ressources, offres du jour, 31 décorations exclusives et 11 thèmes de toits. Les gemmes se gagnent uniquement en jouant — aucun achat réel.
+- **Cadeau du jour** (calendrier de 7 jours), coffre gratuit toutes les 4 heures, profil du maire (nom, avatar, titres, statistiques).
 - **3 terrains de départ** : Vallée verdoyante, Côte sauvage, Pied des montagnes.
 - **25 zones à débloquer** : tu choisis où agrandir ton territoire (forêts, lacs, montagnes, littoral…).
 - **40 types de bâtiments**, la plupart avec **5 niveaux** qui changent leur apparence : de la cabane à l'immeuble.
@@ -56,12 +60,14 @@ sw.js                   mode hors ligne (service worker)
 css/style.css           interface
 lib/                    Three.js (moteur 3D, licence MIT)
 assets/models.bin       modèles 3D KayKit / Kenney (CC0), préparés par tools/bake_models.py
-icons/                  icônes de l'appli
+assets/keyart.jpg       image de l'écran de chargement (rendue avec le moteur du jeu)
+fonts/                  polices Lilita One et Fredoka (licence OFL)
+icons/                  icônes de l'appli et logo (tools/make_logo.py)
 src/
   main.js               démarrage
   version.js            numéro de version
-  core/                 cœur du jeu : état, actions, sauvegarde, sons
-  data/                 ⚙️ réglages du jeu : bâtiments, quêtes, progression, ressources
+  core/                 cœur du jeu : état, actions, sauvegarde, sons, profil (meta.js)
+  data/                 ⚙️ réglages du jeu : bâtiments, quêtes, progression, ressources, passe, boutique
   world/                carte, terrain, génération procédurale
   sim/                  simulation : économie, habitants, progression, événements
   render/               rendu 3D : terrain, routes, bâtiments, caméra, effets
@@ -76,7 +82,9 @@ Tout se règle dans `src/data/` :
 - `buildings.js` : coûts, production, rayons d'action, niveaux de chaque bâtiment ;
 - `progression.js` : courbe d'XP, rangs de la mairie, prix des zones ;
 - `quests.js` : quêtes principales, missions du jour, succès ;
-- `resources.js` : ressources et leur valeur.
+- `resources.js` : ressources et leur valeur ;
+- `pass.js` : saisons du passe de combat, paliers, défis de la semaine ;
+- `shop.js` : coffres, boosts, packs, prix en gemmes, cadeau du jour.
 
 ### Publier une mise à jour
 
@@ -86,7 +94,8 @@ Après une modification, change la valeur `VERSION` en haut de `sw.js` (et dans 
 
 - [ ] Progression hors ligne (le village continue de tourner quand l'appli est fermée)
 - [ ] Mode photo pour partager une image de sa ville
-- [ ] Personnalisation des façades et des toits
+- [x] Personnalisation des toits (thèmes)
+- [ ] Personnalisation des façades
 - [ ] Trains et bateaux animés
 - [ ] Musique d'ambiance
 - [ ] Nouveaux événements (tempêtes, touristes, élections municipales)
@@ -95,4 +104,6 @@ Après une modification, change la valeur `VERSION` en haut de `sw.js` (et dans 
 
 Jeu créé avec [Three.js](https://threejs.org) (licence MIT, voir `lib/THREE-LICENSE.txt`).
 
-Modèles 3D : packs gratuits et libres de droits (CC0) de **KayKit** par Kay Lousberg (Medieval Hexagon, City Builder Bits, Halloween Bits, Restaurant Bits) et de **Kenney** (voir `assets/CREDITS.md`). Ils sont regroupés dans `assets/models.bin` par `tools/bake_models.py`. Sons et interface générés en code.
+Modèles 3D : packs gratuits et libres de droits (CC0) de **KayKit** par Kay Lousberg (Medieval Hexagon, City Builder Bits, Halloween Bits, Restaurant Bits) et de **Kenney** (voir `assets/CREDITS.md`). Ils sont regroupés dans `assets/models.bin` par `tools/bake_models.py`.
+
+Polices : **Lilita One** et **Fredoka** (Google Fonts, licence SIL OFL, voir `fonts/`). Sons générés en code.

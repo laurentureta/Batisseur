@@ -1,4 +1,5 @@
 // Simulation économique : routes, main-d'œuvre, production, habitants, bonheur, impôts.
+import { boostMul } from '../data/shop.js';
 import {
   BUILDINGS, workersAt, residentsAt, radiusAt, upkeepAt, sizeOf, prodMult, INCOME_MULT,
 } from '../data/buildings.js';
@@ -327,6 +328,8 @@ export class Simulation {
 
     const cal = calendar(st.time.day);
     const ev = game.events.modifiers();
+    const bm = boostMul(st);
+    this.boost = bm;
     let taxes = 0, commerce = 0, hSum = 0, hW = 0, hHouses = 0, hCount = 0;
     for (const b of world.buildings.values()) {
       const def = BUILDINGS[b.type];
@@ -349,6 +352,7 @@ export class Simulation {
         if (def.seasonal) eff *= SEASON_FACTORS[def.seasonal][cal.season];
         if (def.seasonal === 'farm') eff *= ev.farm;
         if (b.type === 'fisher') eff *= 1 + bonus.fishers;
+        if (def.produces && b.type !== 'townhall') eff *= bm.prod;
         if (def.upkeep && d.broke) {
           status = 'unpaid';
           eff = 0;
@@ -375,11 +379,11 @@ export class Simulation {
       if (def.income && inf.connected && !b.fire && !(def.upkeep && d.broke)) {
         const near = def.income.radius ? this.residentsNear(b, def.income.radius) : 0;
         inf.residentsNear = near;
-        inf.income = (def.income.base + def.income.perRes * Math.min(near, 500)) * INCOME_MULT[Math.min(b.level, 5) - 1] * staff;
+        inf.income = (def.income.base + def.income.perRes * Math.min(near, 500)) * INCOME_MULT[Math.min(b.level, 5) - 1] * staff * bm.tax;
         commerce += inf.income;
       } else inf.income = 0;
     }
-    taxes *= (1 + bonus.taxes) * ev.taxes;
+    taxes *= (1 + bonus.taxes) * ev.taxes * bm.tax;
     d.happiness = hW > 0 ? hSum / hW : hCount > 0 ? hHouses / hCount : 0.5;
     const tourism = bonus.tourism * d.happiness;
     d.income = { taxes, commerce, tourism, total: taxes + commerce + tourism };
@@ -407,7 +411,7 @@ export class Simulation {
     if (needs.education) h += 0.06;
     if (needs.health) h += 0.06;
     if (needs.security) h += 0.05;
-    h += beauty - poll - d.unemployment * 0.15 - (d.broke ? 0.08 : 0) + bonus.happiness + ev.happiness;
+    h += beauty - poll - d.unemployment * 0.15 - (d.broke ? 0.08 : 0) + bonus.happiness + ev.happiness + (this.boost?.happy || 0);
     inf.happiness = clamp(h, 0, 1);
     inf.needs = needs;
     inf.beauty = beauty;
@@ -521,7 +525,7 @@ export class Simulation {
       } else if (d.starving || h < 0.3) {
         b.residents = Math.max(0, b.residents - Math.max(0.6, cap * 0.6) * days);
       } else if (h >= 0.4 && b.residents < cap && (!def.needsToGrow || inf.allNeeds)) {
-        const rate = (4 + cap * 3) * clamp((h - 0.35) * 2.5, 0.2, 1.5);
+        const rate = (4 + cap * 3) * clamp((h - 0.35) * 2.5, 0.2, 1.5) * (this.boost?.growth || 1);
         b.residents = Math.min(cap, b.residents + rate * days);
       }
       if (b.residents > cap) b.residents = cap;

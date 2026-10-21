@@ -5,6 +5,9 @@ import { slotSummaries, deleteSlot, SLOT_COUNT } from '../core/save.js';
 import { RANKS } from '../data/progression.js';
 import { VERSION } from '../version.js';
 import { fmt } from '../core/util.js';
+import { gemPill, countdown } from './screens.js';
+import { TIERS } from '../data/pass.js';
+import { chestArt } from './art.js';
 
 export class StartScreen {
   constructor(ui) {
@@ -27,26 +30,115 @@ export class StartScreen {
   }
 
   logo() {
-    return h('div.logo', h('img.logo-icon', { src: 'icons/icon-192.png', alt: '' }), h('h1', 'BÂTISSEUR'), h('p.tagline', 'Construis le village de tes rêves… jusqu\'à la métropole'));
+    return h('div.logo', h('img.logo-svg', { src: 'icons/logo.svg', alt: 'Bâtisseur' }));
+  }
+
+  /** Barre du haut : profil et gemmes. */
+  topBar() {
+    const meta = this.game.meta;
+    const p = meta.p;
+    this.pill = gemPill(this.ui, { onclick: () => this.ui.openShop('gems') });
+    return h('div.start-top',
+      h('button.profile-chip', { onclick: () => this.ui.openProfile() }, h('span.pc-avatar', p.avatar), h('span.pc-text', h('b', p.name), h('small', p.title))),
+      this.pill,
+    );
+  }
+
+  seasonChip() {
+    const meta = this.game.meta;
+    const season = meta.season();
+    const pr = meta.passProgress();
+    const claim = meta.passClaimables() + meta.weeklyClaimables();
+    return h('button.season-chip', { style: { '--c1': season.theme.colors[0], '--c2': season.theme.colors[1] }, onclick: () => this.ui.openPass() },
+      h('span.sc-icon', season.theme.icon),
+      h('span.sc-text', h('b', `Saison ${season.number} · ${season.theme.name}`), h('small', `Palier ${pr.tier}/${TIERS} · fin dans ${countdown(season.end - Date.now())}`)),
+      h('span.sc-bar', h('i', { style: { width: `${Math.round((pr.tier / TIERS) * 100)}%` } })),
+      claim ? h('i.badge', String(claim)) : null,
+    );
+  }
+
+  refreshMeta() {
+    if (this.el.classList.contains('hidden') || this.view !== 'home') return;
+    this.pill?.update();
+    const p = this.game.meta.p;
+    const chip = this.el.querySelector('.profile-chip');
+    if (chip) {
+      chip.querySelector('.pc-avatar').textContent = p.avatar;
+      chip.querySelector('b').textContent = p.name;
+      chip.querySelector('small').textContent = p.title;
+    }
+    const free = this.el.querySelector('.si-chest');
+    if (free) this.updateChestIcon(free);
+  }
+
+  tick() {
+    this.tickAcc = (this.tickAcc || 0) + 1;
+    if (this.tickAcc % 4 === 0) this.refreshMeta();
+  }
+
+  updateChestIcon(btn) {
+    const meta = this.game.meta;
+    const wait = meta.freeChestIn();
+    btn.querySelector('small').textContent = wait > 0 ? countdown(wait) : 'Gratuit !';
+    btn.classList.toggle('ready', wait <= 0);
   }
 
   renderHome() {
+    this.view = 'home';
     const el = clear(this.el);
     const slots = slotSummaries();
     const last = slots.filter((s) => s.exists).sort((a, b) => b.savedAt - a.savedAt)[0];
     const panel = h('div.start-panel');
     if (last) {
-      panel.appendChild(h('button.btn.primary.huge', { onclick: () => this.game.continueGame(last.slot) },
-        h('span', '▶ Continuer'),
+      panel.appendChild(h('button.btn.primary.huge.play', { onclick: () => this.game.continueGame(last.slot) },
+        h('span', '▶ JOUER'),
         h('small', `${last.name} · ${last.mode === 'libre' ? 'Libre' : `Niv. ${last.level}`} · ${RANKS[(last.mairie || 1) - 1].name} · ${fmt(last.pop)} hab.`),
       ));
     }
-    panel.appendChild(h('button.btn.huge' + (last ? '' : '.primary'), { onclick: () => this.renderNew() }, h('span', '✨ Nouvelle partie')));
-    if (slots.some((s) => s.exists)) panel.appendChild(h('button.btn', { onclick: () => this.renderSlots() }, '📂 Mes villages'));
-    el.append(this.logo(), panel, h('div.start-foot', `v${VERSION} · ${navigator.standalone || matchMedia('(display-mode: standalone)').matches ? 'Application installée' : 'Astuce : Partager → « Sur l\'écran d\'accueil » pour l\'installer'}`));
+    const row = h('div.start-row');
+    row.appendChild(h('button.btn.huge' + (last ? '' : '.primary.play'), { onclick: () => this.renderNew() }, h('span', last ? '✨ Nouveau' : '✨ NOUVEAU VILLAGE')));
+    if (slots.some((s) => s.exists)) row.appendChild(h('button.btn.huge', { onclick: () => this.renderSlots() }, h('span', '📂 Villages')));
+    panel.appendChild(row);
+    const icon = (ic, label, fn, cls = '') => h('button.start-icon' + (cls ? '.' + cls : ''), { onclick: fn }, h('span', ic), h('small', label));
+    const chest = icon(chestArt('bois'), '', () => this.ui.openShop('featured'), 'si-chest');
+    this.updateChestIcon(chest);
+    const icons = h('div.start-icons',
+      icon('🛒', 'Boutique', () => this.ui.openShop()),
+      icon('🎖️', 'Passe', () => this.ui.openPass()),
+      chest,
+      icon('⚙️', 'Réglages', () => this.ui.openSettings()),
+    );
+    const installed = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+    el.append(
+      this.topBar(),
+      this.logo(),
+      this.seasonChip(),
+      panel,
+      icons,
+      h('div.start-foot',
+        h('span', `v${VERSION}`),
+        h('button.link', { onclick: () => this.showCredits() }, 'Crédits'),
+        installed ? null : h('span', 'Partager → « Sur l\'écran d\'accueil » pour l\'installer'),
+      ),
+    );
+  }
+
+  showCredits() {
+    this.ui.modal({
+      title: '✨ Crédits', cls: 'credits-modal',
+      body: h('div.credits',
+        h('p', h('b', 'Bâtisseur'), ' — un jeu de construction de ville pour iPhone.'),
+        h('p', 'Modèles 3D : ', h('b', 'KayKit'), ' par Kay Lousberg (Medieval Hexagon, City Builder, Halloween, Restaurant Bits) et ', h('b', 'Kenney'), ' — licence CC0.'),
+        h('p', 'Polices : ', h('b', 'Lilita One'), ' et ', h('b', 'Fredoka'), ' (Google Fonts, licence OFL).'),
+        h('p', 'Moteur 3D : ', h('b', 'Three.js'), ' (licence MIT).'),
+        h('p.hint', 'Gemmes, coffres et passe de combat : tout se gagne en jouant, aucun achat réel.'),
+      ),
+      actions: [{ label: 'Fermer', cls: 'primary' }],
+    });
   }
 
   renderSlots() {
+    this.view = 'slots';
     const el = clear(this.el);
     const list = h('div.start-panel');
     list.appendChild(h('div.start-title', '📂 Mes villages'));
@@ -76,6 +168,7 @@ export class StartScreen {
   }
 
   renderNew() {
+    this.view = 'new';
     const el = clear(this.el);
     const state = { name: '', preset: 'vallee', mode: 'carriere', slot: null };
     const slots = slotSummaries();

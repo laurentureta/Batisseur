@@ -2,6 +2,7 @@
 import { T, SIZE } from '../world/constants.js';
 import { BUILDINGS, sizeOf, residentsAt } from '../data/buildings.js';
 import { mulberry32 } from './rng.js';
+import { seasonAt } from '../data/pass.js';
 
 export function populateDemo(world) {
   const rng = mulberry32(4242);
@@ -58,19 +59,26 @@ export function populateDemo(world) {
     return 0;
   };
   // grands bâtiments
-  world.buildings.get(1).level = 5;
+  world.buildings.get(1).level = 7;
   place('farm', 14, 28, 0, 3);
   place('farm', 16, 22, 1, 2);
   place('mill', 18, 31, 0, 2);
+  place('mill', 14, 31, 0, 1);
   place('park', 28, 27, 0, 3);
   place('school', 28, 22, 0, 3);
   place('clocktower', 26, 27, 0, 1);
-  place('stadium', 33, 27, 0, 1);
+  // le château, au bord de la rivière (premier emplacement libre)
+  for (const [cx, cz] of [[28, 31], [22, 31], [29, 17], [17, 17]]) if (place('castle', cx, cz, 0, 1)) break;
   place('hospital', 22, 27, 0, 1);
   place('fountain', 23, 25, 0, 1);
   place('watertower', 33, 20, 0, 1);
+  // décorations de la saison en cours, près de la mairie
+  const sd = seasonAt().theme.decor;
+  place(sd[0], 26, 23, 0, 1);
+  place(sd[1], 23, 23, 0, 1);
+  place(sd[2], 26, 25, 0, 1);
   // remplissage le long des rues
-  const shops = ['market', 'bakery', 'shop', 'tavern', 'shop', 'market'];
+  const shops = ['market', 'bakery', 'tavern', 'forge', 'shop', 'market', 'tavern', 'well'];
   for (let z = 14; z <= 35; z++) {
     for (let x = 13; x <= 36; x++) {
       if (!land(x, z) || world.road[world.idx(x, z)] || world.occ[world.idx(x, z)] >= 0) continue;
@@ -86,7 +94,7 @@ export function populateDemo(world) {
       else if (r < 0.16) place(rng() < 0.5 ? 'flowers' : 'tree', x, z, adj, 1);
       else if (r < 0.19) place(rng() < 0.5 ? 'well' : 'clinic', x, z, adj, 2);
       else {
-        const lvl = dist < 4 ? 5 : dist < 6 ? 4 + Math.floor(rng() * 2) : dist < 8 ? 3 + Math.floor(rng() * 2) : 1 + Math.floor(rng() * 3);
+        const lvl = dist < 3.5 ? 5 : dist < 5 ? 4 + Math.floor(rng() * 2) : dist < 7 ? 3 + Math.floor(rng() * 2) : 1 + Math.floor(rng() * 3);
         place('house', x, z, adj, lvl);
       }
     }

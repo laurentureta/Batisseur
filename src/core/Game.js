@@ -10,10 +10,14 @@ import { populateDemo } from './demo.js';
 import { showWelcome } from '../ui/Panels.js';
 import { DAY_SECONDS } from '../world/constants.js';
 import { BUILDING_LIST } from '../data/buildings.js';
+import { Meta } from './meta.js';
+import { RESOURCES } from '../data/resources.js';
+import { fmt } from './util.js';
 
 export class Game extends GameCore {
   constructor() {
     super(loadSettings());
+    this.meta = new Meta(this);
     this.sound = new Sound(this.settings);
     this.playing = false;
     this.autosaveAcc = 0;
@@ -49,6 +53,19 @@ export class Game extends GameCore {
 
   boot() {
     this.toMainMenu();
+    // cadeau de bienvenue puis cadeau du jour
+    setTimeout(() => this.greet(), 900);
+  }
+
+  greet() {
+    const meta = this.meta;
+    if (!meta.p.welcome) {
+      meta.p.welcome = true;
+      meta.save();
+      this.ui.welcomeGift(() => this.ui.showLogin());
+      return;
+    }
+    this.ui.showLogin();
   }
 
   update(dt) {
@@ -63,6 +80,7 @@ export class Game extends GameCore {
     } else {
       this.state.time.day += (dt / DAY_SECONDS) * 0.6;
     }
+    this.meta.tick(dt);
     this.renderer.frame(dt);
     this.ui.update(dt);
     this.sound.ambience(dt, this.renderer.night, this.renderer.cam.distance < 24);
@@ -79,6 +97,7 @@ export class Game extends GameCore {
     this.loadState(st, { demo: true });
     populateDemo(this.world);
     this.sim.recalc();
+    this.renderer.buildings.setTheme('mix');
     this.renderer.setWorld(this.world);
     this.renderer.cam.distance = 30;
     this.renderer.cam.autoOrbit = 0.04;
@@ -102,6 +121,7 @@ export class Game extends GameCore {
 
   startState(st) {
     this.loadState(st);
+    this.renderer.buildings.setTheme(st.cosmetics?.roof || 'mix');
     this.renderer.setWorld(this.world);
     this.renderer.cam.autoOrbit = 0;
     this.playing = true;
@@ -114,6 +134,13 @@ export class Game extends GameCore {
     this.renderer.refreshStatusLabels();
     this.save();
     this.renderer.thumbs.warmup(BUILDING_LIST.filter((d) => !d.notBuildable && this.prog.isUnlocked(d.id)).map((d) => d.id));
+    // ressources gagnées depuis le menu (coffres, passe, boutique)
+    const given = this.meta.deliverBank();
+    if (given) {
+      const txt = Object.entries(given).map(([k, v]) => `${RESOURCES[k]?.icon || ''} ${fmt(v)}`).join('  ');
+      setTimeout(() => this.ui.toast(`📦 Livraison du maire : ${txt}`, 'good'), 1200);
+    }
+    this.ui.refreshMeta();
     if (!st.flags.welcome) {
       st.flags.welcome = true;
       showWelcome(this.ui);

@@ -13,6 +13,7 @@ export const CATEGORIES = [
   { id: 'services', name: 'Services', icon: '🏛️' },
   { id: 'decor', name: 'Décors', icon: '🌳' },
   { id: 'monuments', name: 'Monuments', icon: '🏰' },
+  { id: 'exclusive', name: 'Exclusifs', icon: '⭐' },
 ];
 
 // Besoins des habitants (couverture par les services)
@@ -325,6 +326,47 @@ def({
   cost: { coins: 60000, stone: 2500, bricks: 1200, tools: 400 }, beauty: { v: 0.3, r: 12 }, bonus: { taxes: 0.1 },
   desc: 'Un monument légendaire : +10 % d\'impôts.',
 });
+
+/* ───────────── Décorations exclusives (boutique, coffres, passe de combat) ───────────── */
+function excl(id, name, icon, beauty, r, extra = {}) {
+  def({ id, name, icon, cat: 'decor', tab: 'exclusive', exclusive: true, unlock: 1, cost: { coins: extra.price ?? 40 }, beauty: { v: beauty, r }, xp: 2, ...extra });
+}
+// Saison 1 : La Nuit des Citrouilles
+excl('x_pumpkins', 'Carré de citrouilles', '🎃', 0.07, 3, { desc: 'Des citrouilles et une lanterne-citrouille qui brille la nuit.' });
+excl('x_lantern', 'Lanterne hantée', '🏮', 0.06, 3, { desc: 'Une lanterne qui éclaire la rue d\'une lueur orangée.' });
+excl('x_haunted_tree', 'Arbre ensorcelé', '🌳', 0.09, 3, { desc: 'Un vieil arbre décoré de lanternes et de crânes.' });
+excl('x_gate', 'Portail gothique', '⛩️', 0.1, 4, { size: [2, 1], price: 80, desc: 'Une grande arche de pierre avec sa grille en fer forgé.' });
+excl('x_crypt', 'Crypte mystérieuse', '⚰️', 0.14, 5, { size: [2, 2], price: 150, coverage: { need: 'leisure', radius: [6] }, desc: 'Une crypte qui attire les curieux : beauté et loisirs.' });
+excl('x_candles', 'Autel aux mille bougies', '🕯️', 0.1, 4, { price: 60, desc: 'Un autel de pierre couvert de bougies allumées.' });
+// Saison 2 : L'Hiver Royal
+excl('x_snowman', 'Bonhomme de neige', '☃️', 0.06, 3, { desc: 'Il ne fond jamais, même en été !' });
+excl('x_gifts', 'Montagne de cadeaux', '🎁', 0.06, 3, { desc: 'Des paquets colorés empilés au pied du sapin.' });
+excl('x_xmas_tree', 'Grand sapin illuminé', '🎄', 0.12, 4, { price: 80, desc: 'Un immense sapin couvert de guirlandes lumineuses.' });
+excl('x_sleigh', 'Traîneau du Père Noël', '🛷', 0.08, 3, { desc: 'Un traîneau rouge chargé de cadeaux.' });
+excl('x_ice_rink', 'Patinoire', '⛸️', 0.12, 5, { size: [2, 2], price: 150, coverage: { need: 'leisure', radius: [7] }, desc: 'Une patinoire illuminée : beauté et loisirs.' });
+excl('x_star_lamp', 'Lampadaire étoilé', '⭐', 0.07, 3, { desc: 'Un lampadaire surmonté d\'une étoile dorée.' });
+// Saison 3 : Le Printemps Fleuri
+excl('x_tulips', 'Champ de tulipes', '🌷', 0.07, 3, { desc: 'Des rangées de tulipes de toutes les couleurs.' });
+excl('x_beehive', 'Ruches', '🐝', 0.06, 3, { desc: 'Des ruches en bois au milieu des fleurs.' });
+excl('x_cherry_tree', 'Cerisier en fleurs', '🌸', 0.09, 3, { desc: 'Un cerisier rose qui fleurit toute l\'année.' });
+excl('x_flower_arch', 'Arche fleurie', '💐', 0.1, 4, { size: [2, 1], price: 80, desc: 'Une arche de pierre couverte de fleurs.' });
+excl('x_hedge_maze', 'Labyrinthe de haies', '🌿', 0.13, 5, { size: [2, 2], price: 150, coverage: { need: 'leisure', radius: [7] }, desc: 'Un labyrinthe de verdure : beauté et loisirs.' });
+excl('x_birdbath', 'Fontaine aux oiseaux', '🐦', 0.08, 3, { desc: 'Une petite fontaine où les oiseaux viennent boire.' });
+// Saison 4 : L'Âge d'Or
+excl('x_gold_coins', 'Coffre au trésor', '💰', 0.07, 3, { desc: 'Un coffre débordant de pièces d\'or.' });
+excl('x_banners', 'Allée de bannières', '🚩', 0.05, 3, { desc: 'Des bannières colorées qui flottent au vent.' });
+excl('x_gold_statue', 'Statue d\'or', '🗿', 0.12, 4, { price: 100, desc: 'La statue dorée du maire, rien que ça.' });
+excl('x_obelisk', 'Obélisque', '🗼', 0.1, 4, { price: 80, desc: 'Une haute aiguille de pierre gravée.' });
+excl('x_royal_fountain', 'Fontaine royale', '⛲', 0.15, 6, { size: [2, 2], price: 200, coverage: { need: 'leisure', radius: [6] }, desc: 'Une fontaine monumentale aux reflets dorés.' });
+excl('x_throne', 'Trône du roi', '🪑', 0.1, 4, { price: 80, desc: 'Un trône doré sous un dais royal.' });
+// Boutique
+excl('x_camp', 'Campement', '⛺', 0.04, 2, { desc: 'Une tente, des tonneaux et un feu de camp.' });
+excl('x_grove', 'Bosquet', '🌲', 0.06, 3, { desc: 'Un petit bois touffu.' });
+excl('x_fruit_cart', 'Charrette de fruits', '🍎', 0.05, 2, { desc: 'Une brouette pleine de fruits frais.' });
+excl('x_archery', 'Pas de tir à l\'arc', '🎯', 0.05, 3, { coverage: { need: 'leisure', radius: [3] }, desc: 'Des cibles pour s\'entraîner : un peu de loisirs.' });
+excl('x_mini_mill', 'Moulin décoratif', '🌀', 0.08, 3, { price: 60, desc: 'Un joli petit moulin dont les ailes tournent.' });
+excl('x_watchtower', 'Tour de guet', '🏯', 0.08, 4, { price: 100, desc: 'Une tour en pierre surmontée d\'un drapeau.' });
+excl('x_catapult', 'Catapulte', '🏹', 0.09, 4, { price: 120, desc: 'Une catapulte sur sa tour, pour impressionner les voisins.' });
 
 /* ───────────── Mairie ───────────── */
 def({

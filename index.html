@@ -14,6 +14,12 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" href="icons/favicon-64.png">
+  <link rel="preload" href="fonts/LilitaOne.woff" as="font" type="font/woff" crossorigin>
+  <link rel="preload" href="fonts/Fredoka.woff" as="font" type="font/woff" crossorigin>
+  <link rel="preload" href="assets/keyart.jpg" as="image">
+  <meta property="og:title" content="Bâtisseur">
+  <meta property="og:description" content="Construis ta ville en 3D sur iPhone : maisons, commerces, monuments, passe de combat et boutique.">
+  <meta property="og:image" content="assets/keyart.jpg">
   <link rel="stylesheet" href="css/style.css">
   <script type="importmap">
     { "imports": { "three": "./lib/three.module.min.js" } }
@@ -25,10 +31,11 @@
     <div id="labels"></div>
     <div id="ui"></div>
     <div id="loading">
-      <img class="ld-logo" src="icons/icon-192.png" alt="">
-      <div class="ld-title">BÂTISSEUR</div>
-      <div class="ld-bar"><i></i></div>
+      <img class="ld-logo" src="icons/logo.svg" alt="Bâtisseur">
       <div class="ld-msg">Chargement…</div>
+      <div class="ld-bar"><i></i></div>
+      <div class="ld-tip">Astuce : relie chaque bâtiment à la mairie par un chemin.</div>
+      <div class="ld-ver"></div>
     </div>
   </div>
   <script>

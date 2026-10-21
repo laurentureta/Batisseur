@@ -286,6 +286,7 @@ export class Actions {
     const st = this.st;
     st.stats.roadsBuilt += placed.length;
     if (st.stats.daily) st.stats.daily.roads += placed.length;
+    this.game.bus.emit('roads:built', placed.length);
     this.pushUndo({ kind: 'roads', tiles: placed, cost: total, gain: gainTotal, type: roadType });
     this.game.sim.markDirty();
     if (changedTerrain.length) this.game.bus.emit('terrain:changed', changedTerrain);
@@ -531,6 +532,7 @@ export class Actions {
         this.grant(e.cost);
         this.pay(e.gain);
         this.st.stats.roadsBuilt = Math.max(0, this.st.stats.roadsBuilt - e.tiles.length);
+        this.game.bus.emit('roads:built', -e.tiles.length);
         if (e.tiles.some((p) => p.clear)) this.game.bus.emit('terrain:changed', e.tiles.filter((p) => p.clear).map((p) => p.i));
         this.game.bus.emit('roads:changed', e.tiles.map((p) => p.i));
         break;

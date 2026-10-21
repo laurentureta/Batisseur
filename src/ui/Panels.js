@@ -234,6 +234,12 @@ export function renderMenu(ui, body) {
     game.save();
     ui.toast('💾 Partie sauvegardée', 'good');
   });
+  item('🛒', 'Boutique', () => ui.openShop());
+  item('🎖️', 'Passe de combat', () => ui.openPass());
+  item('👤', 'Mon profil', () => {
+    ui.closeSheet(true);
+    ui.openProfile();
+  });
   item('📦', 'Stock et statistiques', () => ui.openStock());
   item('🗺️', 'Calques', () => ui.openLayers());
   item('❓', 'Aide et commandes', () => showHelp(ui));
@@ -281,12 +287,14 @@ export function renderSettings(ui, body) {
   toggle('Ambiance (oiseaux, grillons)', 'ambience');
   body.appendChild(h('div.section-title', 'Jeu'));
   toggle('Incendies', 'fires');
-  body.appendChild(h('div.section-title', 'Sauvegarde'));
-  body.appendChild(h('p.hint', 'Ta partie est enregistrée automatiquement sur ce téléphone. Exporte-la de temps en temps pour la garder en lieu sûr.'));
-  const row = h('div.info-actions');
-  row.appendChild(h('button.btn', { onclick: () => exportSave(ui) }, '📤 Exporter'));
-  row.appendChild(h('button.btn', { onclick: () => importSave(ui) }, '📥 Importer'));
-  body.appendChild(row);
+  if (!game.isDemo) {
+    body.appendChild(h('div.section-title', 'Sauvegarde'));
+    body.appendChild(h('p.hint', 'Ta partie est enregistrée automatiquement sur ce téléphone. Exporte-la de temps en temps pour la garder en lieu sûr.'));
+    const row = h('div.info-actions');
+    row.appendChild(h('button.btn', { onclick: () => exportSave(ui) }, '📤 Exporter'));
+    row.appendChild(h('button.btn', { onclick: () => importSave(ui) }, '📥 Importer'));
+    body.appendChild(row);
+  }
   body.appendChild(h('p.version', `Bâtisseur v${VERSION} · fait avec ❤️ et Three.js`));
 }
 

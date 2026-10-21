@@ -36,13 +36,20 @@ export function renderBuildMenu(ui, body, sheet) {
     return;
   }
 
-  const list = BUILDING_LIST.filter((d) => d.cat === ui.buildCat && !d.notBuildable).sort((a, b) => a.unlock - b.unlock);
+  const list = BUILDING_LIST.filter((d) => (d.tab || d.cat) === ui.buildCat && !d.notBuildable).sort((a, b) => a.unlock - b.unlock);
+  if (ui.buildCat === 'exclusive') {
+    const owned = list.filter((d) => game.meta?.ownsDecor(d.id));
+    grid.appendChild(h('div.card-note', owned.length
+      ? `⭐ ${owned.length} décoration${owned.length > 1 ? 's' : ''} exclusive${owned.length > 1 ? 's' : ''} à toi. Trouve les autres dans la boutique, les coffres et le passe de combat !`
+      : '⭐ Les décorations exclusives se gagnent dans la boutique, les coffres et le passe de combat.'));
+    list.sort((a, b) => (game.meta?.ownsDecor(b.id) ? 1 : 0) - (game.meta?.ownsDecor(a.id) ? 1 : 0));
+  }
   for (const def of list) {
     const unlocked = game.prog.isUnlocked(def.id);
     const owned = def.unique && game.prog.countType(def.id) > 0;
     const [w, d] = sizeOf(def, 0);
     grid.appendChild(card({
-      img: unlocked ? game.renderer.thumbs.get(def.id, 1) : null,
+      img: unlocked || def.exclusive ? game.renderer.thumbs.get(def.id, 1) : null,
       icon: def.icon,
       name: def.name,
       desc: def.desc,
@@ -53,7 +60,9 @@ export function renderBuildMenu(ui, body, sheet) {
       unlockLevel: def.unlock,
       owned,
       size: w * d > 1 ? `${w}×${d}` : '',
+      exclusive: def.exclusive,
       onclick: () => {
+        if (!unlocked && def.exclusive) return ui.openShop('decor');
         if (!unlocked) return ui.toast(`${def.name} : se débloque au niveau ${def.unlock}`, 'error');
         if (owned) return ui.toast('Ce monument est unique et déjà construit', 'error');
         ui.setTool({ kind: 'build', type: def.id, rot: null });
@@ -62,12 +71,12 @@ export function renderBuildMenu(ui, body, sheet) {
   }
 }
 
-function card({ img, icon, name, desc, cost, res, libre, unlocked, unlockLevel, owned, size, onclick }) {
-  const el = h('button.card' + (unlocked ? '' : '.locked') + (owned ? '.owned' : ''), { onclick, title: desc });
+function card({ img, icon, name, desc, cost, res, libre, unlocked, unlockLevel, owned, size, onclick, exclusive }) {
+  const el = h('button.card' + (unlocked ? '' : '.locked') + (owned ? '.owned' : '') + (exclusive ? '.exclusive' : ''), { onclick, title: desc });
   const pic = h('div.card-pic');
   if (img) pic.appendChild(h('img', { src: img, alt: '', loading: 'lazy' }));
   else pic.appendChild(h('span.card-emoji', icon));
-  if (!unlocked) pic.appendChild(h('span.lock-badge', `🔒 Niv. ${unlockLevel}`));
+  if (!unlocked) pic.appendChild(h('span.lock-badge', exclusive ? '⭐ Exclusif' : `🔒 Niv. ${unlockLevel}`));
   if (owned) pic.appendChild(h('span.lock-badge.ok', '✓ Construit'));
   if (size) pic.appendChild(h('span.size-badge', size));
   el.append(pic, h('div.card-name', name), unlocked ? costChips(cost, res, { compact: true, libre }) : h('div.card-desc', desc));

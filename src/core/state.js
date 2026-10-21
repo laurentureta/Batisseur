@@ -50,6 +50,8 @@ export function createNewState({ name = 'Mon village', preset = 'vallee', mode =
     weather: { kind: 'clear', day: 0 },
     flags: { welcome: false },
     summary: { pop: 0, mairie: 1 },
+    boosts: [],
+    cosmetics: { roof: 'mix' },
   };
 }
 
@@ -61,6 +63,8 @@ export function migrateState(st) {
   for (const k of Object.keys(base.res)) if (st.res[k] === undefined) st.res[k] = 0;
   if (!st.quests.achievements) st.quests.achievements = {};
   if (!st.orders.nextId) st.orders.nextId = 1;
+  if (!Array.isArray(st.boosts)) st.boosts = [];
+  if (!st.cosmetics) st.cosmetics = { roof: 'mix' };
   st.version = SAVE_VERSION;
   return st;
 }
