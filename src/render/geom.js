@@ -40,6 +40,15 @@ export class Layer {
   get count() {
     return this.pos.length / 3;
   }
+  /** Convertit en tableaux typés (moins de mémoire une fois le modèle terminé). */
+  freeze() {
+    if (!(this.pos instanceof Float32Array)) {
+      this.pos = new Float32Array(this.pos);
+      this.nor = new Float32Array(this.nor);
+      this.col = new Float32Array(this.col);
+    }
+    return this;
+  }
 }
 
 const ICO_T = (1 + Math.sqrt(5)) / 2;

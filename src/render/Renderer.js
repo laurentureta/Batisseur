@@ -10,6 +10,7 @@ import { Particles } from './Particles.js';
 import { Overlays } from './Overlays.js';
 import { Labels } from './Labels.js';
 import { Thumbnails } from './Thumbnails.js';
+import { Clouds } from './Clouds.js';
 import { SIZE } from '../world/constants.js';
 import { BUILDINGS, sizeOf } from '../data/buildings.js';
 import { calendar } from '../core/util.js';
@@ -44,7 +45,9 @@ export class Renderer {
     this.overlays = new Overlays(this);
     this.labels = new Labels(labelRoot, this.camera, canvas);
     this.thumbs = new Thumbnails(this.renderer);
-    this.scene.add(this.terrain.group, this.roads.group, this.buildings.group, this.agents.group, this.particles.group, this.overlays.group);
+    this.clouds = new Clouds();
+    this.clouds.build();
+    this.scene.add(this.terrain.group, this.roads.group, this.buildings.group, this.agents.group, this.particles.group, this.overlays.group, this.clouds.group);
     this.world = null;
     this.season = 1;
     this.emitAcc = 0;
@@ -55,6 +58,28 @@ export class Renderer {
     window.visualViewport?.addEventListener('resize', () => this.resize());
     this.bindEvents();
     this.frameSkip = 0;
+    this.perf = { acc: 0, n: 0, slow: 0 };
+  }
+
+  /** Qualité automatique : si l'appareil peine, on baisse d'un cran (ombres, définition). */
+  watchPerf(dt) {
+    if (this.game.settings.quality !== 'auto' || this.quality === 'low' || document.hidden) return;
+    if (dt >= 0.099) return; // reprise après une pause
+    const p = this.perf;
+    p.acc += dt;
+    p.n++;
+    if (p.acc < 3) return;
+    const avg = p.acc / p.n;
+    p.acc = 0;
+    p.n = 0;
+    p.slow = avg > 0.032 ? p.slow + 1 : 0;
+    if (p.slow >= 2) {
+      p.slow = 0;
+      this.quality = this.quality === 'high' ? 'medium' : 'low';
+      this.applyQuality();
+      this.resize();
+      console.info('Qualité graphique ajustée :', this.quality);
+    }
   }
 
   pickQuality(q) {
@@ -363,6 +388,7 @@ export class Renderer {
   /* ───────── Boucle ───────── */
   frame(dt) {
     if (!this.world) return;
+    this.watchPerf(dt);
     const game = this.game;
     const st = game.state;
     const hour = calendar(st.time.day).hour;
@@ -371,6 +397,8 @@ export class Renderer {
     const sky = this.sky.update(hour, this.cam.target, span, dt);
     this.night = sky.night;
     this.terrain.update(dt);
+    this.clouds.update(dt, sky.night, this.sky.weather);
+    this.roads.update(sky.night);
     this.buildings.update(dt, sky.night, st.time.speed);
     this.agents.update(dt, st.time.speed, sky.night, game.sim.d.population);
     this.emitAmbient(dt);

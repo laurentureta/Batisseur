@@ -55,6 +55,7 @@ manifest.webmanifest    installation sur l'écran d'accueil
 sw.js                   mode hors ligne (service worker)
 css/style.css           interface
 lib/                    Three.js (moteur 3D, licence MIT)
+assets/models.bin       modèles 3D KayKit / Kenney (CC0), préparés par tools/bake_models.py
 icons/                  icônes de l'appli
 src/
   main.js               démarrage
@@ -92,4 +93,6 @@ Après une modification, change la valeur `VERSION` en haut de `sw.js` (et dans 
 
 ## Crédits
 
-Jeu créé avec [Three.js](https://threejs.org) (licence MIT, voir `lib/THREE-LICENSE.txt`). Modèles 3D, sons et interface générés en code.
+Jeu créé avec [Three.js](https://threejs.org) (licence MIT, voir `lib/THREE-LICENSE.txt`).
+
+Modèles 3D : packs gratuits et libres de droits (CC0) de **KayKit** par Kay Lousberg (Medieval Hexagon, City Builder Bits, Halloween Bits, Restaurant Bits) et de **Kenney** (voir `assets/CREDITS.md`). Ils sont regroupés dans `assets/models.bin` par `tools/bake_models.py`. Sons et interface générés en code.

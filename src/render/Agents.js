@@ -4,6 +4,10 @@ import { SIZE, N, T } from '../world/constants.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { GeoBuilder } from './geom.js';
 import { toGeometry } from './TerrainView.js';
+import { kit, kitReady, kitBox } from './kit.js';
+
+// voitures (modèles KayKit) et camionnette (Kenney) : [nom, longueur visée]
+const CAR_MODELS = [['c_car_sedan', 0.4], ['c_car_taxi', 0.4], ['c_car_hatchback', 0.36], ['c_car_stationwagon', 0.4], ['c_car_sedan', 0.4], ['c_car_police', 0.4], ['mk_delivery_truck', 0.5]];
 
 const HALF = SIZE / 2;
 const SHIRTS = [0xe94b5a, 0x3f7fd1, 0x4caf50, 0xf2c94c, 0x9b6bd1, 0xf08b3a, 0x2a9d8f, 0xffffff, 0x455a64, 0xd81b60];
@@ -18,10 +22,11 @@ export class Agents {
     this.maxCars = 36;
     // passants : corps + tête
     const body = new GeoBuilder();
-    body.box(0, 0.0, 0, 0.022, 0.05, 0.018, 0x3a3f4a); // jambes
-    body.box(0, 0.05, 0, 0.042, 0.06, 0.028, 0xffffff); // torse (teinté)
+    body.box(-0.008, 0.0, 0, 0.012, 0.065, 0.016, 0x3a3f4a); // jambes
+    body.box(0.008, 0.0, 0, 0.012, 0.065, 0.016, 0x3a3f4a);
+    body.box(0, 0.065, 0, 0.05, 0.075, 0.03, 0xffffff); // torse (teinté)
     const head = new GeoBuilder();
-    head.ico(0, 0.13, 0, 0.022, 0xffffff, 1, 0, 1);
+    head.ico(0, 0.17, 0, 0.028, 0xffffff, 1, 0, 1);
     const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
     this.bodies = new THREE.InstancedMesh(toGeometry(body.body), mat, this.maxPeople);
     this.heads = new THREE.InstancedMesh(toGeometry(head.body), mat, this.maxPeople);
@@ -34,7 +39,19 @@ export class Agents {
     car.layer('body');
     for (const [x, z] of [[-0.038, 0.045], [0.038, 0.045], [-0.038, -0.05], [0.038, -0.05]]) car.box(x, 0, z, 0.012, 0.028, 0.03, 0x222222);
     this.cars = new THREE.InstancedMesh(toGeometry(car.body), mat, this.maxCars);
-    for (const m of [this.bodies, this.heads, this.cars]) {
+    // vraies voitures si les modèles 3D sont chargés
+    this.carKinds = [];
+    if (kitReady()) {
+      for (const [name, len] of CAR_MODELS) {
+        const g = new GeoBuilder();
+        const [x0, y0, z0, x1, , z1] = kitBox(name);
+        const s = len / Math.max(x1 - x0, z1 - z0);
+        kit(g, name, { s, y: -y0 * s, x: -((x0 + x1) / 2) * s, z: -((z0 + z1) / 2) * s, ao: 0.35, noGlass: true });
+        const im = new THREE.InstancedMesh(toGeometry(g.body), mat, this.maxCars);
+        this.carKinds.push(im);
+      }
+    }
+    for (const m of [this.bodies, this.heads, this.cars, ...this.carKinds]) {
       m.count = 0;
       m.castShadow = true;
       m.frustumCulled = false;
@@ -128,7 +145,8 @@ export class Agents {
     const start = paved[Math.floor(Math.random() * paved.length)];
     const path = this.randomPath(start, true, 4, 26);
     if (!path || path.length < 3) return;
-    this.vehicles.push(this.makeAgent(path, 1.1 + Math.random() * 0.4, 0.17, { paint: CARS[Math.floor(Math.random() * CARS.length)] }));
+    const kind = this.carKinds.length ? Math.floor(Math.random() * this.carKinds.length) : -1;
+    this.vehicles.push(this.makeAgent(path, 1.1 + Math.random() * 0.4, 0.17, { paint: CARS[Math.floor(Math.random() * CARS.length)], kind }));
   }
 
   makeAgent(path, speed, lane, extra) {
@@ -209,6 +227,7 @@ export class Agents {
     this.bodies.count = n;
     this.heads.count = n;
     let c = 0;
+    const counts = this.carKinds.map(() => 0);
     for (const a of this.vehicles) {
       if (c >= this.maxCars) break;
       const p0 = a.pts[a.seg], p1 = a.pts[a.seg + 1];
@@ -216,12 +235,17 @@ export class Agents {
       d.position.set(x, y, z);
       d.rotation.set(0, Math.atan2(p1[0] - p0[0], p1[2] - p0[2]), 0);
       d.updateMatrix();
-      this.cars.setMatrixAt(c, d.matrix);
-      this.cars.setColorAt(c, this.color.setHex(a.paint));
+      if (a.kind >= 0 && this.carKinds[a.kind]) {
+        this.carKinds[a.kind].setMatrixAt(counts[a.kind]++, d.matrix);
+      } else {
+        this.cars.setMatrixAt(c, d.matrix);
+        this.cars.setColorAt(c, this.color.setHex(a.paint));
+      }
       c++;
     }
-    this.cars.count = c;
-    for (const m of [this.bodies, this.heads, this.cars]) {
+    this.cars.count = this.carKinds.length ? 0 : c;
+    this.carKinds.forEach((m, k) => (m.count = counts[k]));
+    for (const m of [this.bodies, this.heads, this.cars, ...this.carKinds]) {
       m.instanceMatrix.needsUpdate = true;
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }

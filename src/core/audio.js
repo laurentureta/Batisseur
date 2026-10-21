@@ -109,6 +109,29 @@ export class Sound {
       case 'open':
         this.tone(600, 0.05, { vol: 0.08 });
         break;
+      case 'hammer':
+        this.noise(0.05, { vol: 0.22, freq: 2400, q: 1.2 });
+        this.tone(320 + Math.random() * 60, 0.07, { vol: 0.08, type: 'square', slide: 0.5 });
+        break;
+      case 'gem':
+        [1568, 2093, 2637].forEach((f, k) => this.tone(f, 0.14, { vol: 0.1, delay: k * 0.05, type: 'sine' }));
+        break;
+      case 'chest':
+        this.noise(0.18, { vol: 0.2, freq: 700, q: 0.6 });
+        [392, 523, 659, 784, 1047].forEach((f, k) => this.tone(f, 0.22, { vol: 0.14, delay: 0.15 + k * 0.06, type: 'triangle' }));
+        [2093, 2637].forEach((f, k) => this.tone(f, 0.3, { vol: 0.06, delay: 0.5 + k * 0.07 }));
+        break;
+      case 'buy':
+        this.tone(1047, 0.07, { vol: 0.12, type: 'square' });
+        this.tone(1568, 0.12, { vol: 0.1, delay: 0.06, type: 'square' });
+        this.tone(2093, 0.16, { vol: 0.06, delay: 0.12 });
+        break;
+      case 'tier':
+        [659, 880, 1175, 1568].forEach((f, k) => this.tone(f, 0.2, { vol: 0.13, delay: k * 0.06, type: 'triangle' }));
+        break;
+      case 'whoosh':
+        this.noise(0.25, { vol: 0.12, freq: 900, q: 0.4 });
+        break;
       default:
         break;
     }

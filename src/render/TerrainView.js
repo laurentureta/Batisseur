@@ -3,24 +3,27 @@ import * as THREE from 'three';
 import { SIZE, N, T, ZONE } from '../world/constants.js';
 import { GeoBuilder, shade, mix, hexToLin } from './geom.js';
 import { makeCtx } from './models.js';
+import { treeKit } from './kitModels.js';
+import { kit, kitReady } from './kit.js';
 import { hash2 } from '../core/rng.js';
 
 const HALF = SIZE / 2;
 const BASE_Y = -1.1;
 
+// Palette accordée aux modèles KayKit (herbe jaune-vert, terre rouge-brun)
 const C = {
-  grass: [0x86c25a, 0x80bc54, 0x8ac85f, 0x7cb850],
-  forest: 0x67a443,
-  rock: 0x9fa592,
-  sand: 0xe8d59c,
-  bed: 0xcdb98a,
+  grass: [0x9cc04a, 0x96ba45, 0xa3c64f, 0x90b442],
+  forest: 0x7fa83e,
+  rock: 0xa9a796,
+  sand: 0xe6cf9a,
+  bed: 0xd2c08e,
   deepBed: 0x8aa3ad,
-  mountainLow: 0x8a9a62,
-  mountain: 0x9a9486,
-  mountainHigh: 0xa9a397,
+  mountainLow: 0x93ad4a,
+  mountain: 0x9b968a,
+  mountainHigh: 0xb3aea3,
   snow: 0xf2f5f8,
-  soil: 0x8a6a48,
-  soilDark: 0x6a4e35,
+  soil: 0x9a5f40,
+  soilDark: 0x6b4129,
   waterSide: 0x3f8fc0,
 };
 
@@ -159,7 +162,7 @@ export class TerrainView {
         q(0, y, sideColor);
         q(-0.55, 0, c1);
       } else {
-        q(y - 0.1, y, unlocked ? 0x6c9944 : dim(0x6c9944));
+        q(y - 0.1, y, unlocked ? 0x7f9f3a : dim(0x7f9f3a));
         q(-0.55, y - 0.1, c1);
       }
       q(BASE_Y, -0.55, c2);
@@ -215,50 +218,87 @@ export class TerrainView {
     this.trees = [];
     const zones = w.state.zones;
     const ctx = makeCtx(0, this.season);
-    // On regroupe les arbres de forêt et les rochers dans deux maillages fusionnés
-    const g = new GeoBuilder();
+    const kitOn = kitReady();
+    // Arbres et rochers : un maillage fusionné par zone (10 x 10 cases)
+    const builders = Array.from({ length: 25 }, () => new GeoBuilder());
     const preset = w.state.preset;
     for (let z = 0; z < SIZE; z++) {
       for (let x = 0; x < SIZE; x++) {
         const i = z * SIZE + x;
+        const g = builders[Math.floor(z / ZONE) * 5 + Math.floor(x / ZONE)];
         const t = w.terrain[i];
         const unlocked = zones[Math.floor(z / ZONE) * 5 + Math.floor(x / ZONE)];
         g.tint = unlocked ? null : dim;
+        ctx.dim = !unlocked;
+
         if (t === T.FOREST) {
           const n = 2 + (w.variant[i] % 2);
           for (let k = 0; k < n; k++) {
             const hx = hash2(x * 3 + k, z * 5 - k, 77), hz = hash2(x * 7 - k, z * 3 + k, 91);
             const px = x - HALF + 0.18 + hx * 0.64, pz = z - HALF + 0.18 + hz * 0.64;
             const s = 0.85 + hash2(x + k, z, 13) * 0.55;
-            const pineBias = preset === 'montagne' ? 0.35 : preset === 'cote' ? 0.6 : 0.55;
+            const pineBias = preset === 'montagne' ? 0.2 : preset === 'cote' ? 0.55 : 0.42;
             const kind = hash2(x, z + k, 5) > pineBias ? 'pine' : 'round';
-            treeAt(g, ctx, px, pz, s, kind, x * 13 + z * 7 + k);
+            if (kitOn) treeKit(g, ctx, px, pz, kind === 'pine' ? s * 0.9 : s * 0.95, kind, x * 13 + z * 7 + k);
+            else treeAt(g, ctx, px, pz, s, kind, x * 13 + z * 7 + k);
           }
         } else if (t === T.ROCK) {
           const n = 1 + (w.variant[i] % 3);
           for (let k = 0; k < n; k++) {
             const hx = hash2(x * 5 + k, z * 3, 21), hz = hash2(x, z * 7 + k, 33);
             const px = x - HALF + 0.2 + hx * 0.6, pz = z - HALF + 0.2 + hz * 0.6;
-            const r = 0.1 + hash2(x + k, z + k, 9) * 0.12;
-            const c = this.season === 3 ? 0xe4e8ea : [0x9a9a92, 0x8c8b84, 0xa6a49a][k % 3];
-            g.ico(px, r * 0.35, pz, r, c, 0.65, 0.35, x * 11 + z * 17 + k);
+            if (kitOn) {
+              const r = hash2(x + k, z + k, 9);
+              kit(g, ROCKS[(x * 7 + z * 3 + k) % ROCKS.length], { s: 1.3 + r * 1.1, x: px, z: pz, rot: hash2(x, z, k) * 6.28, snow: ctx.snow, dim: ctx.dim, ao: 0.5 });
+            } else {
+              const r = 0.1 + hash2(x + k, z + k, 9) * 0.12;
+              const c = this.season === 3 ? 0xe4e8ea : [0x9a9a92, 0x8c8b84, 0xa6a49a][k % 3];
+              g.ico(px, r * 0.35, pz, r, c, 0.65, 0.35, x * 11 + z * 17 + k);
+            }
           }
-        } else if (t === T.MOUNTAIN && w.height[i] < 1.3 && hash2(x, z, 404) < 0.35) {
-          // quelques sapins sur les contreforts
-          const px = x - HALF + 0.3 + hash2(x, z, 1) * 0.4, pz = z - HALF + 0.3 + hash2(z, x, 2) * 0.4;
-          g.push(0, 0, w.height[i], 0);
-          treeAt(g, ctx, px, pz, 0.8, 'pine', x + z);
-          g.pop();
+        } else if (t === T.MOUNTAIN) {
+          const h = w.height[i];
+          const r = hash2(x, z, 404);
+          if (h < 1.3 && r < 0.35) {
+            // quelques sapins sur les contreforts
+            const px = x - HALF + 0.3 + hash2(x, z, 1) * 0.4, pz = z - HALF + 0.3 + hash2(z, x, 2) * 0.4;
+            g.push(0, 0, h, 0);
+            if (kitOn) treeKit(g, ctx, px, pz, 0.75, 'pine', x + z);
+            else treeAt(g, ctx, px, pz, 0.8, 'pine', x + z);
+            g.pop();
+          } else if (kitOn && r > 0.72) {
+            const px = x - HALF + 0.25 + hash2(x, z, 3) * 0.5, pz = z - HALF + 0.25 + hash2(z, x, 4) * 0.5;
+            kit(g, ROCKS[(x + z) % ROCKS.length], { s: 1.2 + hash2(z, x, 5), x: px, y: h, z: pz, rot: r * 20, snow: h > 2.2 ? 0.9 : ctx.snow, dim: ctx.dim, ao: 0.5 });
+          }
+        } else if (kitOn && t === T.WATER && hash2(x, z, 515) < 0.16 && this.season !== 3 && this.nearLand(x, z)) {
+          // nénuphars et plantes au bord de l'eau
+          const px = x - HALF + 0.25 + hash2(x, z, 6) * 0.5, pz = z - HALF + 0.25 + hash2(z, x, 7) * 0.5;
+          const n = PLANTS[(x * 3 + z) % PLANTS.length];
+          kit(g, n, { s: n.startsWith('waterlily') ? 1.6 : 1.4, x: px, y: n.startsWith('waterlily') ? -0.058 : -0.16, z: pz, rot: hash2(x, z, 8) * 6.28, dim: ctx.dim, ao: 0.3 });
         }
       }
     }
-    g.tint = null;
-    const geo = toGeometry(g.body);
-    const mesh = new THREE.Mesh(geo, this.treeMat);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    this.group.add(mesh);
-    this.trees.push(mesh);
+    for (const g of builders) {
+      g.tint = null;
+      if (!g.body.count) continue;
+      const geo = toGeometry(g.body);
+      const mesh = new THREE.Mesh(geo, this.treeMat);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      this.group.add(mesh);
+      this.trees.push(mesh);
+    }
+  }
+
+  nearLand(x, z) {
+    const w = this.world;
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, nz = z + dz;
+      if (nx < 0 || nz < 0 || nx >= SIZE || nz >= SIZE) continue;
+      const t = w.terrain[nz * SIZE + nx];
+      if (t !== T.WATER && t !== T.DEEP) return true;
+    }
+    return false;
   }
 
   rebuildAll(season) {
@@ -281,6 +321,9 @@ export class TerrainView {
     pos.needsUpdate = true;
   }
 }
+
+const ROCKS = ['rock_single_A', 'rock_single_B', 'rock_single_C', 'rock_single_D', 'rock_single_E', 'rock_single_C'];
+const PLANTS = ['waterlily_A', 'waterlily_B', 'waterplant_A', 'waterlily_A', 'waterplant_B', 'waterplant_C'];
 
 function treeAt(g, ctx, x, z, s, kind, salt) {
   if (kind === 'pine') {

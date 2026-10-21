@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { SIZE, ZONE, ZONES } from '../world/constants.js';
 import { BUILDINGS, sizeOf } from '../data/buildings.js';
 import { buildModel, variantOf } from './models.js';
+import { GeoBuilder } from './geom.js';
+import { kit, kitBox, kitReady } from './kit.js';
 
 const HALF = SIZE / 2;
 const ROT = [[1, 0], [0, 1], [-1, 0], [0, -1]]; // [cos, sin] pour rot * 90°
@@ -61,7 +63,19 @@ export class BuildingView {
     this.emitters = new Map(); // id -> [{ x, y, z, kind }]
     this.pops = new Map(); // id -> { group, t, dur, kind }
     this.season = 1;
+    this.theme = 'mix';
     this.time = 0;
+  }
+
+  /** Thème de couleur des toits (boutique). */
+  setTheme(theme) {
+    theme = theme || 'mix';
+    if (theme === this.theme) return;
+    this.theme = theme;
+    this.models.clear();
+    if (!this.world) return;
+    for (const b of this.world.buildings.values()) this.registerBuilding(b);
+    for (let zi = 0; zi < ZONES * ZONES; zi++) this.dirty.add(zi);
   }
 
   setWorld(world, season) {
@@ -84,7 +98,10 @@ export class BuildingView {
       }
     }
     for (const list of this.parts.values()) for (const p of list) this.group.remove(p.group);
-    for (const p of this.pops.values()) this.group.remove(p.group);
+    for (const p of this.pops.values()) {
+      this.group.remove(p.group);
+      if (p.stage) this.group.remove(p.stage);
+    }
     this.parts.clear();
     this.emitters.clear();
     this.boxes.clear();
@@ -101,10 +118,10 @@ export class BuildingView {
 
   model(b) {
     const v = variantOf(b.id) & 15;
-    const key = `${b.type}|${b.level}|${v}|${this.season}`;
+    const key = `${b.type}|${b.level}|${v}|${this.season}|${this.theme}`;
     let m = this.models.get(key);
     if (!m) {
-      m = buildModel(b.type, b.level, v, this.season);
+      m = buildModel(b.type, b.level, v, this.season, this.theme);
       // boîte englobante locale
       const p = m.body.pos;
       let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
@@ -191,6 +208,7 @@ export class BuildingView {
     const pop = this.pops.get(b.id);
     if (pop) {
       this.group.remove(pop.group);
+      if (pop.stage) this.group.remove(pop.stage);
       this.pops.delete(b.id);
     }
     this.dirty.add(this.zoneOf(b));
@@ -209,12 +227,41 @@ export class BuildingView {
     this.startPop(b, 'move');
   }
 
-  /** Animation : le bâtiment « pousse » du sol. */
+  /** Géométrie d'un échafaudage (chantier) adaptée à l'emprise w × d. */
+  stageGeo(name, w, d, season) {
+    const key = `${name}|${w}|${d}|${season}`;
+    this.stageCache = this.stageCache || new Map();
+    let geo = this.stageCache.get(key);
+    if (geo === undefined) {
+      geo = null;
+      if (kitReady()) {
+        const g = new GeoBuilder();
+        const [x0, , z0, x1, , z1] = kitBox(name);
+        const n = Math.max(1, Math.round(Math.min(w, d)));
+        const cw = w / Math.ceil(w / n), cd = d / Math.ceil(d / n);
+        for (let i = 0; i < Math.ceil(w / n); i++) {
+          for (let j = 0; j < Math.ceil(d / n); j++) {
+            const s = Math.min((cw * 0.92) / (x1 - x0), (cd * 0.92) / (z1 - z0));
+            const cx = -w / 2 + cw * (i + 0.5), cz = -d / 2 + cd * (j + 0.5);
+            kit(g, name, { s, x: cx - ((x0 + x1) / 2) * s, z: cz - ((z0 + z1) / 2) * s, snow: season === 3 ? 0.6 : 0 });
+          }
+        }
+        geo = mergeLayers([{ layer: g.body, cx: 0, cz: 0, rot: 0 }]);
+      }
+      this.stageCache.set(key, geo);
+    }
+    return geo;
+  }
+
+  /** Animation : chantier (échafaudages) puis le bâtiment « pousse » du sol. */
   startPop(b, kind) {
     const old = this.pops.get(b.id);
-    if (old) this.group.remove(old.group);
+    if (old) {
+      this.group.remove(old.group);
+      if (old.stage) this.group.remove(old.stage);
+    }
     const m = this.model(b);
-    const { cx, cz } = buildingCenter(b);
+    const { cx, cz, w, d } = buildingCenter(b);
     const group = new THREE.Group();
     group.position.set(cx, 0, cz);
     const gb = mergeLayers([{ layer: m.body, cx: 0, cz: 0, rot: b.rot }]);
@@ -227,7 +274,253 @@ export class BuildingView {
     if (gg) group.add(new THREE.Mesh(gg, this.glassMat));
     group.scale.set(1, 0.01, 1);
     this.group.add(group);
-    this.pops.set(b.id, { group, t: 0, dur: kind === 'build' ? 0.55 : 0.45, kind });
+    const pop = { group, t: 0, dur: kind === 'build' ? 0.55 : 0.45, kind, delay: 0, cx, cz, w, d };
+    // échafaudages : trois étapes pour une construction, un échafaudage pour une amélioration
+    const big = w * d >= 4;
+    if (kind === 'build' && kitReady()) {
+      pop.stages = ['stage_A', 'stage_B', 'stage_C'].map((n) => this.stageGeo(n, w, d, this.season)).filter(Boolean);
+      pop.delay = pop.stages.length ? (big ? 1.1 : 0.85) : 0;
+    } else if (kind === 'upgrade' && kitReady()) {
+      pop.stages = [this.stageGeo('scaffolding', w, d, this.season)].filter(Boolean);
+      pop.delay = pop.stages.length ? 0.5 : 0;
+    }
+    if (pop.stages?.length) {
+      pop.stage = new THREE.Mesh(pop.stages[0], this.bodyMat);
+      pop.stage.castShadow = true;
+      pop.stage.position.set(cx, 0, cz);
+      pop.stage.scale.set(1, 0.01, 1);
+      pop.stageIdx = 0;
+      this.group.add(pop.stage);
+      group.visible = kind !== 'build';
+      if (kind === 'upgrade') group.scale.set(1, 1, 1);
+    }
+    this.pops.set(b.id, pop);
+  }
+
+  flush(all = false) {
+    let n = 0;
+    for (const zi of [...this.dirty]) {
+      this.rebuildZone(zi);
+      this.dirty.delete(zi);
+      if (!all && ++n >= 4) break;
+    }
+  }
+
+  rebuildZone(zi) {
+    const items = [];
+    const glass = [];
+    for (const b of this.world.buildings.values()) {
+      if (this.zoneOf(b) !== zi || this.pops.has(b.id)) continue;
+      const m = this.model(b);
+      const { cx, cz } = buildingCenter(b);
+      items.push({ layer: m.body, cx, cz, rot: b.rot });
+      if (m.glass.count) glass.push({ layer: m.glass, cx, cz, rot: b.rot });
+    }
+    const z = this.zones[zi];
+    for (const k of ['body', 'glass']) {
+      if (z[k]) {
+        this.group.remove(z[k]);
+        z[k].geometry.dispose();
+        z[k] = null;
+      }
+    }
+    const gb = mergeLayers(items);
+    if (gb) {
+      z.body = new THREE.Mesh(gb, this.bodyMat);
+      z.body.castShadow = true;
+      z.body.receiveShadow = true;
+      this.group.add(z.body);
+    }
+    const gg = mergeLayers(glass);
+    if (gg) {
+      z.glass = new THREE.Mesh(gg, this.glassMat);
+      z.glass.receiveShadow = true;
+      this.group.add(z.glass);
+    }
+  }
+
+  update(dt, night, speed) {
+    this.time += dt;
+    this.glassMat.emissiveIntensity = night * 1.1;
+    // animations de construction
+    for (const [id, p] of this.pops) {
+      p.t += dt;
+      if (p.stage) {
+        const n = p.stages.length;
+        if (p.t < p.delay) {
+          // chantier : chaque étape apparaît à son tour
+          const per = p.delay / n;
+          const idx = Math.min(n - 1, Math.floor(p.t / per));
+          if (idx !== p.stageIdx) {
+            p.stageIdx = idx;
+            p.stage.geometry = p.stages[idx];
+            this.r.particles?.emit('dust', p.cx, 0.15, p.cz, 10);
+            this.r.game?.sound?.play?.('hammer');
+          }
+          const k = Math.min(1, (p.t - idx * per) / Math.min(0.18, per));
+          const sy = p.kind === 'upgrade' ? Math.min(1, p.t / 0.15) : 0.2 + 0.8 * (1 - Math.pow(1 - k, 3));
+          p.stage.scale.set(1, Math.max(0.01, sy), 1);
+          if (p.kind === 'upgrade') p.group.scale.set(1, 1 - 0.04 * Math.sin(p.t * 30), 1);
+          continue;
+        }
+        // fin du chantier
+        this.group.remove(p.stage);
+        p.stage = null;
+        p.group.visible = true;
+        p.group.scale.set(1, 0.01, 1);
+        p.t = 0;
+        this.r.particles?.emit('sparkle', p.cx, 0.4, p.cz, 16);
+      }
+      const k = Math.min(1, p.t / p.dur);
+      let sy;
+      if (p.kind === 'build' || p.kind === 'upgrade') {
+        const c1 = 1.70158, c3 = c1 + 1;
+        sy = 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); // easeOutBack
+      } else sy = 1 + Math.sin(k * Math.PI) * 0.12;
+      const grow = p.kind === 'build' || p.kind === 'upgrade';
+      p.group.scale.set(grow ? 0.9 + 0.1 * k : 1 + Math.sin(k * Math.PI) * 0.05, Math.max(0.01, sy), grow ? 0.9 + 0.1 * k : 1 + Math.sin(k * Math.PI) * 0.05);
+      if (k >= 1) {
+        this.pops.delete(id);
+        const b = this.world.buildings.get(id);
+        if (b) this.rebuildZone(this.zoneOf(b));
+        this.group.remove(p.group);
+        p.group.traverse((o) => o.geometry?.dispose());
+      }
+    }
+    // pièces mobiles
+    if (m.parts.length) {
+      const list = [];
+      for (const p of m.parts) {
+        const group = new THREE.Group();
+        const [wx, wz] = tr(p.pivot[0], p.pivot[2]);
+        group.position.set(wx, p.pivot[1], wz);
+        group.rotation.y = (b.rot & 3) * (Math.PI / 2);
+        const inner = new THREE.Group();
+        group.add(inner);
+        const geoB = mergeLayers([{ layer: p.body, cx: 0, cz: 0, rot: 0 }]);
+        if (geoB) {
+          const mesh = new THREE.Mesh(geoB, this.bodyMat);
+          mesh.castShadow = true;
+          inner.add(mesh);
+        }
+        this.group.add(group);
+        list.push({ group, inner, kind: p.kind, axis: p.axis, speed: p.speed, amp: p.amp || 0, phase: (b.id * 1.7) % 6.28 });
+      }
+      this.parts.set(b.id, list);
+    }
+  }
+
+  unregisterParts(id) {
+    const list = this.parts.get(id);
+    if (list) {
+      for (const p of list) {
+        this.group.remove(p.group);
+        p.group.traverse((o) => o.geometry?.dispose());
+      }
+      this.parts.delete(id);
+    }
+  }
+
+  onPlaced(b, opts = {}) {
+    this.registerBuilding(b);
+    if (!opts.silent) this.startPop(b, 'build');
+    this.dirty.add(this.zoneOf(b));
+  }
+
+  onRemoved(b) {
+    this.unregisterParts(b.id);
+    this.emitters.delete(b.id);
+    this.boxes.delete(b.id);
+    const pop = this.pops.get(b.id);
+    if (pop) {
+      this.group.remove(pop.group);
+      if (pop.stage) this.group.remove(pop.stage);
+      this.pops.delete(b.id);
+    }
+    this.dirty.add(this.zoneOf(b));
+  }
+
+  onUpgraded(b, opts = {}) {
+    this.registerBuilding(b);
+    if (!opts.silent) this.startPop(b, 'upgrade');
+    this.dirty.add(this.zoneOf(b));
+  }
+
+  onMoved(b, from) {
+    this.registerBuilding(b);
+    this.dirty.add(this.zoneOf(b));
+    if (from) this.dirty.add(Math.floor(from.z / ZONE) * ZONES + Math.floor(from.x / ZONE));
+    this.startPop(b, 'move');
+  }
+
+  /** Géométrie d'un échafaudage (chantier) adaptée à l'emprise w × d. */
+  stageGeo(name, w, d, season) {
+    const key = `${name}|${w}|${d}|${season}`;
+    this.stageCache = this.stageCache || new Map();
+    let geo = this.stageCache.get(key);
+    if (geo === undefined) {
+      geo = null;
+      if (kitReady()) {
+        const g = new GeoBuilder();
+        const [x0, , z0, x1, , z1] = kitBox(name);
+        const n = Math.max(1, Math.round(Math.min(w, d)));
+        const cw = w / Math.ceil(w / n), cd = d / Math.ceil(d / n);
+        for (let i = 0; i < Math.ceil(w / n); i++) {
+          for (let j = 0; j < Math.ceil(d / n); j++) {
+            const s = Math.min((cw * 0.92) / (x1 - x0), (cd * 0.92) / (z1 - z0));
+            const cx = -w / 2 + cw * (i + 0.5), cz = -d / 2 + cd * (j + 0.5);
+            kit(g, name, { s, x: cx - ((x0 + x1) / 2) * s, z: cz - ((z0 + z1) / 2) * s, snow: season === 3 ? 0.6 : 0 });
+          }
+        }
+        geo = mergeLayers([{ layer: g.body, cx: 0, cz: 0, rot: 0 }]);
+      }
+      this.stageCache.set(key, geo);
+    }
+    return geo;
+  }
+
+  /** Animation : chantier (échafaudages) puis le bâtiment « pousse » du sol. */
+  startPop(b, kind) {
+    const old = this.pops.get(b.id);
+    if (old) {
+      this.group.remove(old.group);
+      if (old.stage) this.group.remove(old.stage);
+    }
+    const m = this.model(b);
+    const { cx, cz, w, d } = buildingCenter(b);
+    const group = new THREE.Group();
+    group.position.set(cx, 0, cz);
+    const gb = mergeLayers([{ layer: m.body, cx: 0, cz: 0, rot: b.rot }]);
+    const gg = mergeLayers([{ layer: m.glass, cx: 0, cz: 0, rot: b.rot }]);
+    if (gb) {
+      const mesh = new THREE.Mesh(gb, this.bodyMat);
+      mesh.castShadow = true;
+      group.add(mesh);
+    }
+    if (gg) group.add(new THREE.Mesh(gg, this.glassMat));
+    group.scale.set(1, 0.01, 1);
+    this.group.add(group);
+    const pop = { group, t: 0, dur: kind === 'build' ? 0.55 : 0.45, kind, delay: 0, cx, cz, w, d };
+    // échafaudages : trois étapes pour une construction, un échafaudage pour une amélioration
+    const big = w * d >= 4;
+    if (kind === 'build' && kitReady()) {
+      pop.stages = ['stage_A', 'stage_B', 'stage_C'].map((n) => this.stageGeo(n, w, d, this.season)).filter(Boolean);
+      pop.delay = pop.stages.length ? (big ? 1.1 : 0.85) : 0;
+    } else if (kind === 'upgrade' && kitReady()) {
+      pop.stages = [this.stageGeo('scaffolding', w, d, this.season)].filter(Boolean);
+      pop.delay = pop.stages.length ? 0.5 : 0;
+    }
+    if (pop.stages?.length) {
+      pop.stage = new THREE.Mesh(pop.stages[0], this.bodyMat);
+      pop.stage.castShadow = true;
+      pop.stage.position.set(cx, 0, cz);
+      pop.stage.scale.set(1, 0.01, 1);
+      pop.stageIdx = 0;
+      this.group.add(pop.stage);
+      group.visible = kind !== 'build';
+      if (kind === 'upgrade') group.scale.set(1, 1, 1);
+    }
+    this.pops.set(b.id, pop);
   }
 
   flush(all = false) {

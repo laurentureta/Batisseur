@@ -2,6 +2,8 @@
 // Repère local : emprise centrée sur (0, 0), façade avant tournée vers +z, sol à y = 0.
 import { GeoBuilder, shade, mix } from './geom.js';
 import { BUILDINGS } from '../data/buildings.js';
+import { ROOF_THEMES } from '../data/cosmetics.js';
+import { KM, hasKitModel, treeKit } from './kitModels.js';
 
 export const P = {
   wood: 0x9b6b43, woodDark: 0x6e4a2f, woodLight: 0xc49a6c, plank: 0xb98a5a,
@@ -10,7 +12,7 @@ export const P = {
   stone: 0xb7b2a8, stoneDark: 0x8f8a80, stoneLight: 0xd3cfc6, cobble: 0xc9c2b4,
   brick: 0xb5523b, brickDark: 0x8e3e2c,
   roofRed: 0xc4553a, roofTerra: 0xd06b45, roofSlate: 0x5b6475, roofBlue: 0x4f78a8, roofGreen: 0x5e8c5a,
-  door: 0x6b4429, lawn: 0x7cbd53, grassDark: 0x5f9e3c, hedge: 0x4f8f3a, leaf: 0x5aa83c, leafDark: 0x3f8a2e,
+  door: 0x6b4429, lawn: 0xa8c84c, grassDark: 0x5f9e3c, hedge: 0x4f8f3a, leaf: 0x5aa83c, leafDark: 0x3f8a2e,
   pine: 0x3d7d4a, trunk: 0x7a5232, water: 0x58b7e0, metal: 0x8d99a6, dark: 0x3a3a40, black: 0x26262b,
   white: 0xf8f8f8, red: 0xd9443a, yellow: 0xf2c94c, blue: 0x3f7fd1, orange: 0xe8873a, purple: 0x9b6bd1, pink: 0xf08bb4,
   field: 0xd8c25a, fieldGreen: 0x8fbf4a, soil: 0x8a6440, soilDark: 0x6e4f33, clay: 0xc77a4a, gold: 0xe8b84a,
@@ -27,12 +29,20 @@ function fract(x) {
   return x - Math.floor(x);
 }
 
-function makeCtx(variant, season) {
+function makeCtx(variant, season, theme = 'mix') {
   const winter = season === 3, autumn = season === 2, spring = season === 0;
+  const th = ROOF_THEMES[theme] || ROOF_THEMES.mix;
   return {
     v: variant,
     season,
     winter,
+    autumn,
+    spring,
+    roofVar: th.variant ?? (variant & 3),
+    team: th.team ?? null,
+    snow: winter ? 0.78 : 0,
+    dim: false,
+    out: null,
     roof: (c) => (winter ? mix(c, 0xf2f6f9, 0.62) : c),
     ground: (c) => (winter ? mix(c, 0xeef3f6, 0.78) : autumn ? mix(c, 0xb5a24a, 0.28) : c),
     leaf: (c) => (winter ? mix(c, 0xe3eaee, 0.55) : autumn ? mix(c, 0xd9822b, 0.62) : spring ? mix(c, 0x9ad66d, 0.2) : c),
@@ -144,7 +154,7 @@ function cottage(g, out, ctx, { x = 0, y = 0, z = 0, w, d, h, wall, roof, roofH,
 }
 
 /* ───────── Modèles ───────── */
-const MODELS = {};
+const MODELS = {}; // modèles faits main (repli si les modèles 3D ne sont pas chargés)
 
 MODELS.house = (g, L, ctx, out) => {
   const wall = ctx.pick(WALLS);
@@ -1015,12 +1025,20 @@ MODELS.fallback = (g, L, ctx, out) => {
  * Construit le modèle d'un bâtiment.
  * @returns {{body, glass, parts, emitters}}
  */
-export function buildModel(type, level = 1, variant = 0, season = 1) {
+export function buildModel(type, level = 1, variant = 0, season = 1, theme = 'mix') {
   const g = new GeoBuilder();
-  const ctx = makeCtx(variant, season);
+  const ctx = makeCtx(variant, season, theme);
   const out = { parts: [], emitters: [] };
-  const fn = MODELS[type] || MODELS.fallback;
-  fn(g, Math.max(1, Math.min(level, BUILDINGS[type]?.maxLevel || 1)), ctx, out);
+  ctx.out = out;
+  const L = Math.max(1, Math.min(level, BUILDINGS[type]?.maxLevel || 1));
+  if (hasKitModel(type)) KM[type](g, L, ctx);
+  else (MODELS[type] || MODELS.fallback)(g, L, ctx, out);
+  g.body.freeze();
+  g.glass.freeze();
+  for (const p of out.parts) {
+    p.body.freeze();
+    p.glass?.freeze?.();
+  }
   return { body: g.body, glass: g.glass, parts: out.parts, emitters: out.emitters };
 }
 
@@ -1033,7 +1051,8 @@ export function variantOf(id) {
 
 /** Arbres de forêt (pour le terrain) : même style que les arbres décoratifs. */
 export function forestTree(g, ctx, x, z, s, kind, salt) {
-  tree(g, ctx, x, z, s, kind, 0, salt);
+  if (hasKitModel('tree')) treeKit(g, ctx, x, z, s, kind, salt);
+  else tree(g, ctx, x, z, s, kind, 0, salt);
 }
 
 export { makeCtx };

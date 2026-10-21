@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { SIZE, T, ZONE, ZONES } from '../world/constants.js';
 import { GeoBuilder, mix } from './geom.js';
 import { toGeometry } from './TerrainView.js';
+import { kit, kitReady } from './kit.js';
 
 const HALF = SIZE / 2;
 
@@ -11,7 +12,9 @@ export class RoadView {
     this.r = renderer;
     this.group = new THREE.Group();
     this.mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    this.glassMat = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0xffd27a, emissiveIntensity: 0 });
     this.meshes = new Array(ZONES * ZONES).fill(null);
+    this.lamps = new Array(ZONES * ZONES).fill(null);
     this.dirty = new Set();
     this.season = 1;
   }
@@ -55,17 +58,40 @@ export class RoadView {
         this.tile(g, x, z, type, w.roadMask(x, z), w.terrain[i] === T.WATER || w.terrain[i] === T.DEEP);
       }
     }
-    const old = this.meshes[zi];
-    if (old) {
-      this.group.remove(old);
-      old.geometry.dispose();
-      this.meshes[zi] = null;
+    for (const list of [this.meshes, this.lamps]) {
+      const old = list[zi];
+      if (old) {
+        this.group.remove(old);
+        old.geometry.dispose();
+        list[zi] = null;
+      }
+    }
+    if (g.glass.count) {
+      const lm = new THREE.Mesh(toGeometry(g.glass), this.glassMat);
+      this.group.add(lm);
+      this.lamps[zi] = lm;
     }
     if (!g.body.count) return;
     const mesh = new THREE.Mesh(toGeometry(g.body), this.mat);
     mesh.receiveShadow = true;
+    mesh.castShadow = true;
     this.group.add(mesh);
     this.meshes[zi] = mesh;
+  }
+
+  update(night) {
+    this.glassMat.emissiveIntensity = night * 1.3;
+  }
+
+  /** Lampadaire sur le trottoir (s'allume la nuit). */
+  lamp(g, x, z, rot) {
+    const s = 0.62;
+    kit(g, 'c_streetlight', { s, x, z, rot, ao: 0.3, snow: this.season === 3 ? 0.6 : 0, noGlass: true });
+    const c = Math.cos(rot), sn = Math.sin(rot);
+    const lx = -0.21 * s;
+    g.layer('glass');
+    g.box(x + lx * c, 0.885 * s, z - lx * sn, 0.07 * s, 0.03 * s, 0.06 * s, 0xfff1c2);
+    g.layer('body');
   }
 
   tile(g, x, z, type, mask, bridge) {
@@ -126,6 +152,12 @@ export class RoadView {
       const line = 0xf2f0e6;
       if (N && S && !E && !W) for (const o of [-0.3, 0.05, 0.4]) g.box(0, y + h, o - 0.05, 0.03, 0.003, 0.18, line);
       else if (E && W && !N && !S) for (const o of [-0.3, 0.05, 0.4]) g.box(o - 0.05, y + h, 0, 0.18, 0.003, 0.03, line);
+      // lampadaires réguliers le long des lignes droites
+      if (kitReady() && (x * 7 + z * 3) % 3 === 0) {
+        const side = (x + z) % 2 ? 1 : -1;
+        if (N && S && !E && !W) this.lamp(g, side * 0.45, 0, side > 0 ? 0 : Math.PI);
+        else if (E && W && !N && !S) this.lamp(g, 0, side * 0.45, side > 0 ? -Math.PI / 2 : Math.PI / 2);
+      }
     }
     g.pop();
   }

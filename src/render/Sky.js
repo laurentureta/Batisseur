@@ -45,6 +45,9 @@ export class Sky {
     this.lastCss = '';
     this.weather = 'clear';
     this.weatherFactor = 1;
+    // réglages d'éclairage (contraste soleil / ambiance)
+    this.sunMul = 2.6;
+    this.hemiMul = 0.78;
   }
 
   setShadowQuality(size) {
@@ -104,8 +107,8 @@ export class Sky {
     this.sun.position.copy(target).addScaledVector(dir, dist);
     this.sun.target.position.copy(target);
     this.sun.color.copy(this.sunColor);
-    this.sun.intensity = sunI * 2.1;
-    this.hemi.intensity = amb * 1.15;
+    this.sun.intensity = sunI * this.sunMul;
+    this.hemi.intensity = amb * (this.hemiMul + this.night * 0.42);
     this.hemi.color.copy(this.top).lerp(new THREE.Color(0xffffff), 0.55);
     this.hemi.groundColor.setHex(0x5f6b48).lerp(new THREE.Color(0x2a3550), this.night * 0.6);
 

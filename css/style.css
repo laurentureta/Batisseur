@@ -90,7 +90,7 @@ input, textarea { font: inherit; -webkit-user-select: text; user-select: text; }
 .ld-logo { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25); }
 .ld-title { font-size: 34px; font-weight: 900; letter-spacing: 3px; text-shadow: 0 3px 0 rgba(0, 0, 0, 0.15); }
 .ld-bar { width: 160px; height: 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.35); overflow: hidden; }
-.ld-bar i { display: block; height: 100%; width: 40%; border-radius: 8px; background: #fff; animation: ld 1.1s ease-in-out infinite; }
+.ld-bar i { display: block; height: 100%; width: 2%; border-radius: 8px; background: #fff; transition: width 0.25s ease-out; }
 @keyframes ld { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
 .ld-msg { font-size: 14px; opacity: 0.9; max-width: 80%; text-align: center; }
 #loading.error .ld-bar { display: none; }
