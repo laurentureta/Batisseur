@@ -130,6 +130,56 @@ export class Sound {
         this.noise(0.05, { vol: 0.22, freq: 2400, q: 1.2 });
         this.tone(320 + Math.random() * 60, 0.07, { vol: 0.08, type: 'square', slide: 0.5 });
         break;
+      case 'saw': // aller-retour de scie
+        this.noise(0.13, { vol: 0.07, freq: 3200, q: 3 });
+        this.noise(0.12, { vol: 0.06, freq: 2600, q: 3, delay: 0.17 });
+        break;
+      case 'dig': // pelletée de terre
+        this.noise(0.12, { vol: 0.12, freq: 380, q: 0.8 });
+        this.noise(0.08, { vol: 0.06, freq: 900, q: 1, delay: 0.32 });
+        break;
+      case 'built': // inauguration d'un bâtiment
+        [0, 1, 2].forEach((k) => this.noise(0.04, { vol: 0.12, freq: 2400, q: 1.2, delay: k * 0.09 }));
+        [523, 659, 784, 1047].forEach((f, k) => this.tone(f, 0.22, { vol: 0.13, delay: 0.28 + k * 0.08, type: 'triangle' }));
+        [784, 1047, 1319].forEach((f) => this.tone(f, 0.55, { vol: 0.06, delay: 0.62, type: 'triangle' }));
+        break;
+      case 'pick': // pioche sur la roche
+        this.tone(1900 + Math.random() * 300, 0.05, { vol: 0.07, type: 'square', slide: 0.6 });
+        this.noise(0.06, { vol: 0.12, freq: 2800, q: 1.4 });
+        break;
+      case 'anvil': // marteau sur l'enclume
+        this.tone(1250, 0.22, { vol: 0.08, type: 'triangle', slide: 0.98 });
+        this.tone(2480, 0.15, { vol: 0.04, type: 'sine' });
+        this.noise(0.03, { vol: 0.1, freq: 3500, q: 2 });
+        break;
+      case 'splash':
+        this.noise(0.22, { vol: 0.1, freq: 1400, q: 0.6 });
+        this.tone(520, 0.08, { vol: 0.04, slide: 1.8, delay: 0.04 });
+        break;
+      case 'cast':
+        this.noise(0.12, { vol: 0.05, freq: 3000, q: 1.5 });
+        break;
+      case 'cluck':
+        for (let k = 0; k < 3; k++) this.tone(620 + Math.random() * 120, 0.05, { vol: 0.05, type: 'square', delay: k * 0.09, slide: 0.8 });
+        break;
+      case 'moo':
+        this.tone(150, 0.7, { vol: 0.07, type: 'sawtooth', slide: 0.75, attack: 0.08 });
+        this.tone(300, 0.6, { vol: 0.025, type: 'triangle', slide: 0.8, attack: 0.08 });
+        break;
+      case 'baa':
+        this.tone(420, 0.45, { vol: 0.05, type: 'sawtooth', slide: 0.9, attack: 0.03 });
+        break;
+      case 'bark':
+        this.tone(380, 0.08, { vol: 0.08, type: 'sawtooth', slide: 0.6 });
+        this.tone(360, 0.08, { vol: 0.07, type: 'sawtooth', slide: 0.6, delay: 0.16 });
+        break;
+      case 'meow':
+        this.tone(700, 0.35, { vol: 0.05, type: 'triangle', slide: 1.25, attack: 0.05 });
+        break;
+      case 'quack':
+        this.tone(340, 0.09, { vol: 0.06, type: 'square', slide: 0.75 });
+        this.tone(330, 0.09, { vol: 0.05, type: 'square', slide: 0.75, delay: 0.13 });
+        break;
       case 'gem':
         [1568, 2093, 2637].forEach((f, k) => this.tone(f, 0.14, { vol: 0.1, delay: k * 0.05, type: 'sine' }));
         break;

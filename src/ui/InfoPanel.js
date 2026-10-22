@@ -10,6 +10,7 @@ import { fmt, fmtDec } from '../core/util.js';
 import { moodIcon } from './UI.js';
 import { nearLabel } from '../core/Actions.js';
 import { WORKSITES, ACT_TEXT, ROLE_NAMES } from '../sim/Villagers.js';
+import { PHASES, phaseOf, BUILDER_TEXT } from '../sim/Construction.js';
 
 export function renderInfo(ui, body, sheet, id) {
   const game = ui.game;
@@ -39,7 +40,20 @@ export function renderInfo(ui, body, sheet, id) {
   if (status === 'noInput' && def.consumes) statusText = `En attente de ${Object.keys(def.consumes).map((r) => RESOURCES[r].name.toLowerCase()).join(' et ')}`;
   if (def.cat === 'decor' && status === 'noRoad') statusText = def.coverage ? 'Embellit déjà le quartier · relie-le à une route pour les loisirs' : 'Décor : pas besoin de route';
   const okish = status === 'ok' || (def.cat === 'decor');
-  body.appendChild(h('div.status-pill.' + (okish ? 'ok' : status === 'fire' ? 'bad' : status === 'empty' ? 'info' : 'warn'), statusText));
+  body.appendChild(h('div.status-pill.' + (okish ? 'ok' : status === 'fire' ? 'bad' : status === 'empty' || status === 'building' ? 'info' : 'warn'), statusText));
+
+  // chantier en cours
+  if (b.cons) {
+    renderSite(ui, game, b, body, sheet);
+    if (b.cons.k === 'new') {
+      body.appendChild(h('p.desc', def.desc));
+      const actions = h('div.info-actions');
+      actions.appendChild(h('button.btn.danger-soft', { onclick: () => ui.confirmDemolish(b.id) }, '💥 Abandonner le chantier'));
+      actions.appendChild(h('button.btn', { onclick: () => game.renderer.focusBuilding(b, 9) }, '🔍 Zoomer'));
+      body.appendChild(actions);
+      return;
+    }
+  }
 
   if (b.fire) {
     const cost = game.actions.extinguishCost(b);
@@ -190,6 +204,49 @@ export function renderInfo(ui, body, sheet, id) {
   void sizeOf;
 }
 
+/* ───────── Chantier ───────── */
+function renderSite(ui, game, b, body, sheet) {
+  const C = game.construction;
+  const c = b.cons;
+  const p = C.progress(b);
+  const pct = Math.floor(p * 100);
+  const box = h('div.site-box');
+  const up = c.k === 'up';
+  box.appendChild(h('div.site-phase-name', `${up ? `Travaux vers le niveau ${c.to}` : phaseOf(p).name} · ${pct} %`));
+  // les étapes du chantier
+  const bar = h('div.site-phases');
+  const list = up ? [{ at: 0 }, { at: 1 }] : [...PHASES, { at: 1 }];
+  for (let k = 0; k < list.length - 1; k++) {
+    const a = list[k].at, z = list[k + 1].at;
+    const f = Math.min(1, Math.max(0, (p - a) / (z - a)));
+    bar.appendChild(h('span', { title: list[k].name || '' }, h('i', { style: { width: `${Math.round(f * 100)}%` } })));
+  }
+  box.appendChild(bar);
+  const crew = C.crewOf(b.id);
+  const left = Math.max(0, c.W - c.w);
+  const speed = game.state.time.speed || 1;
+  const secs = Math.ceil(left / Math.max(1, crew.length || 1) / speed);
+  if (crew.length) box.appendChild(siteRow('⏱️', 'Fin estimée', secs > 90 ? `≈ ${Math.ceil(secs / 60)} min` : `≈ ${secs} s`));
+  else {
+    const before = C.sites().findIndex((o) => o.id === b.id);
+    box.appendChild(h('p.hint', before > 0 ? `Les bâtisseurs finissent ${before > 1 ? `${before} autres chantiers` : 'un autre chantier'} avant celui-ci.` : 'Les bâtisseurs arrivent de la mairie…'));
+  }
+  body.appendChild(h('div.section-title', up ? '🏗️ Amélioration en cours' : '🏗️ Chantier'));
+  body.appendChild(box);
+  if (crew.length) {
+    const team = h('div.team');
+    for (const w of crew) team.appendChild(h('div.mate', h('span.mi', w.girl ? '👷‍♀️' : '👷'), h('div.mt', h('b', `${w.name} · Bâtisseur`), h('small', BUILDER_TEXT[w.act] || BUILDER_TEXT[w.state] || 'au travail'))));
+    body.appendChild(team);
+  }
+  body.appendChild(h('button.btn.primary.finish-site.wide', {
+    onclick: () => {
+      const r = game.actions.finishSite(b.id);
+      if (!r.ok) ui.toast(r.reason, 'error');
+      sheet.refresh(true);
+    },
+  }, '⏩ Terminer maintenant'));
+}
+
 /* ───────── Équipe au travail ───────── */
 const CROP_NAMES = { carrot: 'carottes', tomato: 'tomates', potato: 'pommes de terre', wheat: 'blé', corn: 'maïs' };
 
@@ -212,6 +269,14 @@ function renderTeam(game, b, def, body) {
         siteRow('⏳', 'Travail en cours', `${fmtDec(Math.min(s.acc, s.unit || 1) / Math.max(1, s.unit) * 100, 0)} %`),
         siteRow('🪵', 'Rapporté aujourd\'hui', `${fmtDec(s.pile || 0, 0)} bois`),
       );
+    } else if (ws.gather || ws.farm) {
+      const what = { quarry: 'La carrière', mine: 'La mine', claypit: 'L\'argilière', fisher: 'La pêche', coop: 'Le poulailler', pasture: 'L\'étable' }[b.type];
+      box.append(
+        siteRow('⏳', b.type === 'fisher' ? 'Poissons à attraper' : b.type === 'coop' ? 'Œufs à ramasser' : b.type === 'pasture' ? 'Lait à traire' : 'Travail en cours', `${fmtDec(Math.min(s.acc, s.unit || 1) / Math.max(1, s.unit) * 100, 0)} %`),
+        siteRow(RESOURCES[ws.res].icon, 'Rapporté par tournée', `${fmtDec(s.unit || 0, 0)} ${RESOURCES[ws.res].name.toLowerCase()}`),
+        siteRow('🧺', game.villagers.hasCarter() ? 'En attente du charretier' : 'Rapporté aujourd\'hui', `${fmtDec(s.pile || 0, 0)}`),
+      );
+      void what;
     } else if (s.beds) {
       const PH = ['à bêcher', 'bêché, à semer', 'pousse', 'prêt à récolter'];
       s.beds.forEach((bed, k) => {
@@ -224,7 +289,8 @@ function renderTeam(game, b, def, body) {
       });
       box.appendChild(siteRow('🧺', 'Rapporté aujourd\'hui', `${fmtDec(s.pile || 0, 0)} ${RESOURCES[ws.res].name.toLowerCase()}`));
     }
-    body.appendChild(h('div.section-title', b.type === 'lumber' ? 'La coupe' : b.type === 'farm' ? 'Les champs' : 'Le potager'));
+    const titles = { lumber: 'La coupe', farm: 'Les champs', garden: 'Le potager', quarry: 'La carrière', mine: 'La mine', claypit: 'L\'argilière', fisher: 'La pêche', coop: 'Le poulailler', pasture: 'L\'étable' };
+    body.appendChild(h('div.section-title', titles[b.type] || 'Le travail'));
     body.appendChild(box);
   }
   if (!team.length) return;

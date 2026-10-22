@@ -8,6 +8,8 @@ import { GeoBuilder } from './geom.js';
 import { toGeometry } from './TerrainView.js';
 import { DAY_SECONDS, SIZE, T } from '../world/constants.js';
 import { workerPos, WALK, doorOf } from '../sim/Villagers.js';
+import { builderPos } from '../sim/Construction.js';
+import { beam } from './Sites.js';
 import { roadPath, roadNextTo, roadPoints, makeMove, moveAt } from '../sim/paths.js';
 import { hash2 } from '../core/rng.js';
 
@@ -27,12 +29,20 @@ const OUTFITS = {
   farmer: { shirt: [0xf2ead8, 0xe8d8b0, 0xd9c08a], pants: [0x2f5fa0, 0x3b6fb6], hat: 'straw' },
   miner: { shirt: [0x7a7a7a, 0x6d6d70], pants: [0x4a4a4a], hat: 'helmet', hatColor: [0xf2c94c] },
   fisher: { shirt: [0x2a9d8f, 0x1f7a8c], pants: [0x3a4a6a], hat: 'cap', hatColor: [0xf08b3a, 0xf2c94c] },
-  craftsman: { shirt: [0x8d6e63, 0x795548], pants: [0x3a3a40] },
-  cook: { shirt: [0xf7f4ee], pants: [0x3a3a40], hat: 'cap', hatColor: [0xffffff] },
+  craftsman: { shirt: [0x8d6e63, 0x795548], pants: [0x3a3a40], apron: 0x7a5232 },
+  cook: { shirt: [0xf7f4ee], pants: [0x3a3a40], hat: 'toque', apron: 0xf4f1ea },
   firefighter: { shirt: [0xd32f2f], pants: [0x2b2b30], hat: 'helmet', hatColor: [0xd32f2f] },
   guard: { shirt: [0x283593], pants: [0x1f2a5a], hat: 'cap', hatColor: [0x1f2a5a] },
   teacher: { shirt: [0x5c6bc0, 0x8e7cc3], pants: [0x3a3a40] },
   doctor: { shirt: [0xf4f8fb], pants: [0x4a90c2] },
+  digger: { shirt: [0x8d6e63, 0x6d8a5a], pants: [0x5a4636, 0x3a4a6a], hat: 'cap', hatColor: [0x8a5a3a, 0x4a6a3a] },
+  breeder: { shirt: [0x6aa84f, 0xd9c08a, 0x8bc34a], pants: [0x2f5fa0, 0x5a4636], hat: 'straw', apron: 0x7a5232 },
+  carter: { shirt: [0x9a6b43, 0x6d7a8a, 0xa0522d], pants: [0x3a3a40, 0x4a3a2a], hat: 'cap', hatColor: [0x3a3a40, 0x6b4426] },
+  miller: { shirt: [0xf2ead8], pants: [0x8a7a6a], hat: 'cap', hatColor: [0xf7f4ee], apron: 0xf4f1ea },
+  smith: { shirt: [0x5a5a60, 0x6d5a4a], pants: [0x2b2b30], apron: 0x4a3524 },
+  innkeeper: { shirt: [0xf7f4ee, 0xe8d8b0], pants: [0x3a3a40, 0x5a4636], apron: 0xf4f1ea },
+  merchant: { shirt: [0xe94b5a, 0x3f7fd1, 0x9b6bd1, 0x2a9d8f, 0xf2c94c], pants: [0x3a4a6a, 0x5a4636], apron: 0xf0e2c0 },
+  builder: { shirt: [0xf08b3a, 0xf2c94c, 0x3f7fd1, 0xe9673a], pants: [0x2f5fa0, 0x5a4636, 0x3a4a6a], hat: 'helmet', hatColor: [0xf2c94c, 0xf7f4ee, 0xf08b3a] },
 };
 
 /* ───────── Pièces du personnage ───────── */
@@ -129,6 +139,61 @@ function buildParts() {
     g.box(0, -0.21, 0, 0.007, 0.18, 0.007, 0x9a6a3a);
     g.box(0, -0.29, -0.03, 0.005, 0.01, 0.07, 0xc8d0d6);
   }, { shadow: true });
+  add('hammer', (g) => {
+    g.box(0, -0.105, 0, 0.007, 0.065, 0.007, 0x8a5a3a);
+    g.box(0, -0.143, -0.008, 0.012, 0.014, 0.032, 0x7a828a);
+  }, { shadow: true });
+  add('saw', (g) => {
+    g.box(0, -0.082, 0, 0.012, 0.03, 0.018, 0x8a5a3a);
+    g.box(0, -0.083, -0.065, 0.003, 0.026, 0.11, 0xc8d0d6);
+  }, { shadow: true });
+  add('shovel', (g) => {
+    g.box(0, -0.17, 0, 0.007, 0.14, 0.007, 0x9a6a3a);
+    g.box(0, -0.25, -0.004, 0.03, 0.04, 0.006, 0x8a9096);
+  }, { shadow: true });
+  add('brush', (g) => {
+    g.box(0, -0.1, 0, 0.006, 0.05, 0.006, 0x8a5a3a);
+    g.box(0, -0.132, 0, 0.022, 0.018, 0.01, 0xe8d8b0);
+  });
+  add('plank', (g) => {
+    for (const [x, y] of [[0.03, 0.094], [0.03, 0.106]]) g.box(x, y, 0, 0.026, 0.01, 0.3, 0xd4ad7a);
+  }, { shadow: true });
+  add('stoneBlock', (g) => g.box(0, 0.0, 0.05, 0.06, 0.045, 0.045, { top: 0xc8c2b8, side: 0xa8a296 }), { shadow: true });
+  add('bricks', (g) => {
+    for (let k = 0; k < 3; k++) g.box(0, -0.004 + k * 0.018, 0.05, 0.06, 0.016, 0.034, k % 2 ? 0xb5523b : 0xa5472f);
+  }, { shadow: true });
+  add('apron', (g) => {
+    g.box(0, -0.035, 0.0155, 0.05, 0.075, 0.004, W);
+    g.box(0, 0.045, 0.0175, 0.034, 0.03, 0.004, W);
+  }, { tint: 'apron' });
+  add('toque', (g) => {
+    g.cyl(0, 0.05, 0, 0.034, 0.03, 10, 0xffffff);
+    sphere(g, 0, 0.09, 0, 0.04, 0xffffff, 0.6, 10, 5);
+  });
+  add('pickaxe', (g) => {
+    g.box(0, -0.17, 0, 0.008, 0.13, 0.008, 0x8a5a3a);
+    g.box(0, -0.235, -0.002, 0.008, 0.012, 0.09, 0x7a828a);
+    g.box(0, -0.235, 0.046, 0.006, 0.008, 0.012, 0x9aa3ab);
+    g.box(0, -0.235, -0.05, 0.006, 0.008, 0.012, 0x9aa3ab);
+  }, { shadow: true });
+  add('rod', (g) => {
+    // canne à pêche : elle part de la main, vers l'avant et vers le haut quand le bras est tendu
+    g.box(0, -0.09, 0, 0.012, 0.035, 0.012, 0x6b4429);
+    beam(g, [0, -0.08, 0], [ROD_TIP[0], ROD_TIP[1], ROD_TIP[2]], 0.007, 0x9a6a3a);
+  }, { shadow: true });
+  add('bucket', (g) => {
+    g.cyl(0, -0.125, 0.004, 0.024, 0.038, 9, 0x8a6a48, 0.028, true, 0x6aa8c8);
+    g.box(0, -0.085, 0.004, 0.004, 0.012, 0.05, 0x5a5a60);
+  }, { shadow: true });
+  add('pitchfork', (g) => {
+    g.box(0, -0.2, 0, 0.007, 0.17, 0.007, 0x9a6a3a);
+    g.box(0, -0.29, 0, 0.034, 0.006, 0.006, 0x8a9096);
+    for (const x of [-0.015, 0, 0.015]) g.box(x, -0.32, 0, 0.004, 0.035, 0.004, 0x8a9096);
+  }, { shadow: true });
+  add('tongs', (g) => {
+    g.box(0, -0.1, -0.02, 0.006, 0.006, 0.07, 0x3a3a40);
+    g.box(0, -0.1, -0.06, 0.016, 0.012, 0.016, 0xff8a3a);
+  });
   add('seedbag', (g) => {
     g.ico(0, -0.09, 0.008, 0.02, 0xd8c39a, 1.15, 0.12, 4);
   });
@@ -150,10 +215,125 @@ function buildParts() {
     g.ico(0, 0.08, 0.05, 0.03, 0xf0d27a, 1.1, 0.2, 5);
   }, { shadow: true });
   add('sack', (g) => g.ico(0, 0.03, 0.05, 0.032, 0xd8c39a, 1.1, 0.12, 6), { shadow: true });
+  const lumps = (colors, base = 0x8a6236) => (g) => {
+    g.box(0, 0.0, 0.052, 0.058, 0.03, 0.042, base);
+    for (let k = 0; k < 5; k++) g.ico(-0.018 + (k % 3) * 0.018, 0.036 + (k > 2 ? 0.008 : 0), 0.044 + (k % 2) * 0.016, 0.012, colors[k % colors.length], 1, 0.25, k + 3);
+  };
+  add('ore', lumps([0x4a4a52, 0x5a5560, 0xc9733a]), { shadow: true });
+  add('clay', lumps([0xc77a4a, 0xb86a3e, 0xd08a58], 0x9a7a5a), { shadow: true });
+  add('fishBasket', (g) => {
+    g.box(0, 0.006, 0.052, 0.062, 0.03, 0.044, 0xb38652);
+    for (let k = 0; k < 3; k++) {
+      g.box(-0.016 + k * 0.016, 0.04, 0.052, 0.012, 0.008, 0.05, k % 2 ? 0x8fb3c9 : 0x6f9ab3);
+      g.box(-0.016 + k * 0.016, 0.04, 0.08, 0.016, 0.004, 0.01, 0x5a8aa3);
+    }
+  }, { shadow: true });
+  add('eggBasket', (g) => {
+    g.box(0, 0.006, 0.052, 0.058, 0.026, 0.042, 0xc9a36a);
+    for (let k = 0; k < 5; k++) g.ico(-0.018 + (k % 3) * 0.018, 0.036, 0.044 + (k % 2) * 0.016, 0.0095, k % 2 ? 0xf7f1e3 : 0xe8c9a0, 1.25, 0, k);
+  }, { shadow: true });
+  add('milkCan', (g) => {
+    g.cyl(0, -0.03, 0.05, 0.022, 0.07, 9, 0xc8d0d6, 0.022, true, 0xe8eef2);
+    g.cyl(0, 0.04, 0.05, 0.012, 0.02, 8, 0xb8c0c6);
+  }, { shadow: true });
+  add('hay', (g) => {
+    g.cylZ(0.035, 0.1, 0, 0.032, 0.11, 8, 0xe2c25a, 0xd2ae48);
+    for (const z of [-0.03, 0.03]) g.cylZ(0.035, 0.1, z, 0.033, 0.006, 8, 0x9a7a3a);
+  }, { shadow: true });
+  add('plankStack', (g) => {
+    for (let k = 0; k < 3; k++) g.box(0.03, 0.088 + k * 0.012, 0, 0.04, 0.01, 0.22, k % 2 ? 0xd4ad7a : 0xc49a6c);
+  }, { shadow: true });
+  add('toolsCrate', (g) => {
+    g.box(0, 0.004, 0.052, 0.06, 0.034, 0.042, 0x8a6236);
+    for (let k = 0; k < 3; k++) g.box(-0.018 + k * 0.018, 0.045, 0.052, 0.006, 0.04, 0.006, 0x8a9096);
+  }, { shadow: true });
+  add('breadBasket', (g) => {
+    g.box(0, 0.006, 0.052, 0.06, 0.026, 0.044, 0xc9a36a);
+    for (let k = 0; k < 3; k++) g.ico(-0.016 + k * 0.016, 0.038, 0.052, 0.014, 0xd99a4a, 0.55, 0.15, k);
+  }, { shadow: true });
+  add('tray', (g) => {
+    g.box(0.05, 0.1, 0.05, 0.07, 0.006, 0.06, 0xb38652);
+    for (const [x, z] of [[0.035, 0.04], [0.062, 0.06]]) {
+      g.cyl(x, 0.106, z, 0.011, 0.024, 7, 0xe8d8b0, 0.012, true, 0xfff6dc);
+    }
+  }, { shadow: true });
+  // charrette à bras (repère du personnage, devant lui)
+  add('cart', (g) => {
+    g.box(0, 0.05, 0.2, 0.15, 0.045, 0.18, { top: 0x9a6b43, side: 0x7a5232 });
+    g.box(0, 0.095, 0.2, 0.15, 0.01, 0.18, 0x6e4a2f);
+    for (const sx of [-0.083, 0.083]) {
+      g.cylX(sx, 0.045, 0.22, 0.045, 0.012, 10, 0x5a3a22, 0x7a5232);
+      g.box(sx * 0.62, 0.075, 0.07, 0.008, 0.008, 0.14, 0x7a5232);
+    }
+  }, { shadow: true });
+  const cartLoad = (fn) => (g) => fn(g);
+  add('cartLogs', cartLoad((g) => {
+    for (let k = 0; k < 5; k++) g.cylZ(-0.05 + (k % 3) * 0.05, 0.12 + Math.floor(k / 3) * 0.035, 0.2, 0.02, 0.17, 7, 0x7a5232, 0xd9b47a);
+  }), { shadow: true });
+  add('cartCrates', cartLoad((g) => {
+    for (let k = 0; k < 2; k++) g.box(-0.035 + k * 0.07, 0.1, 0.2, 0.06, 0.05, 0.13, k ? 0xb38652 : 0xc49a6c);
+    for (let k = 0; k < 4; k++) g.ico(-0.05 + k * 0.033, 0.16, 0.2, 0.014, [0xf08a2a, 0xe53935, 0x5fb447, 0xd8b880][k], 1, 0.1, k);
+  }), { shadow: true });
+  add('cartSacks', cartLoad((g) => {
+    for (let k = 0; k < 3; k++) g.ico(-0.045 + k * 0.045, 0.13, 0.2, 0.034, 0xd8c39a, 1.1, 0.12, k);
+  }), { shadow: true });
+  add('cartStones', cartLoad((g) => {
+    for (let k = 0; k < 5; k++) g.ico(-0.045 + (k % 3) * 0.045, 0.12 + Math.floor(k / 3) * 0.03, 0.18 + (k % 2) * 0.03, 0.027, [0xb7b2a8, 0x9a948a, 0xc8c2b8][k % 3], 1, 0.25, k);
+  }), { shadow: true });
+  // ligne de pêche et bouchon
+  add('line', (g) => g.box(0, -0.002, -0.5, 0.004, 0.004, 1, 0xf2efe6));
+  add('bobber', (g) => {
+    sphere(g, 0, 0.012, 0, 0.012, 0xe53935, 1, 8, 5);
+    sphere(g, 0, 0.022, 0, 0.007, 0xffffff, 1, 6, 4);
+  });
+  add('box', (g) => {
+    g.box(0, -0.004, 0.052, 0.07, 0.05, 0.05, 0xc9a06a);
+    g.box(0, 0.042, 0.052, 0.072, 0.004, 0.012, 0xe8d8b0);
+  }, { shadow: true });
+  add('suitcase', (g) => {
+    g.box(0, -0.13, 0.0, 0.016, 0.05, 0.06, 0x8a3b22);
+    g.box(0, -0.1, 0.0, 0.006, 0.01, 0.02, 0x3a2618);
+  }, { shadow: true });
+  add('fishHang', (g) => {
+    g.box(0, -0.03, 0, 0.012, 0.05, 0.022, 0x6f9ab3);
+    g.box(0, -0.06, 0, 0.004, 0.016, 0.02, 0x5a8aa3);
+  });
   return P;
 }
 
 const HAND_TOOL = { chop: 'axe', trim: 'axe', till: 'hoe', water: 'can', sow: 'seedbag', harvestFarm: 'scythe' };
+const ROD_TIP = [0, -0.08 - 0.53 * 0.31, 0.85 * 0.31]; // bout de la canne (repère du bras)
+
+/**
+ * Gestes des métiers : animation, outil (main droite), outil (main gauche).
+ * Ajouter un métier = ajouter ici les poses de ses gestes.
+ */
+const ACT_POSES = {
+  pick: ['pick', 'pickaxe'], dig: ['dig', 'shovel'],
+  cast: ['cast', 'rod'], fishWait: ['fishWait', 'rod'], reel: ['reel', 'rod'], goShore: ['walk', 'rod'],
+  feed: ['feed', null, 'seedbag'], pour: ['pour', 'bucket'], hay: ['pitch', 'pitchfork'], pickHay: ['pickup', null],
+  collect: ['collect', null], milk: ['milk', 'bucket'],
+  saw: ['saw', 'saw'], smith: ['smith', 'hammer', 'tongs'], mold: ['knead', null], knead: ['knead', null], carrySacks: ['knead', null],
+  pickIn: ['pickup', null], stack: ['drop', null], waitIn: ['idle', null],
+  serve: ['serve', null], arrange: ['pickup', null], call: ['call', null],
+  loadCart: ['loadCart', null], unloadCart: ['loadCart', null],
+};
+/** Ce que l'on porte (charge de la récolte ou objet de l'atelier) → pièce et façon de porter. */
+const LOADS = {
+  logs: ['logs', 'carryLogs'], sheaf: ['sheaf', 'carryFront'], stoneBlock: ['stoneBlock', 'carryFront'], ore: ['ore', 'carryFront'],
+  clay: ['clay', 'carryFront'], fish: ['fishBasket', 'carryFront'], eggs: ['eggBasket', 'carryFront'], milk: ['milkCan', 'carryFront'],
+  hay: ['hay', 'carryLogs'], sack: ['sack', 'carryFront'], plankStack: ['plankStack', 'carryLogs'], toolsCrate: ['toolsCrate', 'carryFront'],
+  bricks: ['bricks', 'carryFront'], bread: ['breadBasket', 'carryFront'], tray: ['tray', 'carryTray'], plank: ['plank', 'carryLogs'],
+};
+const CART_LOADS = { logs: 'cartLogs', plankStack: 'cartLogs', crates: 'cartCrates', fish: 'cartCrates', eggs: 'cartCrates', milk: 'cartCrates', bread: 'cartCrates', toolsCrate: 'cartCrates', sacks: 'cartSacks', sack: 'cartSacks', stones: 'cartStones', ore: 'cartStones', clay: 'cartStones', bricks: 'cartStones' };
+
+/** Gestes des bâtisseurs : animation et outil. */
+const BUILDER_ACTS = {
+  hammer: ['hammer', 'hammer'], hammerLow: ['hammerLow', 'hammer'], stake: ['hammerLow', 'hammer'],
+  dig: ['dig', 'shovel'], saw: ['saw', 'saw'], paint: ['paint', 'brush'], place: ['place', null],
+  drop: ['drop', null], fetch: ['pickup', null], climb: ['climb', null], descend: ['climb', null],
+  cheer: ['cheer', null], idle: ['idle', null],
+};
 
 export class People {
   constructor(renderer) {
@@ -227,6 +407,21 @@ export class People {
       f.d2 = dx * dx + dz * dz;
       this.effects(w, f, tNow);
     }
+    // 1 bis) les bâtisseurs sur les chantiers
+    const crew = game.construction?.crew;
+    if (crew) {
+      for (const w of crew) {
+        if (w.state === 'base' || w.state === 'off') continue;
+        const p = this.builderPose(w, tNow);
+        const dx = p.x - tx, dz = p.z - tz;
+        if (dx * dx + dz * dz > r2) continue;
+        const f = fig();
+        this.dress(f, w);
+        Object.assign(f, p);
+        f.d2 = dx * dx + dz * dz;
+        this.builderEffects(w, f, tNow);
+      }
+    }
     // 2) les autres travailleurs : trajets du matin et du soir (calculés à la demande)
     this.scanAcc += dt;
     if (this.scanAcc > 0.5) {
@@ -252,6 +447,40 @@ export class People {
       f.load = null;
       f.tool = null;
       f.d2 = dx * dx + dz * dz;
+    }
+    // 2 bis) de nouveaux habitants arrivent avec leurs cartons, d'autres partent
+    this.moverClock = (this.moverClock || 0) + dt * Math.max(0.35, Math.min(3, gameSpeed || 0));
+    this.moverAcc = (this.moverAcc || 0) + dt;
+    if (this.moverAcc > 0.5) {
+      this.moverAcc = 0;
+      this.scanHomes(tx, tz, radius + 8);
+    }
+    if (this.movers?.length) {
+      const keep = [];
+      for (const m of this.movers) {
+        const tt = m.mv.t0 + (this.moverClock - m.start);
+        const p = moveAt(m.mv, tt, this.pos);
+        if (p.done) {
+          if (m.leaving === false) this.r.particles.emit('sparkle', p.x, 0.15, p.z, 3);
+          continue;
+        }
+        keep.push(m);
+        const dx = p.x - tx, dz = p.z - tz;
+        if (dx * dx + dz * dz > r2) continue;
+        const f = fig();
+        this.dressWalker(f, m);
+        f.x = p.x;
+        f.z = p.z;
+        f.y = this.groundY(p.x, p.z);
+        f.dir = p.dir;
+        f.anim = m.leaving ? 'walk' : 'carryFront';
+        f.phase = p.s * 9;
+        f.t = 0;
+        f.load = m.leaving ? null : 'box';
+        f.tool = m.leaving ? 'suitcase' : null;
+        f.d2 = dx * dx + dz * dz;
+      }
+      this.movers = keep;
     }
     // 3) promeneurs (enfants, retraités, flâneurs)
     for (const a of this.r.agents.people) {
@@ -302,6 +531,11 @@ export class People {
     f.y = 0;
     f.id = w.id;
     f.role = w.role;
+    f.apron = o?.apron ?? null;
+    f.cart = false;
+    f.cartLoad = null;
+    f.bob = null;
+    f.toolL = null;
   }
 
   dressWalker(f, a) {
@@ -318,6 +552,11 @@ export class People {
     f.scale = a.look.kid ? 0.85 : 1.15;
     f.id = -1;
     f.role = 'walker';
+    f.apron = null;
+    f.cart = false;
+    f.cartLoad = null;
+    f.bob = null;
+    f.toolL = null;
   }
 
   /** Position et geste d'un travailleur suivi, d'après son action en cours. */
@@ -326,9 +565,12 @@ export class People {
     const out = { x: p.x, z: p.z, dir: p.dir, y: 0, anim: 'idle', phase: 0, t: t - w.t0, dur: Math.max(0.01, w.until - w.t0), load: null, tool: null };
     const act = w.act;
     const moving = !!w.mv;
+    const held = w.load ? (w.load.kind === 'basket' ? null : w.load.kind) : w.prop;
     if (moving) {
       out.phase = p.s * 9;
-      out.anim = w.load ? (w.load.kind === 'logs' ? 'carryLogs' : 'carryFront') : 'walk';
+      if (w.cart) out.anim = 'push';
+      else if (held && LOADS[held]) out.anim = LOADS[held][1];
+      else out.anim = w.load ? 'carryFront' : 'walk';
     } else {
       switch (act) {
         case 'chop':
@@ -362,15 +604,93 @@ export class People {
         case 'rest':
           out.anim = 'chat';
           break;
-        default:
-          out.anim = 'idle';
+        default: {
+          const a = ACT_POSES[act];
+          out.anim = a ? a[0] : 'idle';
+          if (a?.[1]) out.tool = a[1];
+          if (a?.[2]) out.toolL = a[2];
+        }
       }
     }
-    if (w.load) out.load = w.load.kind === 'logs' ? 'logs' : w.load.kind === 'sheaf' ? 'sheaf' : w.load.kind === 'basket' ? ['basketCarrot', 'basketTomato', 'basketPotato'][w.load.crop % 3] : 'sack';
+    if (w.load) {
+      const k = w.load.kind;
+      out.load = k === 'basket' ? ['basketCarrot', 'basketTomato', 'basketPotato'][w.load.crop % 3] : LOADS[k]?.[0] || 'sack';
+    } else if (w.prop && LOADS[w.prop]) out.load = LOADS[w.prop][0];
+    // charrette du charretier, ligne du pêcheur
+    if (w.cart) {
+      out.cart = true;
+      out.cartLoad = w.cartLoad ? CART_LOADS[w.cartLoad] || 'cartCrates' : null;
+      if (act === 'loadCart') out.cartLoad = Math.min(1, (t - w.t0) / Math.max(0.1, w.until - w.t0)) > 0.5 ? CART_LOADS[w.target && this.r.world.buildings.get(w.target.src) ? cartKindOf(this.r.world.buildings.get(w.target.src)) : 'crates'] : null;
+      if (act === 'unloadCart' && Math.min(1, (t - w.t0) / Math.max(0.1, w.until - w.t0)) > 0.6) out.cartLoad = null;
+    }
+    if (w.role === 'fisher' && w.target?.bob && (act === 'fishWait' || act === 'reel' || act === 'cast')) {
+      out.bob = w.target.bob;
+      out.bobT = t - w.t0;
+    }
     if (w.role === 'lumberjack' && !out.tool && !w.load && (act === 'goTree' || act === 'idle' || act === 'wait')) out.tool = 'axeRest';
     // sur un pont, on marche sur le tablier
     out.y = this.groundY(out.x, out.z);
     return out;
+  }
+
+  /** Position et geste d'un bâtisseur (au sol, sur l'échelle ou sur l'échafaudage). */
+  builderPose(w, t) {
+    const p = builderPos(w, Math.min(t, w.until), this.pos);
+    const out = { x: p.x, z: p.z, dir: p.dir, y: 0, anim: 'idle', phase: 0, t: t - w.t0, dur: Math.max(0.01, w.until - w.t0), load: null, tool: null };
+    const sites = this.r.sites;
+    const k = Math.min(1, Math.max(0, (t - w.t0) / Math.max(0.01, w.until - w.t0)));
+    if (w.mv) {
+      out.phase = p.s * 9;
+      out.anim = w.load ? (w.load.kind === 'plank' ? 'carryLogs' : 'carryFront') : 'walk';
+      out.y = sites.platformY(w.job, w.lvl);
+    } else {
+      const a = BUILDER_ACTS[w.act] || BUILDER_ACTS.idle;
+      out.anim = a[0];
+      out.tool = a[1];
+      if ((w.act === 'climb' || w.act === 'descend') && w.cl) {
+        out.x = w.cl[0] + (w.x - w.cl[0]) * k;
+        out.z = w.cl[1] + (w.z - w.cl[1]) * k;
+        const y0 = sites.platformY(w.job, w.lvlFrom), y1 = sites.platformY(w.job, w.lvl);
+        out.y = y0 + (y1 - y0) * k;
+        out.dir = w.dir;
+      } else out.y = sites.platformY(w.job, w.lvl);
+    }
+    if (w.load) out.load = w.load.kind === 'plank' ? 'plank' : w.load.kind === 'stoneBlock' ? 'stoneBlock' : 'bricks';
+    if (w.act === 'fetch' && !w.load && k > 0.55) out.load = null;
+    if (!w.load && !w.mv && (w.act === 'idle') && w.state === 'site') out.tool = 'hammer';
+    if (out.y === 0) out.y = this.groundY(out.x, out.z);
+    return out;
+  }
+
+  /** Bruits et poussières du chantier, au rythme des gestes. */
+  builderEffects(w, f, t) {
+    const r = this.r;
+    let s = this.seen.get(w.id);
+    if (!s) this.seen.set(w.id, (s = { act: '', t0: -1, k: -1 }));
+    if (s.act !== w.act || s.t0 !== w.t0) {
+      if (w.act === 'drop' || w.act === 'place') this.sound('drop', f);
+      if (w.act === 'cheer' && s.act !== 'cheer') r.particles.emit('sparkle', f.x, (f.y || 0) + 0.25, f.z, 3);
+      s.act = w.act;
+      s.t0 = w.t0;
+      s.k = -1;
+    }
+    const el = t - w.t0;
+    const beat = { hammer: [0.42, 0.3], hammerLow: [0.5, 0.36], stake: [0.5, 0.36], dig: [0.95, 0.6], saw: [0.36, 0.1] }[w.act];
+    if (!beat || el < beat[1]) return;
+    const k = Math.floor((el - beat[1]) / beat[0]);
+    if (k <= s.k) return;
+    s.k = k;
+    const fx = f.x + Math.sin(f.dir) * 0.11, fz = f.z + Math.cos(f.dir) * 0.11, fy = (f.y || 0);
+    if (w.act === 'hammer' || w.act === 'hammerLow' || w.act === 'stake') {
+      if (k % 2 === 0) r.particles.emit('chips', fx, fy + (w.act === 'hammer' ? 0.17 : 0.05), fz, 2, { scale: 0.6 });
+      this.sound('hammer', f);
+    } else if (w.act === 'dig') {
+      r.particles.emit('soil', fx, fy + 0.02, fz, 5);
+      this.sound('dig', f);
+    } else if (w.act === 'saw') {
+      r.particles.emit('chips', fx, fy + 0.09, fz, 2, { scale: 0.45 });
+      if (k % 2 === 0) this.sound('saw', f);
+    }
   }
 
   groundY(x, z) {
@@ -401,6 +721,7 @@ export class People {
       s.act = w.act;
       s.t0 = w.t0;
       s.k = -1;
+      s.k2 = -1;
     }
     const el = t - w.t0;
     const strikes = { chop: [0.7, 0.42], trim: [0.62, 0.36], till: [1.0, 0.62], harvest: [0.8, 0.4] }[w.act];
@@ -426,6 +747,59 @@ export class People {
         }
       }
     }
+    // les autres métiers
+    const beat = { pick: [0.62, 0.42], dig: [0.95, 0.6], smith: [0.5, 0.33], pitch: [1.1, 0.8], saw: [0.36, 0.1], knead: [1.05, 0.5], mold: [1.05, 0.5], loadCart: [0.9, 0.5], unloadCart: [0.9, 0.5] }[w.act];
+    if (beat && el >= beat[1]) {
+      const k = Math.floor((el - beat[1]) / beat[0]);
+      if (k > (s.k2 ?? -1)) {
+        s.k2 = k;
+        const fx = f.x + Math.sin(f.dir) * 0.13, fz = f.z + Math.cos(f.dir) * 0.13;
+        const job = this.r.world.buildings.get(w.job)?.type;
+        if (w.act === 'pick') {
+          r.particles.emit('stones', fx, 0.05, fz, 4);
+          if (job === 'mine' && k % 2) r.particles.emit('sparks', fx, 0.06, fz, 3);
+          this.sound('pick', f);
+        } else if (w.act === 'dig') {
+          r.particles.emit('soil', fx, 0.02, fz, 5, job === 'claypit' ? { color: [0.72, 0.45, 0.3] } : undefined);
+          this.sound('dig', f);
+        } else if (w.act === 'smith') {
+          r.particles.emit('sparks', fx, 0.09, fz, 5);
+          this.sound('anvil', f);
+        } else if (w.act === 'pitch') {
+          r.particles.emit('hay', fx, 0.12, fz, 5);
+        } else if (w.act === 'saw') {
+          r.particles.emit('chips', fx, 0.09, fz, 2, { scale: 0.45 });
+          if (k % 2 === 0) this.sound('saw', f);
+        } else if (w.act === 'knead' || w.act === 'mold') {
+          if (job === 'brickworks') r.particles.emit('soil', fx, 0.08, fz, 2, { color: [0.72, 0.45, 0.3] });
+          else r.particles.emit('flour', fx, 0.09, fz, 2);
+        } else this.sound('drop', f);
+      }
+    }
+    if (w.act === 'feed' && Math.random() < 0.6) r.particles.emit('grain', f.x + Math.sin(f.dir + 0.4) * 0.12, 0.1, f.z + Math.cos(f.dir + 0.4) * 0.12, 1, { vx: Math.sin(f.dir) * 0.6, vz: Math.cos(f.dir) * 0.6 });
+    if (w.act === 'pour' && Math.random() < 0.7) r.particles.emit('drops', f.x + Math.sin(f.dir) * 0.14, 0.09, f.z + Math.cos(f.dir) * 0.14, 1);
+    if (w.role === 'fisher' && w.target?.bob) {
+      const bob = w.target.bob;
+      if (w.act === 'cast' && el > (w.until - w.t0) * 0.55 && !s.cast) {
+        s.cast = true;
+        this.sound('cast', f);
+      }
+      if (w.act === 'fishWait') {
+        s.cast = false;
+        if (!s.splashed) {
+          s.splashed = true;
+          r.particles.emit('splash', bob[0], -0.05, bob[1], 3);
+        }
+        if (Math.random() < 0.015) r.particles.emit('drops', bob[0], -0.04, bob[1], 2);
+      }
+      if (w.act === 'reel' && !s.reeled) {
+        s.reeled = true;
+        r.particles.emit('splash', bob[0], -0.05, bob[1], 8);
+        this.sound('splash', f);
+      }
+      if (w.act !== 'reel') s.reeled = false;
+      if (w.act === 'cast') s.splashed = false;
+    }
     if (w.act === 'water' && Math.random() < 0.5) {
       r.particles.emit('drops', f.x + Math.sin(f.dir) * 0.11, 0.07, f.z + Math.cos(f.dir) * 0.11, 1);
     }
@@ -441,6 +815,45 @@ export class People {
     this.lastSound = this.lastSound || {};
     this.lastSound[name] = now;
     this.r.game.sound?.play(name);
+  }
+
+  resetMovers() {
+    this.movers = [];
+    this.homeSeen = new Map();
+  }
+
+  /** Une maison gagne ou perd un habitant : quelqu'un arrive (ou part) par la route, depuis la mairie. */
+  scanHomes(tx, tz, radius) {
+    const world = this.r.world, game = this.r.game;
+    if (!this.homeSeen) this.homeSeen = new Map();
+    if (!this.movers) this.movers = [];
+    const th = world.townhall();
+    const first = !this.homeSeenInit;
+    this.homeSeenInit = true;
+    for (const b of world.buildings.values()) {
+      if (b.residents == null) continue;
+      const n = Math.floor(b.residents || 0);
+      const was = this.homeSeen.get(b.id);
+      this.homeSeen.set(b.id, n);
+      if (first || was == null || n === was || !th || game.isDemo && !game.playing && Math.random() < 0.5) continue;
+      if (this.movers.length >= 10) continue;
+      const c = world.centerOf(b);
+      if ((c.cx - HALF - tx) ** 2 + (c.cz - HALF - tz) ** 2 > radius * radius) continue;
+      const leaving = n < was;
+      const a = world.centerOf(th);
+      const rb = roadNextTo(world, b, [a.cx - HALF, a.cz - HALF]);
+      const rt = roadNextTo(world, th, [c.cx - HALF, c.cz - HALF]);
+      if (rb < 0 || rt < 0) continue;
+      const tiles = roadPath(world, rt, rb);
+      if (!tiles) continue;
+      let pts = roadPoints(tiles);
+      // ils arrivent par la route depuis la mairie (la place du village) et entrent dans la maison
+      pts.unshift(doorOf(th));
+      pts.push(doorOf(b));
+      if (leaving) pts = pts.reverse();
+      const mv = makeMove(pts, WALK * 1.1, 0);
+      this.movers.push({ mv, start: this.moverClock, leaving, shirt: SHIRTS[(b.id * 7 + n) % SHIRTS.length] });
+    }
   }
 
   /** Travailleurs « abrégés » en route : on calcule leur chemin seulement s'ils sont près de la caméra. */
@@ -516,6 +929,46 @@ export class People {
     e.n++;
   }
 
+  /** Ligne de pêche du bout de la canne au bouchon (et le poisson qui sort de l'eau). */
+  fishing(f, A, P) {
+    if (!f.bob) return;
+    const tip = this.v2 || (this.v2 = new THREE.Vector3());
+    tip.set(ROD_TIP[0], ROD_TIP[1], ROD_TIP[2]).applyMatrix4(A);
+    const t = f.bobT || 0;
+    // le bouchon danse, plonge quand ça mord
+    let by = -0.065 + Math.sin(this.time * 3 + f.x * 7) * 0.006;
+    if (f.anim === 'fishWait' && (f.dur || 9) - t < 0.9) by -= 0.02 * Math.abs(Math.sin(t * 18));
+    let bx = f.bob[0], bz = f.bob[1];
+    if (f.anim === 'reel') {
+      // on remonte : le poisson vient vers le pêcheur
+      const k = Math.min(1, t / Math.max(0.2, f.dur || 1.3));
+      bx = f.bob[0] + (tip.x - f.bob[0]) * k * 0.85;
+      bz = f.bob[1] + (tip.z - f.bob[1]) * k * 0.85;
+      by = by + (tip.y - 0.05 - by) * k * k;
+      const M = this.tmp;
+      M.makeTranslation(bx, by + 0.06, bz);
+      this.put('fishHang', M);
+    } else if (f.anim === 'cast') {
+      const k = Math.min(1, t / Math.max(0.2, f.dur || 1.1));
+      if (k < 0.55) return;
+      const u = (k - 0.55) / 0.45;
+      bx = tip.x + (f.bob[0] - tip.x) * u;
+      bz = tip.z + (f.bob[1] - tip.z) * u;
+      by = tip.y + (by - tip.y) * u + Math.sin(u * Math.PI) * 0.08;
+    }
+    const end = this.v3 || (this.v3 = new THREE.Vector3());
+    end.set(bx, by + 0.02, bz);
+    const len = tip.distanceTo(end);
+    if (len < 0.01) return;
+    const M = this.tmp;
+    M.lookAt(tip, end, this.up); // -z vers le bouchon : la ligne est modélisée le long de -z
+    M.scale(this.s.set(1, 1, len));
+    M.setPosition(tip);
+    this.put('line', M);
+    M.makeTranslation(bx, by, bz);
+    this.put('bobber', M);
+  }
+
   drawFigure(f) {
     const P = pose(f, this.time);
     const R = this.root, M = this.tmp, T2 = this.torsoM;
@@ -533,15 +986,16 @@ export class People {
     M.makeRotationX(P.tilt).setPosition(0, 0.077, 0);
     T2.multiplyMatrices(R, M);
     this.put('torso', T2, f.shirt);
-    if (f.role === 'lumberjack' || f.role === 'farmer' || f.role === 'gardener' || f.role === 'craftsman') this.put('belt', T2);
+    if (f.apron != null) this.put('apron', T2, f.apron);
+    else if (f.role === 'lumberjack' || f.role === 'farmer' || f.role === 'gardener' || f.role === 'craftsman' || f.role === 'builder' || f.role === 'digger' || f.role === 'carter') this.put('belt', T2);
     // tête
     M.makeRotationY(P.look).setPosition(0, 0.082, 0);
     const H = this.tmp2.multiplyMatrices(T2, M);
     this.put('head', H, f.skin);
     this.put('eyes', H);
-    if (f.hat === 'straw') this.put('straw', H);
+    if (f.hat === 'straw' || f.hat === 'toque') this.put(f.hat, H);
     else if (f.hat) this.put(f.hat, H, f.hatC);
-    if (!f.hat || f.hat === 'straw') this.put(f.longHair ? 'hairLong' : 'hairShort', H, f.hairC);
+    if (!f.hat || f.hat === 'straw' || f.hat === 'toque') this.put(f.longHair ? 'hairLong' : 'hairShort', H, f.hairC);
     else if (f.longHair) this.put('hairLong', H, f.hairC);
     // bras, mains, outil
     for (const side of [-1, 1]) {
@@ -553,8 +1007,16 @@ export class People {
       const A = this.armM.multiplyMatrices(T2, M);
       this.put('arm', A, f.shirt);
       this.put('hand', A, f.skin);
-      if (side > 0 && P.tool) this.put(P.tool, A);
-      if (side < 0 && P.toolL) this.put(P.toolL, A);
+      if (side > 0 && P.tool) {
+        this.put(P.tool, A);
+        if (P.tool === 'rod') this.fishing(f, A, P);
+      }
+      if (side < 0 && (P.toolL || f.toolL)) this.put(P.toolL || f.toolL, A);
+    }
+    // charrette à bras
+    if (f.cart) {
+      this.put('cart', R);
+      if (f.cartLoad) this.put(f.cartLoad, R);
     }
     // charge
     if (f.load) {
@@ -564,6 +1026,11 @@ export class People {
       } else this.put(f.load, T2);
     }
   }
+}
+
+/** Ce que contient un tas (pour la charrette). */
+function cartKindOf(b) {
+  return { lumber: 'logs', garden: 'crates', farm: 'sacks', quarry: 'stones', mine: 'ore', claypit: 'clay', fisher: 'fish', coop: 'eggs', pasture: 'milk', sawmill: 'plankStack', forge: 'toolsCrate', brickworks: 'bricks', bakery: 'bread', mill: 'sacks' }[b.type] || 'crates';
 }
 
 /** Fenêtre de trajet d'un travailleur abrégé (aller le matin, retour le soir). */
@@ -688,6 +1155,270 @@ export function pose(f, time) {
       P.legR = 0.35;
       break;
     }
+    case 'hammer': {
+      // marteau contre le mur : le bras droit frappe, la main gauche tient le clou
+      const u = ((t % 0.42) + 0.42) % 0.42 / 0.42;
+      const a = u < 0.62 ? -1.25 + (-2.25 + 1.25) * ease(u / 0.62) : -2.25 + (2.25 - 1.15) * Math.pow((u - 0.62) / 0.38, 1.5);
+      P.armR = a;
+      P.armL = -1.35;
+      P.armSpread = -0.05;
+      P.tilt = 0.06 + (u > 0.62 ? 0.04 : 0);
+      P.look = 0.05;
+      P.tool = 'hammer';
+      break;
+    }
+    case 'hammerLow': {
+      // à genoux près des fondations
+      const u = ((t % 0.5) + 0.5) % 0.5 / 0.5;
+      const a = u < 0.6 ? -0.7 + (-1.9 + 0.7) * ease(u / 0.6) : -1.9 + (1.9 - 0.55) * Math.pow((u - 0.6) / 0.4, 1.5);
+      P.armR = a;
+      P.armL = -0.65;
+      P.tilt = 0.55;
+      P.crouch = 0.045;
+      P.legL = -1.3;
+      P.legR = 0.35;
+      P.tool = 'hammer';
+      break;
+    }
+    case 'dig': {
+      // pelle : on enfonce, on soulève, on jette
+      const u = (t % 0.95) / 0.95;
+      const a = u < 0.4 ? -0.35 - 0.6 * ease(u / 0.4) : u < 0.7 ? -0.95 + 0.3 * ease((u - 0.4) / 0.3) : -0.65 + 0.3 * ease((u - 0.7) / 0.3);
+      P.armL = a - 0.2;
+      P.armR = a;
+      P.tilt = u < 0.4 ? 0.2 + 0.3 * ease(u / 0.4) : 0.5 - 0.35 * ease((u - 0.4) / 0.6);
+      P.legL = 0.3;
+      P.legR = -0.2;
+      P.look = u > 0.7 ? 0.35 : 0;
+      P.tool = 'shovel';
+      break;
+    }
+    case 'saw': {
+      const u = Math.sin(t * 17.5);
+      P.armR = -1.1 + u * 0.32;
+      P.armL = -0.9;
+      P.armSpread = -0.1;
+      P.tilt = 0.42;
+      P.legL = 0.35;
+      P.legR = -0.2;
+      P.look = -0.15;
+      P.tool = 'saw';
+      break;
+    }
+    case 'paint': {
+      P.armR = -1.55 + Math.sin(t * 6) * 0.35;
+      P.armL = 0.05;
+      P.armSpread = Math.sin(t * 3) * 0.12;
+      P.tilt = 0.04;
+      P.look = Math.sin(t * 1.3) * 0.12;
+      P.tool = 'brush';
+      break;
+    }
+    case 'place': {
+      const k = Math.min(1, t / Math.max(0.2, f.dur || 0.6));
+      P.armL = -1.0 - Math.sin(k * Math.PI) * 0.65;
+      P.armR = P.armL;
+      P.tilt = 0.12;
+      P.loadDrop = -Math.sin(k * Math.PI) * 0.03;
+      break;
+    }
+    case 'pickup': {
+      const k = Math.min(1, t / Math.max(0.2, f.dur || 0.8));
+      P.tilt = Math.sin(k * Math.PI) * 0.6;
+      P.armL = -0.9 * Math.sin(k * Math.PI) - 0.1;
+      P.armR = P.armL;
+      P.crouch = Math.sin(k * Math.PI) * 0.012;
+      break;
+    }
+    case 'climb': {
+      const ph = t * 7;
+      P.armL = -2.5 + Math.sin(ph) * 0.35;
+      P.armR = -2.5 - Math.sin(ph) * 0.35;
+      P.legL = -0.6 + Math.sin(ph) * 0.45;
+      P.legR = -0.6 - Math.sin(ph) * 0.45;
+      P.tilt = -0.05;
+      break;
+    }
+    case 'pick': {
+      // pioche à deux mains : on lève haut, on frappe bas devant soi
+      const per = 0.62;
+      const u = ((t % per) + per) % per / per;
+      const hi = -3.0, lo = -0.25;
+      let a;
+      if (u < 0.55) a = -0.5 + (hi + 0.5) * ease(u / 0.55);
+      else if (u < 0.7) a = hi + (lo - hi) * Math.pow((u - 0.55) / 0.15, 1.5);
+      else a = lo + (-0.5 - lo) * ease((u - 0.7) / 0.3);
+      P.armL = a;
+      P.armR = a;
+      P.armSpread = 0.1;
+      P.tilt = 0.12 + (u > 0.55 && u < 0.85 ? 0.3 : 0);
+      P.legL = 0.3;
+      P.legR = -0.2;
+      P.tool = 'pickaxe';
+      break;
+    }
+    case 'cast': {
+      // on arme la canne au-dessus de l'épaule, puis on lance
+      const k = Math.min(1, t / Math.max(0.2, f.dur || 1.1));
+      const a = k < 0.45 ? -1.1 + (-2.7 + 1.1) * ease(k / 0.45) : -2.7 + (2.7 - 1.0) * ease(Math.min(1, (k - 0.45) / 0.25));
+      P.armR = a;
+      P.armL = a * 0.7;
+      P.tilt = k < 0.45 ? -0.08 : 0.1;
+      P.legL = 0.3;
+      P.legR = -0.15;
+      P.tool = 'rod';
+      break;
+    }
+    case 'fishWait': {
+      P.armR = -1.0 + Math.sin(time * 1.1 + (f.x || 0)) * 0.03;
+      P.armL = -0.8;
+      P.tilt = 0.02;
+      P.look = Math.sin(time * 0.4 + (f.z || 0)) * 0.35;
+      P.bob = Math.sin(time * 1.5) * 0.0015;
+      P.tool = 'rod';
+      break;
+    }
+    case 'reel': {
+      const k = Math.min(1, t / Math.max(0.2, f.dur || 1.3));
+      P.armR = -1.0 - k * 0.9 + Math.sin(t * 20) * 0.06;
+      P.armL = -0.9 - k * 0.5;
+      P.tilt = -0.1 * k;
+      P.legL = -0.2;
+      P.legR = 0.3;
+      P.tool = 'rod';
+      break;
+    }
+    case 'feed': {
+      // la main gauche tient le sac de grain, la droite lance de grands arcs
+      const s = Math.sin(t * 5.2);
+      P.armL = -0.75;
+      P.armR = -0.9 + s * 0.35;
+      P.armSpread = 0.2 + Math.max(0, s) * 0.55;
+      P.tilt = 0.08;
+      P.look = s * 0.2;
+      P.bob = Math.abs(Math.cos(t * 2.6)) * 0.003;
+      P.toolL = 'seedbag';
+      break;
+    }
+    case 'pour': {
+      const k = Math.min(1, t / Math.max(0.2, f.dur || 2.4));
+      P.armR = -0.9 - Math.sin(k * Math.PI) * 0.45;
+      P.armL = -0.7 - Math.sin(k * Math.PI) * 0.3;
+      P.tilt = 0.2 + Math.sin(k * Math.PI) * 0.15;
+      P.tool = 'bucket';
+      break;
+    }
+    case 'pitch': {
+      // fourche : on soulève le foin et on le lance dans le râtelier
+      const u = (t % 1.1) / 1.1;
+      const a = u < 0.5 ? -0.6 - 0.4 * ease(u / 0.5) : -1.0 - 1.1 * ease((u - 0.5) / 0.5);
+      P.armR = a;
+      P.armL = a + 0.25;
+      P.tilt = u < 0.5 ? 0.35 : 0.1;
+      P.legL = 0.3;
+      P.legR = -0.2;
+      P.tool = 'pitchfork';
+      break;
+    }
+    case 'collect': {
+      P.armL = -0.55 + Math.sin(t * 4) * 0.2;
+      P.armR = -0.75 - Math.sin(t * 4) * 0.25;
+      P.tilt = 0.62;
+      P.crouch = 0.018;
+      P.legL = -0.6;
+      P.legR = 0.35;
+      break;
+    }
+    case 'milk': {
+      // à genoux près de la vache, on tire en rythme
+      P.crouch = 0.05;
+      P.legL = -1.35;
+      P.legR = 0.4;
+      P.tilt = 0.32;
+      P.armL = -0.95 + Math.sin(t * 7) * 0.14;
+      P.armR = -0.95 - Math.sin(t * 7) * 0.14;
+      P.armSpread = 0.06;
+      P.tool = 'bucket';
+      break;
+    }
+    case 'smith': {
+      // marteau sur l'enclume (à hauteur de taille), la pince dans l'autre main
+      const u = ((t % 0.5) + 0.5) % 0.5 / 0.5;
+      const a = u < 0.6 ? -0.9 + (-2.3 + 0.9) * ease(u / 0.6) : -2.3 + (2.3 - 0.75) * Math.pow((u - 0.6) / 0.4, 1.6);
+      P.armR = a;
+      P.armL = -0.95;
+      P.tilt = 0.18 + (u > 0.6 ? 0.08 : 0);
+      P.legL = 0.25;
+      P.legR = -0.2;
+      P.tool = 'hammer';
+      P.toolL = 'tongs';
+      break;
+    }
+    case 'knead': {
+      const s = Math.sin(t * 6);
+      P.armL = -1.0 + s * 0.22;
+      P.armR = -1.0 + s * 0.22;
+      P.armSpread = 0.04;
+      P.tilt = 0.32 + Math.max(0, s) * 0.12;
+      P.bob = -Math.max(0, s) * 0.004;
+      break;
+    }
+    case 'serve': {
+      const k = Math.min(1, t / Math.max(0.3, f.dur || 2));
+      const give = Math.sin(Math.min(1, k * 2) * Math.PI);
+      P.armR = -0.4 - give * 1.0;
+      P.armL = -0.3 + Math.sin(t * 2.2) * 0.2;
+      P.tilt = 0.08 + give * 0.08;
+      P.look = Math.sin(t * 0.9) * 0.25;
+      break;
+    }
+    case 'call': {
+      P.armR = -2.7;
+      P.armSpread = 0.3 + Math.sin(t * 9) * 0.25;
+      P.armL = 0.05;
+      P.look = Math.sin(t * 1.4) * 0.5;
+      P.bob = Math.abs(Math.sin(t * 4.5)) * 0.002;
+      break;
+    }
+    case 'loadCart': {
+      const u = (t % 0.9) / 0.9;
+      P.tilt = Math.sin(u * Math.PI) * 0.55;
+      P.armL = -0.5 - Math.sin(u * Math.PI) * 0.6;
+      P.armR = P.armL;
+      P.look = Math.sin(u * Math.PI) * 0.2;
+      break;
+    }
+    case 'push': {
+      const ph = f.phase || 0;
+      const sw = Math.sin(ph);
+      P.legL = sw * 0.45;
+      P.legR = -sw * 0.45;
+      P.bob = Math.abs(Math.cos(ph)) * 0.005;
+      P.armL = -0.95;
+      P.armR = -0.95;
+      P.tilt = 0.14;
+      break;
+    }
+    case 'carryTray': {
+      const ph = f.phase || 0;
+      const sw = Math.sin(ph);
+      P.legL = sw * 0.5;
+      P.legR = -sw * 0.5;
+      P.bob = Math.abs(Math.cos(ph)) * 0.005;
+      P.armR = -1.7;
+      P.armL = -sw * 0.35;
+      break;
+    }
+    case 'cheer': {
+      const j = Math.abs(Math.sin(t * 7));
+      P.armL = -2.9 + Math.sin(t * 14) * 0.15;
+      P.armR = -2.9 - Math.sin(t * 14) * 0.15;
+      P.armSpread = 0.35;
+      P.bob = j * 0.035;
+      P.tilt = -0.08;
+      P.look = Math.sin(t * 3) * 0.3;
+      break;
+    }
     case 'drop': {
       const k = Math.min(1, t / Math.max(0.2, f.dur || 0.8));
       P.tilt = Math.sin(k * Math.PI) * 0.55;
@@ -716,8 +1447,10 @@ export function pose(f, time) {
   if (f.tool === 'axeRest') P.tool = 'axe';
   else if (f.tool && !P.tool) P.tool = f.tool;
   if (f.load) {
-    if (f.load === 'logs') P.armR = Math.min(P.armR, -2.6);
-    else if (f.anim !== 'drop' && !f.anim.startsWith('carry')) {
+    if (f.load === 'logs' || f.load === 'plank') P.armR = Math.min(P.armR, -2.6);
+    else if (f.load === 'tray') {
+      if (f.anim !== 'carryTray' && f.anim !== 'serve') P.armR = -1.7;
+    } else if (f.anim !== 'drop' && f.anim !== 'place' && f.anim !== 'pickup' && f.anim !== 'climb' && !f.anim.startsWith('carry')) {
       P.armL = -1;
       P.armR = -1;
     }

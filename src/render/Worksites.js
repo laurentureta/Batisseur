@@ -5,9 +5,10 @@ import * as THREE from 'three';
 import { GeoBuilder, hexToLin } from './geom.js';
 import { toGeometry } from './TerrainView.js';
 import { siteLayout, localToWorld, WORKSITES } from '../sim/Villagers.js';
+import { WORKSHOPS } from '../sim/jobs.js';
 import { hash2 } from '../core/rng.js';
 
-const MAXI = { carrot: 600, tomato: 600, potato: 600, wheat: 2600, corn: 1400, furrow: 900, sprout: 1600, log: 700, trunk: 60, sack: 300, crate: 200, tomatoFruit: 600, carrotTop: 600, cob: 1400, flower: 600 };
+const MAXI = { carrot: 600, tomato: 600, potato: 600, wheat: 2600, corn: 1400, furrow: 900, sprout: 1600, log: 700, trunk: 60, sack: 300, crate: 200, tomatoFruit: 600, carrotTop: 600, cob: 1400, flower: 600, block: 400, oreLump: 300, clayLump: 300, fishCrate: 200, eggBasket: 200, milkCan: 200, plankStack: 300, toolCrate: 200, brickStack: 300, breadCrate: 200, anvil: 60, horse: 60, table: 120, dough: 120 };
 
 function kinds() {
   const K = {};
@@ -67,6 +68,60 @@ function kinds() {
     const veg = [0xf08a2a, 0xe53935, 0xd8b880, 0xf08a2a, 0x5fb447, 0xe53935];
     for (let k = 0; k < 6; k++) sphere6(g, -0.03 + (k % 3) * 0.03, 0.05, -0.014 + Math.floor(k / 3) * 0.028, 0.012, veg[k]);
   }, { shadow: true });
+  // tas des nouveaux métiers
+  add('block', (g) => g.box(0, 0, 0, 0.06, 0.042, 0.05, { top: 0xcfc9bf, side: 0xa8a296 }), { shadow: true });
+  add('oreLump', (g) => {
+    g.ico(0, 0.02, 0, 0.026, 0x4a4a52, 0.8, 0.3, 2);
+    g.ico(0.012, 0.03, 0.006, 0.009, 0xc9733a, 1, 0, 4);
+  }, { shadow: true });
+  add('clayLump', (g) => g.ico(0, 0.018, 0, 0.026, 0xc77a4a, 0.7, 0.25, 7), { shadow: true });
+  add('fishCrate', (g) => {
+    g.box(0, 0, 0, 0.09, 0.04, 0.06, 0x8a6236);
+    for (let k = 0; k < 3; k++) g.box(-0.025 + k * 0.025, 0.04, 0, 0.016, 0.01, 0.05, k % 2 ? 0x8fb3c9 : 0x6f9ab3);
+  }, { shadow: true });
+  add('eggBasket', (g) => {
+    g.box(0, 0, 0, 0.07, 0.03, 0.05, 0xc9a36a);
+    for (let k = 0; k < 5; k++) sphere6(g, -0.022 + (k % 3) * 0.022, 0.036, -0.01 + Math.floor(k / 3) * 0.02, 0.01, k % 2 ? 0xf7f1e3 : 0xe8c9a0, 1.25);
+  }, { shadow: true });
+  add('milkCan', (g) => {
+    g.cyl(0, 0, 0, 0.025, 0.08, 9, 0xc8d0d6, 0.025, true, 0xe8eef2);
+    g.cyl(0, 0.08, 0, 0.014, 0.022, 8, 0xb8c0c6);
+  }, { shadow: true });
+  add('plankStack', (g) => {
+    for (let k = 0; k < 4; k++) g.box(0, k * 0.014, 0, 0.26, 0.012, 0.05, k % 2 ? 0xd4ad7a : 0xc49a6c);
+  }, { shadow: true });
+  add('toolCrate', (g) => {
+    g.box(0, 0, 0, 0.08, 0.045, 0.06, 0x8a6236);
+    for (let k = 0; k < 3; k++) g.box(-0.024 + k * 0.024, 0.045, 0, 0.007, 0.05, 0.007, 0x8a9096);
+  }, { shadow: true });
+  add('brickStack', (g) => {
+    for (let k = 0; k < 6; k++) g.box(((k % 2) - 0.5) * 0.04, Math.floor(k / 2) * 0.02, 0, 0.038, 0.018, 0.075, k % 3 ? 0xb5523b : 0xa5472f);
+  }, { shadow: true });
+  add('breadCrate', (g) => {
+    g.box(0, 0, 0, 0.09, 0.03, 0.06, 0xc9a36a);
+    for (let k = 0; k < 3; k++) sphere6(g, -0.025 + k * 0.025, 0.04, 0, 0.016, 0xd99a4a, 0.55);
+  }, { shadow: true });
+  // établis des ateliers
+  add('anvil', (g) => {
+    g.box(0, 0, 0, 0.06, 0.05, 0.06, 0x6e4a2f);
+    g.box(0, 0.05, 0, 0.09, 0.028, 0.04, 0x3a3a40);
+    g.box(0.055, 0.058, 0, 0.03, 0.016, 0.022, 0x3a3a40);
+  }, { shadow: true });
+  add('horse', (g) => {
+    for (const sx of [-0.07, 0.07]) {
+      for (const sz of [-0.035, 0.035]) g.box(sx, 0, sz, 0.01, 0.075, 0.01, 0x8a5f3a);
+      g.box(sx, 0.07, 0, 0.016, 0.012, 0.09, 0xb98a5a);
+    }
+    g.cylX(0, 0.1, 0, 0.022, 0.26, 7, 0x7a5232, 0xd9b47a);
+  }, { shadow: true });
+  add('table', (g) => {
+    for (const [x, z] of [[-0.06, -0.03], [0.06, -0.03], [-0.06, 0.03], [0.06, 0.03]]) g.box(x, 0, z, 0.01, 0.07, 0.01, 0x8a5f3a);
+    g.box(0, 0.07, 0, 0.16, 0.012, 0.08, { top: 0xd4ad7a, side: 0xb98a5a });
+  }, { shadow: true });
+  add('dough', (g) => {
+    sphere6(g, -0.03, 0.088, 0, 0.022, 0xf2e2c4, 0.55);
+    sphere6(g, 0.03, 0.088, 0.005, 0.018, 0xf2e2c4, 0.55);
+  });
   return K;
 }
 
@@ -125,6 +180,7 @@ export class Worksites {
       key += ';';
     }
     for (const w of game.villagers.list) if (w.act === 'trim') key += 'T' + w.id + w.t0;
+    for (const b of world.buildings.values()) if (WORKSHOPS[b.type]) key += `W${b.id}:${b.x}:${b.z}:${b.rot}:${b.cons?.k || ''}:${b.work?.out | 0};`;
     if (key === this.key) return;
     this.key = key;
     this.rebuild(world, game);
@@ -148,10 +204,25 @@ export class Worksites {
     for (const b of world.buildings.values()) {
       const ws = WORKSITES[b.type];
       if (!ws || !b.work) continue;
-      if (this.r.buildings.pops.has(b.id)) continue; // encore en chantier
+      if (this.r.buildings.pops.has(b.id) || b.cons?.k === 'new') continue; // encore en chantier
       const s = b.work;
       const lay = siteLayout(b);
       const rot = (b.rot & 3) * (Math.PI / 2);
+      if (ws.gather || ws.farm) {
+        // ce qui a été rapporté s'empile près du bâtiment (le charretier l'emporte)
+        const item = { quarry: 'block', mine: 'oreLump', claypit: 'clayLump', fisher: 'fishCrate', coop: 'eggBasket', pasture: 'milkCan' }[b.type];
+        const n = Math.min(9, Math.ceil((s.pile || 0) / Math.max(1, (s.unit || 4) / 2)));
+        for (let k = 0; k < n; k++) {
+          const layer = k < 5 ? 0 : 1;
+          const idx = layer ? k - 5 : k;
+          const ox = ((idx % 3) - 1) * 0.07 + (layer ? 0.035 : 0), oz = Math.floor(idx / 3) * 0.06;
+          const [x, z] = localToWorld(b, lay.pile[0] + ox, lay.pile[1] - oz);
+          const y = 0.012 + layer * (item === 'milkCan' ? 0 : 0.04);
+          if (item === 'milkCan' && layer) continue;
+          this.put(item, x, y, z, rot + (k % 3) * 0.2, 1);
+        }
+        continue;
+      }
       if (b.type === 'lumber') {
         // tas de bûches : il grandit à chaque dépôt (le charretier passe à l'aube)
         const logs = Math.min(12, Math.ceil((s.pile || 0) / Math.max(1, s.unit / 3)));
@@ -219,6 +290,32 @@ export class Worksites {
         const [x, z] = localToWorld(b, lay.pile[0] + (k % 3) * 0.07 - 0.07, lay.pile[1] + Math.floor(k / 3) * 0.07);
         if (b.type === 'farm') this.put('sack', x, 0.01, z, rot + k, 1);
         else this.put('crate', x, 0.02, z, rot + k * 0.3, 1);
+      }
+    }
+    // ateliers : l'établi devant la porte et ce qui a été fabriqué
+    for (const b of world.buildings.values()) {
+      const W = WORKSHOPS[b.type];
+      if (!W || b.cons?.k === 'new' || this.r.buildings.pops.has(b.id)) continue;
+      const rot = (b.rot & 3) * (Math.PI / 2);
+      const [sx, sz] = localToWorld(b, W.station[0], W.station[1]);
+      if (b.type === 'sawmill') this.put('horse', sx, 0.01, sz, rot, 1);
+      else if (b.type === 'forge') this.put('anvil', sx, 0.01, sz, rot, 1);
+      else if (b.type === 'bakery' || b.type === 'brickworks') {
+        this.put('table', sx, 0.01, sz, rot, 1);
+        if (b.type === 'bakery') this.put('dough', sx, 0.01, sz, rot, 1);
+        else this.put('clayLump', sx, 0.085, sz, rot, 0.8);
+      }
+      const item = { sawmill: 'plankStack', forge: 'toolCrate', brickworks: 'brickStack', bakery: 'breadCrate', mill: 'sack' }[b.type];
+      const n = Math.min(item === 'plankStack' ? 4 : 6, b.work?.out | 0);
+      for (let k = 0; k < n; k++) {
+        if (item === 'plankStack') {
+          const [x, z] = localToWorld(b, W.outAt[0], W.outAt[1]);
+          this.put(item, x, 0.012 + k * 0.058, z, rot + Math.PI / 2 + (k % 2) * 0.08, 1);
+          continue;
+        }
+        const ox = ((k % 3) - 1) * 0.075, oz = Math.floor(k / 3) * 0.065;
+        const [x, z] = localToWorld(b, W.outAt[0] + ox * 0.6, W.outAt[1] - oz);
+        this.put(item, x, 0.012, z, rot + k * 0.4, 1);
       }
     }
     // troncs couchés que les bûcherons débitent

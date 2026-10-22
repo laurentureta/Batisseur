@@ -79,6 +79,38 @@ export function populateDemo(world) {
   place(sd[0], 26 + O, 23 + O, 0, 1);
   place(sd[1], 23 + O, 23 + O, 0, 1);
   place(sd[2], 26 + O, 25 + O, 0, 1);
+  // les métiers : élevage, carrière, scierie, entrepôt, pêche au bord de la rivière
+  for (let x = 6 + O; x <= 14 + O; x++) road(x, 26 + O, 1);
+  place('pasture', 9 + O, 27 + O, 2, 3);
+  place('coop', 11 + O, 27 + O, 2, 2);
+  place('warehouse', 12 + O, 27 + O, 2, 2);
+  place('quarry', 6 + O, 27 + O, 2, 2);
+  place('sawmill', 13 + O, 25 + O, 0, 2);
+  place('coop', 8 + O, 25 + O, 0, 1);
+  const nearWater = (x, z) => {
+    for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
+      if (!world.inside(x + dx, z + dz)) continue;
+      const t = world.terrain[world.idx(x + dx, z + dz)];
+      if (t === T.WATER || t === T.DEEP) return true;
+    }
+    return false;
+  };
+  const placeNear = (type, cx, cz, r, test, level = 2) => {
+    for (let d = 0; d <= r; d++) {
+      for (let dz = -d; dz <= d; dz++) {
+        for (let dx = -d; dx <= d; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dz)) !== d) continue;
+          const x = cx + dx, z = cz + dz;
+          if (test && !test(x, z)) continue;
+          const nearRoad = [[0, 1], [1, 0], [0, -1], [-1, 0]].some(([ex, ez]) => world.inside(x + ex, z + ez) && world.road[world.idx(x + ex, z + ez)]);
+          if (nearRoad && place(type, x, z, facing(x, z), level)) return true;
+        }
+      }
+    }
+    return false;
+  };
+  placeNear('fisher', 32 + O, 27 + O, 5, nearWater);
+  placeNear('fisher', 29 + O, 31 + O, 5, nearWater, 1);
   // remplissage le long des rues
   const shops = ['market', 'bakery', 'tavern', 'forge', 'shop', 'market', 'tavern', 'well'];
   for (let z = 14 + O; z <= 35 + O; z++) {
@@ -100,6 +132,21 @@ export function populateDemo(world) {
         place('house', x, z, adj, lvl);
       }
     }
+  }
+  // deux chantiers en cours : les bâtisseurs travaillent aussi derrière l'écran d'accueil
+  const plots = [...world.buildings.values()].filter((b) => {
+    if (b.type !== 'house') return false;
+    const dist = Math.hypot(b.x - 24.5 - O, b.z - 24.5 - O);
+    return dist > 4.5 && dist < 8.5;
+  });
+  let made = 0;
+  for (let k = 0; k < plots.length && made < 2; k++) {
+    const b = plots[Math.floor(rng() * plots.length)];
+    if (b.cons) continue;
+    b.level = Math.min(b.level, 3);
+    b.residents = 0;
+    b.cons = { k: 'new', w: made ? 150 : 70, W: 420, to: b.level, del: 2, t0: 0 };
+    made++;
   }
   world.state.nextId = id;
   world.version++;

@@ -310,6 +310,132 @@ KM.farm = (g, L, ctx) => {
   if (L >= 4) barrels(g, ctx, -0.85, 0.0, 2, 0.6);
 };
 
+/* ───────── Élevage ───────── */
+/** Clôture basse en bois tout autour (avec un portail devant). */
+function paddock(g, ctx, hw, hd, gate = [0.08, 0.3], h = 0.11) {
+  const post = 0x8a5f3a, rail = ctx.winter ? 0xc9b6a0 : 0xb98a5a;
+  const step = 0.16;
+  const side = (x0, z0, x1, z1, skip) => {
+    const len = Math.hypot(x1 - x0, z1 - z0);
+    const n = Math.max(1, Math.round(len / step));
+    for (let k = 0; k <= n; k++) {
+      const f = k / n, x = x0 + (x1 - x0) * f, z = z0 + (z1 - z0) * f;
+      if (skip && skip(x, z)) continue;
+      g.box(x, 0, z, 0.018, h, 0.018, post);
+    }
+    for (let k = 0; k < n; k++) {
+      const f0 = k / n, f1 = (k + 1) / n;
+      const ax = x0 + (x1 - x0) * f0, az = z0 + (z1 - z0) * f0, bx = x0 + (x1 - x0) * f1, bz = z0 + (z1 - z0) * f1;
+      if (skip && (skip(ax, az) || skip(bx, bz))) continue;
+      for (const y of [h * 0.45, h * 0.85]) g.box((ax + bx) / 2, y, (az + bz) / 2, Math.abs(bx - ax) + 0.01, 0.012, Math.abs(bz - az) + 0.01, rail);
+    }
+  };
+  const gateSkip = (x, z) => z > hd - 0.01 && x > gate[0] - 0.01 && x < gate[1] + 0.01;
+  side(-hw, hd, hw, hd, gate ? gateSkip : null);
+  side(hw, hd, hw, -hd);
+  side(hw, -hd, -hw, -hd);
+  side(-hw, -hd, -hw, hd);
+}
+
+/** Petite poule (modèle fixe, pour les vignettes : dans le monde, les poules sont animées). */
+function hen(g, x, z, rot, c = 0xf7f1e3) {
+  g.push(rot, x, 0, z);
+  g.ico(0, 0.045, 0, 0.032, c, 0.85, 0.1, 3);
+  g.ico(0, 0.075, 0.025, 0.018, c, 1, 0, 1);
+  g.box(0, 0.09, 0.025, 0.006, 0.014, 0.016, 0xe53935);
+  g.box(0, 0.074, 0.046, 0.008, 0.006, 0.01, 0xf2a521);
+  g.pop();
+}
+
+KM.coop = (g, L, ctx) => {
+  pad(g, ctx, 0.9, 0.9, 0xc9b07a, { h: 0.01 });
+  // un peu de paille éparse dans l'enclos
+  for (let k = 0; k < 9; k++) g.box(-0.32 + ((k * 0.37) % 0.64), 0.01, 0.04 + ((k * 0.23) % 0.36), 0.03, 0.004, 0.012, ctx.ground(0xe2c46a));
+  // le poulailler sur pilotis
+  const wall = ctx.pick([0xa8553a, 0xc0392b, 0x8a5a3a]);
+  g.push(0, -0.12, 0, -0.24);
+  for (const [x, z] of [[-0.17, -0.1], [0.17, -0.1], [-0.17, 0.1], [0.17, 0.1]]) g.box(x, 0, z, 0.03, 0.08, 0.03, 0x6e4a2f);
+  g.box(0, 0.08, 0, 0.4, 0.2, 0.26, { top: wall, side: wall, front: shade(wall, 1.08) });
+  for (const x of [-0.2, 0.2]) g.box(x, 0.08, 0.13, 0.016, 0.2, 0.016, 0xf6efdf);
+  g.box(0, 0.08, 0.131, 0.4, 0.016, 0.006, 0xf6efdf);
+  g.box(-0.06, 0.09, 0.132, 0.08, 0.1, 0.004, 0x3a2618); // trappe
+  g.roof(0, 0.28, 0, 0.48, 0.34, 0.14, 0.48, ctx.roof(ctx.pick([0x6e4a2f, 0x5b6475, 0x8a3b22], 1)), wall);
+  g.pop();
+  // la passerelle des poules
+  for (let k = 0; k < 4; k++) g.box(-0.18, 0.075 - k * 0.022, -0.08 + k * 0.045, 0.08, 0.008, 0.04, k % 2 ? 0xc49a6c : 0xb98a5a);
+  // pondoir (paille) sur le côté
+  g.box(-0.04 + 0.06, 0.03, -0.16, 0.12, 0.07, 0.1, { top: 0xe2c25a, side: 0x9a6b43 });
+  // mangeoire et abreuvoir
+  g.box(0.0, 0.0, 0.2, 0.2, 0.035, 0.06, { top: 0xd9b84e, side: 0x8a5f3a });
+  K(g, ctx, 'bucket_water', { s: 0.75, x: 0.3, z: -0.3 });
+  paddock(g, ctx, 0.45, 0.45, [0.12, 0.3]);
+  if (L >= 2) K(g, ctx, 'crate_open', { s: 0.5, x: 0.34, z: -0.08 });
+  if (L >= 3) K(g, ctx, 'sack', { s: 0.8, x: 0.3, z: 0.05 });
+  if (!ctx.live) for (let k = 0; k < 4 + L; k++) hen(g, -0.3 + ((k * 0.27) % 0.6), 0.08 + ((k * 0.19) % 0.3), k * 1.7, k % 3 ? 0xf7f1e3 : 0xb8743a);
+};
+
+/** Vache et mouton fixes (vignettes). */
+function cow(g, x, z, rot) {
+  g.push(rot, x, 0, z);
+  for (const [lx, lz] of [[-0.05, -0.08], [0.05, -0.08], [-0.05, 0.08], [0.05, 0.08]]) g.box(lx, 0, lz, 0.025, 0.08, 0.025, 0xf2efe6);
+  g.box(0, 0.075, 0, 0.13, 0.08, 0.22, 0xf7f4ee);
+  g.box(0.035, 0.115, -0.03, 0.07, 0.045, 0.08, 0x3a3a40);
+  g.box(0, 0.11, 0.13, 0.08, 0.07, 0.07, 0xf7f4ee);
+  g.box(0, 0.095, 0.17, 0.07, 0.035, 0.02, 0xf2a0b0);
+  g.pop();
+}
+function sheep(g, x, z, rot) {
+  g.push(rot, x, 0, z);
+  for (const [lx, lz] of [[-0.03, -0.05], [0.03, -0.05], [-0.03, 0.05], [0.03, 0.05]]) g.box(lx, 0, lz, 0.016, 0.05, 0.016, 0x3a3a40);
+  g.ico(0, 0.075, 0, 0.06, 0xf4f1ea, 0.8, 0.2, 5);
+  g.box(0, 0.08, 0.075, 0.04, 0.045, 0.045, 0x3a3a40);
+  g.pop();
+}
+
+KM.pasture = (g, L, ctx) => {
+  pad(g, ctx, 1.94, 1.94, 0x9cc95a, { h: 0.006 });
+  // touffes et fleurs des champs
+  for (let k = 0; k < 26; k++) {
+    const x = -0.85 + ((k * 0.613) % 1.7), z = -0.05 + ((k * 0.377) % 0.92);
+    if (k % 3 === 0) g.box(x, 0.006, z, 0.012, 0.012, 0.012, ctx.ground([0xf6f2e8, 0xf2c94c, 0xe94b5a][k % 3 === 0 ? (k >> 1) % 3 : 0]));
+    else g.cone(x, 0.006, z, 0.018, 0.035, 4, ctx.ground(k % 2 ? 0x6fa83b : 0x86bd45));
+  }
+  // la grange
+  const wall = ctx.pick([0xb5523b, 0xa8432f, 0x9a5b3a]);
+  g.push(0, -0.5, 0, -0.55);
+  g.box(0, 0, 0, 0.8, 0.4, 0.6, { top: wall, side: wall, front: shade(wall, 1.06) });
+  for (const x of [-0.4, 0.4]) for (const z of [-0.3, 0.3]) g.box(x, 0, z, 0.024, 0.4, 0.024, 0xf6efdf);
+  g.box(0, 0.39, 0.301, 0.8, 0.02, 0.006, 0xf6efdf);
+  // grande porte (croix blanche)
+  g.box(0, 0, 0.302, 0.3, 0.28, 0.006, 0x6e4a2f);
+  g.box(0, 0.135, 0.306, 0.3, 0.018, 0.004, 0xf6efdf);
+  g.box(0, 0, 0.306, 0.016, 0.28, 0.004, 0xf6efdf);
+  g.box(0, 0.25, 0.306, 0.06, 0.06, 0.004, 0x3a2618);
+  g.roof(0, 0.4, 0, 0.9, 0.7, 0.26, 0.9, ctx.roof(ctx.pick([0x5b6475, 0x6e4a2f, 0x4f5a6a], 2)), wall);
+  g.pop();
+  if (L >= 3) {
+    // silo
+    g.cyl(-0.9 + 0.12, 0, -0.18, 0.11, 0.55, 12, 0xd3cfc6, 0.11, true, 0xbdb6a8);
+    g.dome(-0.9 + 0.12, 0.55, -0.18, 0.11, ctx.roof(0x8f8a80), 12, 3, 0.8);
+  }
+  // râtelier à foin et abreuvoir
+  g.box(0.18, 0, -0.55, 0.36, 0.14, 0.1, { top: 0xe2c25a, side: 0x8a5f3a });
+  for (let k = 0; k < 5; k++) g.box(0.03 + k * 0.075, 0.14, -0.55, 0.012, 0.08, 0.012, 0x8a5f3a);
+  g.box(0.6, 0, -0.42, 0.44, 0.07, 0.12, { top: 0x5ab0dc, side: 0x7a5232 });
+  // bottes de foin près de la grange
+  for (const [x, z] of [[-0.62, -0.12], [-0.74, -0.06]]) g.cylZ(x, 0.06, z, 0.06, 0.12, 9, 0xe2c25a, 0xd2ae48);
+  paddock(g, ctx, 0.96, 0.96, [-0.4, -0.1], 0.13);
+  if (L >= 2) barrels(g, ctx, 0.85, -0.85, 1, 0.5);
+  if (L >= 4) K(g, ctx, 'wheelbarrow', { s: 0.7, x: -0.1, z: -0.85, rot: 0.6 });
+  if (!ctx.live) {
+    cow(g, 0.3, 0.4, 0.6);
+    cow(g, -0.35, 0.55, -2.2);
+    sheep(g, 0.6, 0.0, 1.2);
+    sheep(g, 0.7, 0.2, 2.6);
+    sheep(g, -0.1, 0.15, 0.3);
+  }
+};
+
 KM.mill = (g, L, ctx) => {
   pad(g, ctx, 0.86, 0.86, SAND, { h: 0.008 });
   KF(g, ctx, 'windmill', 0.9, 0.62, { z: -0.08, spin: 0.9 + L * 0.15 });

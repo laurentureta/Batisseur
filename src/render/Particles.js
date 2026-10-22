@@ -37,6 +37,11 @@ const PRESETS = {
   leaves: { color: [0.42, 0.7, 0.3], alpha: [0.95, 0], size: [0.045, 0.035], life: 1.8, vel: [0.35, 0.25, 0.35], spread: 0.12, gravity: -0.35, drag: 1.4, wind: 0.25 },
   soil: { color: [0.45, 0.31, 0.2], alpha: [0.9, 0], size: [0.04, 0.02], life: 0.55, vel: [0.35, 0.6, 0.35], spread: 0.03, gravity: -3, drag: 0.5 },
   drops: { color: [0.62, 0.82, 1.0], alpha: [0.85, 0.3], size: [0.022, 0.018], life: 0.45, vel: [0.06, -0.1, 0.06], spread: 0.015, gravity: -2.6, drag: 0.1 },
+  stones: { color: [0.72, 0.7, 0.66], alpha: [1, 0.7], size: [0.035, 0.025], life: 0.6, vel: [0.6, 1.0, 0.6], spread: 0.02, gravity: -3.4, drag: 0.5 },
+  flour: { color: [0.98, 0.96, 0.9], alpha: [0.7, 0], size: [0.05, 0.12], life: 0.9, vel: [0.12, 0.25, 0.12], spread: 0.04, gravity: 0, drag: 1.2 },
+  sparks: { color: [1, 0.68, 0.25], alpha: [1, 0], size: [0.035, 0.012], life: 0.45, vel: [0.9, 1.2, 0.9], spread: 0.01, gravity: -3, drag: 0.4, additive: true },
+  splash: { color: [0.85, 0.94, 1.0], alpha: [0.9, 0], size: [0.04, 0.02], life: 0.5, vel: [0.35, 0.9, 0.35], spread: 0.03, gravity: -3.2, drag: 0.3 },
+  hay: { color: [0.92, 0.8, 0.42], alpha: [1, 0], size: [0.035, 0.025], life: 1.1, vel: [0.3, 0.45, 0.3], spread: 0.06, gravity: -1.2, drag: 1.2, wind: 0.2 },
   grain: { color: [0.95, 0.8, 0.35], alpha: [1, 0], size: [0.03, 0.02], life: 0.8, vel: [0.3, 0.5, 0.3], spread: 0.05, gravity: -1.8, drag: 0.8 },
 };
 

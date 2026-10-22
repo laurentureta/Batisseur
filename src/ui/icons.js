@@ -99,7 +99,7 @@ export const EMOJI = {
   '🎣': 'fishing', '🚜': 'tractor', '🌀': 'windmill', '🪣': 'bucket', '🏬': 'mall', '🗼': 'tower', '🕰': 'clock', '⛲': 'fountain',
   '🪑': 'bench', '🗽': 'statue', '🎶': 'music', '🏟': 'stadium', '🚉': 'train', '🌋': 'mountain',
   '🎆': 'firework', '🎇': 'firework', '🏮': 'lantern', '🥞': 'crepe', '🎭': 'mask', '🌈': 'rainbow', '🐟': 'fish', '🐠': 'fish',
-  '🥚': 'egg', '🌼': 'lily', '🎤': 'music', '🎵': 'music', '💡': 'lantern', '🔭': 'moon', '🍇': 'grapes', '🧪': 'sparkles',
+  '🥚': 'egg', '🐔': 'chicken', '🐓': 'chicken', '🐄': 'cow', '🐮': 'cow', '🐑': 'cow', '🌼': 'lily', '🎤': 'music', '🎵': 'music', '💡': 'lantern', '🔭': 'moon', '🍇': 'grapes', '🧪': 'sparkles',
   '🎄': 'xmastree', '🌽': 'wheat', '⛵': 'ship', '🏴‍☠️': 'ship', '🎠': 'ferris', '🎈': 'balloon', '🎪': 'circus', '🧊': 'snowflake',
   '🍦': 'icecream', '🍨': 'icecream', '☘': 'clover', '🍀': 'clover', '🎟': 'token', '🎫': 'ticket', '🥳': 'party', '🎊': 'party',
 };

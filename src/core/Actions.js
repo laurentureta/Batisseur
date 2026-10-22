@@ -6,6 +6,7 @@ import { MAIRIE_FOR_LEVEL, RANKS } from '../data/progression.js';
 import { RESOURCES } from '../data/resources.js';
 import { T } from '../world/constants.js';
 import { addCosts, scaleCost } from './util.js';
+import { needsSite } from '../sim/Construction.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, ...extra });
 
@@ -110,7 +111,7 @@ export class Actions {
     const prog = this.game.prog;
     if (!def || def.notBuildable) return fail('Impossible à construire');
     if (!prog.isUnlocked(type)) return fail(`Se débloque au niveau ${def.unlock}`);
-    if (def.unique && ignoreId < 0 && prog.countType(type) > 0) return fail('Un seul exemplaire possible');
+    if (def.unique && ignoreId < 0 && [...world.buildings.values()].some((o) => o.type === type)) return fail('Un seul exemplaire possible');
     if (def.plantsTerrain) {
       if (!world.inside(x, z)) return fail('Hors de la carte');
       if (!world.zoneUnlocked(x, z)) return fail('Zone verrouillée 🔒');
@@ -183,6 +184,9 @@ export class Actions {
     this.grant(chk.gain);
     const b = { id: st.nextId++, type, x, z, rot, level: 1, born: st.time.day };
     if (def.residents) b.residents = 0;
+    // un vrai chantier : les bâtisseurs viennent le construire
+    const cons = this.game.construction;
+    if (cons?.enabled() && needsSite(def)) cons.start(b, 'new');
     world.addBuilding(b);
     const stats = st.stats;
     stats.totalBuilt++;
@@ -318,7 +322,40 @@ export class Actions {
 
   /* ───────── Démolition ───────── */
   refundFor(b) {
-    return scaleCost(totalInvested(BUILDINGS[b.type], b.level), 0.5);
+    const def = BUILDINGS[b.type];
+    let cost = totalInvested(def, b.level);
+    // amélioration en cours : elle a déjà été payée
+    if (b.cons?.k === 'up') cost = addCosts(cost, costToLevel(def, b.cons.to));
+    return scaleCost(cost, 0.5);
+  }
+
+  /** Termine un chantier tout de suite (bouton « Terminer »). */
+  finishSite(id) {
+    const b = this.world.buildings.get(id);
+    if (!b?.cons) return fail('Pas de chantier ici');
+    this.game.construction.finish(b, { skipped: true });
+    return { ok: true, building: b };
+  }
+
+  /** Fin d'un chantier d'amélioration : le bâtiment passe au niveau supérieur. */
+  completeUpgrade(b, to, opts = {}) {
+    const def = BUILDINGS[b.type];
+    b.level = to;
+    const st = this.st;
+    st.stats.upgrades++;
+    if (st.stats.daily) st.stats.daily.upgrades++;
+    const xp = upgradeXP(def, b.level);
+    this.game.prog.addXP(xp, 'upgrade');
+    // l'annulation reste possible après coup
+    const e = this.undoStack.find((u) => u.kind === 'upgrade' && u.id === b.id && u.pending && u.level === to);
+    if (e) {
+      e.pending = false;
+      e.xp = xp;
+    }
+    this.world.version++;
+    this.game.prog.recount();
+    this.game.sim.markDirty();
+    this.game.bus.emit('building:upgraded', b, { fromSite: true, skipped: !!opts.skipped });
   }
 
   demolish(id) {
@@ -353,6 +390,7 @@ export class Actions {
     out.cost = costToLevel(def, to);
     out.name = levelName(def, to);
     if (b.fire) out.reasons.push('Le bâtiment est en feu');
+    if (b.cons) out.reasons.push(b.cons.k === 'up' ? 'Amélioration déjà en cours' : 'Le chantier n\'est pas terminé');
     if (b.type === 'townhall') {
       const rank = RANKS[to - 1];
       const okL = this.libre || this.st.level >= rank.level;
@@ -391,6 +429,14 @@ export class Actions {
     if (!chk.ok) return fail(chk.reasons[0] || 'Amélioration impossible');
     const def = BUILDINGS[b.type];
     this.pay(chk.cost);
+    // les travaux d'amélioration : le bâtiment garde son niveau jusqu'à la fin du chantier
+    const cons = this.game.construction;
+    if (cons?.enabled() && (needsSite(def) || b.type === 'townhall')) {
+      cons.start(b, 'up');
+      this.pushUndo({ kind: 'upgrade', id, cost: chk.cost, xp: 0, level: b.level + 1, pending: true });
+      this.game.sim.markDirty();
+      return { ok: true, building: b, site: true };
+    }
     b.level++;
     const st = this.st;
     st.stats.upgrades++;
@@ -559,6 +605,12 @@ export class Actions {
       }
       case 'upgrade': {
         const b = world.buildings.get(e.id);
+        if (b && e.pending && b.cons?.k === 'up' && b.cons.to === e.level) {
+          // les travaux n'étaient pas finis : on arrête le chantier
+          this.game.construction.cancel(b);
+          this.grant(e.cost);
+          break;
+        }
         if (!b || b.level !== e.level) return fail('Impossible d\'annuler');
         b.level--;
         this.grant(e.cost);

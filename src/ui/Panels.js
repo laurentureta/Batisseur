@@ -289,6 +289,10 @@ export function renderSettings(ui, body) {
   toggle('Ambiance (oiseaux, grillons)', 'ambience');
   body.appendChild(h('div.section-title', 'Jeu'));
   toggle('Incendies', 'fires');
+  toggle('Chantiers animés (les bâtisseurs construisent)', 'sites', () => {
+    // sans chantier : tout ce qui est en cours se termine tout de suite
+    if (!s.sites && game.world) for (const b of game.construction.sites()) game.construction.finish(b, { skipped: true });
+  });
   if (!game.isDemo) {
     body.appendChild(h('div.section-title', 'Sauvegarde'));
     body.appendChild(h('p.hint', 'Ta partie est enregistrée automatiquement sur ce téléphone. Exporte-la de temps en temps pour la garder en lieu sûr.'));

@@ -29,6 +29,7 @@ export function serialize(game) {
     if (b.fire) o.fire = b.fire;
     if (b.born != null) o.born = Math.round(b.born * 100) / 100;
     if (b.work) o.work = saveWork(b.work);
+    if (b.cons) o.cons = { k: b.cons.k, w: Math.round(b.cons.w * 10) / 10, W: b.cons.W, to: b.cons.to, del: b.cons.del | 0, t0: Math.round(b.cons.t0 * 1000) / 1000 };
     return o;
   });
   st.savedAt = Date.now();
@@ -110,6 +111,8 @@ const DEFAULT_SETTINGS = {
   upgradeHints: true,
   fires: true,
   autoRotate: true,
+  sites: true, // chantiers animés (bâtisseurs)
+  intro: true, // cinématique d'introduction au lancement
 };
 
 export function loadSettings() {

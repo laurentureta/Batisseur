@@ -142,6 +142,16 @@ def({
   desc: 'Cultive du blé. Récolte au top en été, presque rien en hiver.',
 });
 def({
+  id: 'coop', name: 'Poulailler', icon: '🐔', cat: 'production', unlock: 2, maxLevel: 3,
+  cost: { coins: 60, wood: 25 }, workers: 1, produces: { food: 22 },
+  desc: 'Des poules qui picorent dans leur enclos. L\'éleveuse les nourrit, ramasse les œufs et les rapporte au village.',
+});
+def({
+  id: 'pasture', name: 'Étable', icon: '🐄', cat: 'production', unlock: 5, maxLevel: 4, size: [2, 2],
+  cost: { coins: 220, wood: 60, stone: 20 }, workers: 2, produces: { food: 55 },
+  desc: 'Vaches et moutons au pré. Les éleveurs apportent le foin, remplissent l\'abreuvoir, traient les vaches et rapportent le lait.',
+});
+def({
   id: 'mill', name: 'Moulin', icon: '🌀', cat: 'production', unlock: 4, maxLevel: 5,
   cost: { coins: 180, wood: 40, stone: 25 }, workers: 2, consumes: { wheat: 40 }, produces: { flour: 40 },
   desc: 'Transforme le blé en farine.',

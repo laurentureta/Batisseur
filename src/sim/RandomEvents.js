@@ -84,7 +84,7 @@ export class RandomEvents {
     if (game.settings.fires && st.level >= FEATURES.fires.level) {
       for (const b of game.world.buildings.values()) {
         const def = BUILDINGS[b.type];
-        if (b.fire || b.type === 'townhall' || def.cat === 'decor' || def.cat === 'monuments') continue;
+        if (b.fire || b.cons || b.type === 'townhall' || def.cat === 'decor' || def.cat === 'monuments') continue;
         let p = def.pollution ? 0.003 : 0.0015;
         if (this.isCovered(b)) p *= 0.25;
         if (Math.random() < p) this.ignite(b);

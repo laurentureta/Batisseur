@@ -147,6 +147,7 @@ export class BuildingView {
   registerBuilding(b) {
     this.unregisterParts(b.id);
     const m = this.model(b);
+    const site = b.cons?.k === 'new'; // pas encore construit : ni fumée ni pièces mobiles
     const { cx, cz } = buildingCenter(b);
     const [c, s] = ROT[b.rot & 3];
     const tr = (px, pz) => [px * c + pz * s + cx, -px * s + pz * c + cz];
@@ -155,14 +156,14 @@ export class BuildingView {
     const a = tr(x0, z0), bb = tr(x1, z1);
     this.boxes.set(b.id, new THREE.Box3(new THREE.Vector3(Math.min(a[0], bb[0]), y0, Math.min(a[1], bb[1])), new THREE.Vector3(Math.max(a[0], bb[0]), Math.max(y1, 0.3), Math.max(a[1], bb[1]))));
     // émetteurs (fumée, eau)
-    if (m.emitters.length) {
+    if (m.emitters.length && !site) {
       this.emitters.set(b.id, m.emitters.map((e) => {
         const [wx, wz] = tr(e.pos[0], e.pos[2]);
         return { x: wx, y: e.pos[1], z: wz, kind: e.kind };
       }));
     } else this.emitters.delete(b.id);
     // pièces mobiles
-    if (m.parts.length) {
+    if (m.parts.length && !site) {
       const list = [];
       for (const p of m.parts) {
         const group = new THREE.Group();
@@ -197,7 +198,20 @@ export class BuildingView {
 
   onPlaced(b, opts = {}) {
     this.registerBuilding(b);
-    if (!opts.silent) this.startPop(b, 'build');
+    // un chantier : c'est la vue des chantiers qui le montre
+    if (!opts.silent && !b.cons) this.startPop(b, 'build');
+    this.dirty.add(this.zoneOf(b));
+  }
+
+  /** Un chantier neuf n'apparaît pas dans la ville tant qu'il n'est pas fini. */
+  hideForSite(b) {
+    this.dirty.add(this.zoneOf(b));
+  }
+
+  /** Fin d'un chantier : le bâtiment entre dans la ville avec un petit rebond. */
+  onCompleted(b) {
+    this.registerBuilding(b);
+    this.startPop(b, 'done');
     this.dirty.add(this.zoneOf(b));
   }
 
@@ -216,7 +230,7 @@ export class BuildingView {
 
   onUpgraded(b, opts = {}) {
     this.registerBuilding(b);
-    if (!opts.silent) this.startPop(b, 'upgrade');
+    if (!opts.silent) this.startPop(b, opts.fromSite ? 'done' : 'upgrade');
     this.dirty.add(this.zoneOf(b));
   }
 
@@ -224,7 +238,7 @@ export class BuildingView {
     this.registerBuilding(b);
     this.dirty.add(this.zoneOf(b));
     if (from) this.dirty.add(Math.floor(from.z / ZONE) * ZONES + Math.floor(from.x / ZONE));
-    this.startPop(b, 'move');
+    if (b.cons?.k !== 'new') this.startPop(b, 'move');
   }
 
   /** Géométrie d'un échafaudage (chantier) adaptée à l'emprise w × d. */
@@ -272,9 +286,9 @@ export class BuildingView {
       group.add(mesh);
     }
     if (gg) group.add(new THREE.Mesh(gg, this.glassMat));
-    group.scale.set(1, 0.01, 1);
+    group.scale.set(1, kind === 'done' ? 0.86 : 0.01, 1);
     this.group.add(group);
-    const pop = { group, t: 0, dur: kind === 'build' ? 0.55 : 0.45, kind, delay: 0, cx, cz, w, d };
+    const pop = { group, t: 0, dur: kind === 'build' ? 0.55 : kind === 'done' ? 0.5 : 0.45, kind, delay: 0, cx, cz, w, d };
     // échafaudages : trois étapes pour une construction, un échafaudage pour une amélioration
     const big = w * d >= 4;
     if (kind === 'build' && kitReady()) {
@@ -310,7 +324,7 @@ export class BuildingView {
     const items = [];
     const glass = [];
     for (const b of this.world.buildings.values()) {
-      if (this.zoneOf(b) !== zi || this.pops.has(b.id)) continue;
+      if (this.zoneOf(b) !== zi || this.pops.has(b.id) || b.cons?.k === 'new') continue;
       const m = this.model(b);
       const { cx, cz } = buildingCenter(b);
       items.push({ layer: m.body, cx, cz, rot: b.rot });
@@ -376,8 +390,12 @@ export class BuildingView {
       if (p.kind === 'build' || p.kind === 'upgrade') {
         const c1 = 1.70158, c3 = c1 + 1;
         sy = 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); // easeOutBack
+      } else if (p.kind === 'done') {
+        // inauguration : un petit rebond vers le haut
+        const c1 = 2.6, c3 = c1 + 1;
+        sy = 0.86 + 0.14 * (1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2));
       } else sy = 1 + Math.sin(k * Math.PI) * 0.12;
-      const grow = p.kind === 'build' || p.kind === 'upgrade';
+      const grow = p.kind === 'build' || p.kind === 'upgrade' || p.kind === 'done';
       p.group.scale.set(grow ? 0.9 + 0.1 * k : 1 + Math.sin(k * Math.PI) * 0.05, Math.max(0.01, sy), grow ? 0.9 + 0.1 * k : 1 + Math.sin(k * Math.PI) * 0.05);
       if (k >= 1) {
         this.pops.delete(id);

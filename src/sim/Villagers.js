@@ -13,21 +13,49 @@ import { BUILDINGS, workersAt, prodMult, sizeOf } from '../data/buildings.js';
 import { DAY_SECONDS, SIZE, WORK_RATIO } from '../world/constants.js';
 import { hash2 } from '../core/rng.js';
 import { walkPath, roadPath, roadNextTo, makeMove, moveAt, tileCenter, roadPoints, tileAt, walkable } from './paths.js';
+import { GATHER, WORKSHOPS, SHOPS, FARMS, pickSpot, roadTrip } from './jobs.js';
 
 const HALF = SIZE / 2;
 const ROT = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 export const WALK = 0.52; // vitesse de marche (cases par seconde de jeu)
 
-/** Métiers simulés geste par geste. */
+/**
+ * Métiers « de terrain » : la production s'accumule sur le site et ce sont les travailleurs
+ * qui la rapportent au stock (geste par geste).
+ */
 export const WORKSITES = {
   lumber: { role: 'lumberjack', res: 'wood', label: 'Bûcheron' },
   garden: { role: 'gardener', res: 'food', label: 'Jardinier', beds: () => 4, crops: ['carrot', 'tomato', 'potato'] },
   farm: { role: 'farmer', res: 'wheat', label: 'Fermier', beds: (lvl) => (lvl >= 3 ? 3 : 2), crops: ['wheat', 'corn'] },
+  quarry: { role: 'miner', res: 'stone', label: 'Carrier', gather: true },
+  mine: { role: 'miner', res: 'iron', label: 'Mineur', gather: true },
+  claypit: { role: 'digger', res: 'clay', label: 'Glaiseur', gather: true },
+  fisher: { role: 'fisher', res: 'food', label: 'Pêcheur', gather: true },
+  coop: { role: 'breeder', res: 'food', label: 'Éleveuse', farm: true },
+  pasture: { role: 'breeder', res: 'food', label: 'Éleveur', farm: true },
+};
+
+/**
+ * Autres métiers suivis geste par geste (la production reste celle de l'économie) :
+ * ateliers, commerces, charretier. detail : nombre de travailleurs animés au plus.
+ */
+export const ACTIVITIES = {
+  sawmill: { role: 'craftsman', kind: 'workshop', detail: 2 },
+  forge: { role: 'smith', kind: 'workshop', detail: 2 },
+  brickworks: { role: 'craftsman', kind: 'workshop', detail: 2 },
+  bakery: { role: 'cook', kind: 'workshop', detail: 2 },
+  mill: { role: 'miller', kind: 'workshop', detail: 1 },
+  market: { role: 'merchant', kind: 'shop', detail: 2 },
+  shop: { role: 'merchant', kind: 'shop', detail: 1 },
+  mall: { role: 'merchant', kind: 'shop', detail: 2 },
+  tavern: { role: 'innkeeper', kind: 'shop', detail: 2 },
+  warehouse: { role: 'carter', kind: 'carter', detail: 1 },
 };
 
 /** Métier affiché selon le bâtiment (les autres travaillent à l'intérieur). */
 export function roleOf(type) {
   if (WORKSITES[type]) return WORKSITES[type].role;
+  if (ACTIVITIES[type]) return ACTIVITIES[type].role;
   const def = BUILDINGS[type];
   if (!def) return 'worker';
   if (type === 'quarry' || type === 'mine' || type === 'claypit') return 'miner';
@@ -46,6 +74,8 @@ export const ROLE_NAMES = {
   lumberjack: 'Bûcheron', gardener: 'Jardinier', farmer: 'Fermier', miner: 'Mineur', fisher: 'Pêcheur',
   craftsman: 'Artisan', cook: 'Cuisinier', merchant: 'Marchand', firefighter: 'Pompier', guard: 'Garde',
   teacher: 'Enseignant', doctor: 'Soignant', worker: 'Employé',
+  digger: 'Glaiseur', breeder: 'Éleveur', carter: 'Charretier', miller: 'Meunier', innkeeper: 'Aubergiste', smith: 'Forgeron',
+  builder: 'Bâtisseur',
 };
 
 const FIRST = ['Léa', 'Hugo', 'Emma', 'Louis', 'Jade', 'Gabriel', 'Louise', 'Arthur', 'Alice', 'Jules', 'Chloé', 'Lucas', 'Inès', 'Adam', 'Lina', 'Léo',
@@ -62,6 +92,13 @@ export const ACT_TEXT = {
   idle: 'fait une pause', wait: 'attend', goTree: 'va vers un arbre', chop: 'abat un arbre', watch: 'regarde l\'arbre tomber',
   trim: 'débite le tronc', carry: 'rapporte la récolte', drop: 'dépose au stock', waitStore: 'attend de la place au stock',
   goBed: 'va au potager', till: 'bêche la terre', sow: 'sème', water: 'arrose', harvest: 'récolte', weed: 'désherbe', inside: 'travaille',
+  goSpot: 'va au front de taille', pick: 'frappe la roche', dig: 'creuse l\'argile', goShore: 'va au bord de l\'eau',
+  cast: 'lance sa ligne', fishWait: 'attend que ça morde', reel: 'remonte un poisson', feed: 'nourrit les bêtes', hay: 'apporte du foin',
+  pour: 'remplit l\'abreuvoir', collect: 'ramasse les œufs', milk: 'trait une vache', goTask: 'va voir les bêtes',
+  fetchIn: 'va chercher des matières premières', work: 'travaille à l\'établi', saw: 'scie des planches', smith: 'forge des outils',
+  mold: 'moule des briques', knead: 'pétrit la pâte', carrySacks: 'porte des sacs', stack: 'range sa production', waitIn: 'attend des matières premières',
+  serve: 'sert un client', arrange: 'range l\'étal', call: 'appelle les passants', tray: 'apporte une commande',
+  toPile: 'part chercher une récolte', loadCart: 'charge la charrette', back: 'rentre à l\'entrepôt', unloadCart: 'décharge à l\'entrepôt', rest: 'se repose',
 };
 
 /** Point local d'un bâtiment (emprise centrée, façade vers +z) → scène. */
@@ -87,6 +124,17 @@ export function siteLayout(b) {
     if (b.level >= 3) beds.push({ x: 0.5, z: -0.45, w: 0.78, d: 0.7 });
     return { drop: [0.12, -0.2], pile: [0.15, -0.32], beds, rest: [0.0, -0.08] };
   }
+  if (type === 'quarry') return { drop: [0.16, 0.3], pile: [0.24, 0.2], rest: [0.05, 0.3] };
+  if (type === 'mine') return { drop: [0.2, 0.42], pile: [0.3, 0.36], rest: [-0.2, 0.42] };
+  if (type === 'claypit') return { drop: [0.28, 0.28], pile: [0.3, 0.36], rest: [-0.05, 0.3] };
+  if (type === 'fisher') return { drop: [-0.08, 0.3], pile: [-0.25, 0.32], rest: [0.06, 0.34] };
+  if (type === 'coop') return { drop: FARMS.coop.drop, pile: [0.36, 0.4], rest: [0.22, 0.3] };
+  if (type === 'pasture') return { drop: FARMS.pasture.drop, pile: [-0.3, -0.12], rest: [-0.1, -0.05] };
+  const W = WORKSHOPS[type];
+  if (W) return { drop: W.outAt, pile: W.outAt, rest: W.stand };
+  const S = SHOPS[type];
+  if (S) return { drop: S.stand, rest: S.stand };
+  if (type === 'warehouse') return { drop: [0.0, 0.4], pile: [-0.3, 0.36], rest: [0.12, 0.44] };
   return { drop: [0, 0.3], rest: [0, 0.2] };
 }
 
@@ -138,6 +186,9 @@ export class Villagers {
     if (b.type === 'lumber') {
       // bois par arbre : de quoi suivre la production même avec les trajets
       s.unit = Math.max(8, Math.ceil(R / W / 1.5));
+    } else if (ws.gather || ws.farm) {
+      // une tournée rapporte de quoi suivre la production (trajets compris)
+      s.unit = Math.max(2, Math.ceil(R / W / 2));
     } else {
       const B = ws.beds(b.level);
       if (!Array.isArray(s.beds)) s.beds = [];
@@ -217,7 +268,7 @@ export class Villagers {
       const def = BUILDINGS[b.type];
       if (!def.workers) continue;
       const inf = sim.info.get(b.id);
-      if (!inf || !inf.connected || b.fire || inf.status === 'unpaid') continue;
+      if (!inf || !inf.connected || b.fire || inf.status === 'unpaid' || inf.status === 'building') continue;
       const W = workersAt(def, b.level);
       const staff = inf.staff ?? 1;
       let n = Math.round(W * staff);
@@ -255,13 +306,18 @@ export class Villagers {
     const seed = (b.id * 7919 + k * 104729 + this.nextId * 13) >>> 0;
     const w = {
       id: this.nextId++, seed, name: villagerName(seed), job: b.id, slot: k, role: roleOf(b.type), home: -1,
-      detail: !!WORKSITES[b.type],
+      detail: !!WORKSITES[b.type] || (!!ACTIVITIES[b.type] && k < ACTIVITIES[b.type].detail),
       start: 6.1 + hash2(seed, 1, 3) * 1.5, end: 17.6 + hash2(seed, 2, 3) * 1.8,
       leisure: hash2(seed, 3, 3) < 0.38,
       state: 'off', act: 'off', t0: 0, until: 0, mv: null, x: 0, z: 0, dir: 0, load: null, target: null,
       skin: Math.floor(hash2(seed, 4, 3) * 5), hair: Math.floor(hash2(seed, 5, 3) * 6), shirt: Math.floor(hash2(seed, 6, 3) * 10),
       girl: hash2(seed, 8, 3) < 0.5,
     };
+    // l'auberge ouvre tard et ferme tard, les commerces ouvrent après l'aube
+    if (b.type === 'tavern') {
+      w.start = 10.5 + hash2(seed, 1, 3);
+      w.end = 22 + hash2(seed, 2, 3) * 0.8;
+    } else if (ACTIVITIES[b.type]?.kind === 'shop') w.start = 7.6 + hash2(seed, 1, 3);
     let list = this.byJob.get(b.id);
     if (!list) this.byJob.set(b.id, (list = []));
     list.push(w);
@@ -297,6 +353,10 @@ export class Villagers {
     w.reserved = 0;
     w.target = null;
     w.load = null;
+    w.prop = null;
+    w.cart = false;
+    w.cartLoad = null;
+    w.trayBack = false;
   }
 
   assignHomes() {
@@ -413,7 +473,14 @@ export class Villagers {
     // à l'aube, le charretier emporte les tas de bûches et les récoltes au dépôt du village
     const dawn = Math.floor(this.st.time.day - 5 / 24);
     if (this.pileDay !== dawn) {
-      if (this.pileDay != null) for (const b of world.buildings.values()) if (b.work) b.work.pile = 0;
+      // sans charretier, les tas partent tout seuls au dépôt à l'aube
+      if (this.pileDay != null && !this.hasCarter()) {
+        for (const b of world.buildings.values()) {
+          if (!b.work) continue;
+          b.work.pile = 0;
+          b.work.out = 0;
+        }
+      }
       this.pileDay = dawn;
     }
     // les planches et les champs poussent avec le travail accumulé
@@ -507,10 +574,20 @@ export class Villagers {
       }
       return;
     }
-    const role = WORKSITES[b.type]?.role;
+    const ws = WORKSITES[b.type];
+    const role = ws?.role;
     if (role === 'lumberjack') this.lumberjack(w, b, now);
     else if (role === 'gardener' || role === 'farmer') this.grower(w, b, now);
-    else this.setAct(w, 'inside', 10);
+    else if (b.type === 'fisher') this.fisherJob(w, b, now);
+    else if (ws?.gather) this.gatherJob(w, b, now);
+    else if (ws?.farm) this.breederJob(w, b, now);
+    else {
+      const kind = ACTIVITIES[b.type]?.kind;
+      if (kind === 'workshop') this.workshopJob(w, b, now);
+      else if (kind === 'shop') this.shopJob(w, b, now);
+      else if (kind === 'carter') this.carterJob(w, b, now);
+      else this.setAct(w, 'inside', 10);
+    }
   }
 
   /** Après le travail, un détour par un lieu de loisir (parc, taverne, marché, fontaine…). */
@@ -780,6 +857,370 @@ export class Villagers {
     w.target = null;
   }
 
+  /** Marche le long de points déjà calculés (trajets par les routes). */
+  moveAlong(w, pts, act, speed = WALK) {
+    const t = this.now();
+    w.act = act;
+    w.t0 = t;
+    w.mv = makeMove(pts, speed, t);
+    w.until = t + w.mv.len / speed;
+  }
+
+  /** Un petit tirage stable pour ce travailleur à cet instant. */
+  rnd(w, now, k) {
+    return hash2(w.seed, Math.floor(now * 3) + k * 101, 53);
+  }
+
+  /** Commencer une tournée de récolte si quelque chose a été produit (et qu'il y a de la place). */
+  startTrip(w, b, s, res) {
+    const free = s.acc - (s.reserved || 0);
+    if (free < s.unit || !this.storeRoom(res)) return false;
+    s.reserved = (s.reserved || 0) + s.unit;
+    w.reserved = s.unit;
+    w.trip = (w.trip || 0) + 1;
+    return true;
+  }
+
+  /** Retour au tas du site avec la récolte. */
+  carryHome(w, b, kind, res, n) {
+    const lay = siteLayout(b);
+    w.load = { res, n, kind };
+    w.target = null;
+    const [px, pz] = localToWorld(b, lay.drop[0], lay.drop[1]);
+    this.walkTo(w, px, pz, 'carry', { speed: WALK * 0.85, own: b.id });
+  }
+
+  /** Fin d'un transport : on pose la charge, puis le dépôt fait monter le stock. */
+  dropAndDeposit(w, b, s) {
+    const lay = siteLayout(b);
+    if (w.act === 'carry') {
+      this.setAct(w, 'drop', 0.8, w.until);
+      w.dir = facing(w, localToWorld(b, lay.pile[0], lay.pile[1]));
+      return true;
+    }
+    if (w.act === 'drop' || w.act === 'waitStore') {
+      this.deposit(w, b, s);
+      return true;
+    }
+    return false;
+  }
+
+  /* ───────── Carrier, mineur, glaiseur ───────── */
+  gatherJob(w, b, now) {
+    const s = this.site(b), G = GATHER[b.type], ws = WORKSITES[b.type];
+    switch (w.act) {
+      case 'goSpot': {
+        const tg = w.target;
+        if (tg) w.dir = Math.atan2(tg.fx - w.x, tg.fz - w.z);
+        this.setAct(w, G.act, G.dur[0] + this.rnd(w, now, 1) * (G.dur[1] - G.dur[0]), w.until);
+        return;
+      }
+      case 'pick':
+      case 'dig':
+        this.carryHome(w, b, G.load, ws.res, s.unit);
+        return;
+      default:
+        if (this.dropAndDeposit(w, b, s)) return;
+    }
+    if (w.load) {
+      this.deposit(w, b, s);
+      return;
+    }
+    if (this.startTrip(w, b, s, ws.res)) {
+      const sp = pickSpot(this.world, b, b.type, w, w.trip);
+      w.target = { fx: sp.fx, fz: sp.fz };
+      this.walkTo(w, sp.x, sp.z, 'goSpot', { own: b.id });
+      return;
+    }
+    this.setAct(w, w.act === 'idle' ? 'wait' : 'idle', 2 + this.rnd(w, now, 2) * 2.5, now);
+  }
+
+  /* ───────── Pêcheur ───────── */
+  fisherJob(w, b, now) {
+    const s = this.site(b);
+    const tg = w.target;
+    switch (w.act) {
+      case 'goShore':
+        if (tg) {
+          w.dir = Math.atan2(tg.fx - w.x, tg.fz - w.z);
+          tg.catch = 0;
+        }
+        this.setAct(w, 'cast', 1.1, w.until);
+        return;
+      case 'cast':
+        // le bouchon flotte à quelques pas
+        if (tg) tg.bob = [w.x + Math.sin(w.dir) * 0.42, w.z + Math.cos(w.dir) * 0.42];
+        this.setAct(w, 'fishWait', 2.4 + this.rnd(w, now, 1) * 4.5, w.until);
+        return;
+      case 'fishWait':
+        this.setAct(w, 'reel', 1.3, w.until);
+        return;
+      case 'reel':
+        if (tg) tg.catch = (tg.catch || 0) + 1;
+        if (tg && tg.catch < 2 + (w.seed % 2)) {
+          this.setAct(w, 'cast', 1.1, w.until);
+          return;
+        }
+        this.carryHome(w, b, 'fish', 'food', s.unit);
+        return;
+      default:
+        if (this.dropAndDeposit(w, b, s)) return;
+    }
+    if (w.load) {
+      this.deposit(w, b, s);
+      return;
+    }
+    if (this.startTrip(w, b, s, 'food')) {
+      const sp = pickSpot(this.world, b, 'fisher', w, w.trip);
+      w.target = { fx: sp.fx, fz: sp.fz };
+      this.walkTo(w, sp.x, sp.z, 'goShore', { own: b.id });
+      return;
+    }
+    this.setAct(w, w.act === 'idle' ? 'wait' : 'idle', 2 + this.rnd(w, now, 2) * 2.5, now);
+  }
+
+  /* ───────── Éleveurs (poulailler, étable) ───────── */
+  breederJob(w, b, now) {
+    const s = this.site(b), F = FARMS[b.type], ws = WORKSITES[b.type];
+    const L = (p) => localToWorld(b, p[0], p[1]);
+    const tg = w.target;
+    // on se tient un peu en retrait de ce qu'on regarde (côté entrée de l'enclos)
+    const standBy = (p, k = 0) => [p[0] + 0.1 + (k % 2) * 0.05, p[1] + 0.12];
+    switch (w.act) {
+      case 'goTask': {
+        w.dir = facing(w, L(tg.look));
+        const task = tg.task;
+        const dur = { feed: 3.4, hay: 2.4, water: 2.4, collect: 2.8, milk: 4.6 }[task] || 2;
+        this.setAct(w, task === 'water' ? 'pour' : task, dur, w.until);
+        return;
+      }
+      case 'goHay':
+        w.dir = facing(w, L(F.hay));
+        this.setAct(w, 'pickHay', 0.9, w.until);
+        return;
+      case 'pickHay':
+        w.prop = 'hay';
+        w.target = { task: 'hay', look: F.feed };
+        this.walkTo(w, ...L(standBy(F.feed, w.slot)), 'goTask', { own: b.id, speed: WALK * 0.85 });
+        return;
+      case 'hay':
+        w.prop = null;
+        w.target = null;
+        break;
+      case 'collect':
+      case 'milk':
+        if (tg?.yield) {
+          this.carryHome(w, b, F.load, ws.res, s.unit);
+          return;
+        }
+        w.target = null;
+        break;
+      case 'feed':
+      case 'pour':
+        w.target = null;
+        break;
+      default:
+        if (this.dropAndDeposit(w, b, s)) return;
+    }
+    if (w.load) {
+      this.deposit(w, b, s);
+      return;
+    }
+    // les œufs ou le lait sont prêts : on va les chercher
+    if (this.startTrip(w, b, s, ws.res)) {
+      w.target = { task: F.collect, look: F.nest, yield: true };
+      this.walkTo(w, ...L(standBy(F.nest, w.slot)), 'goTask', { own: b.id });
+      return;
+    }
+    // sinon on s'occupe des bêtes
+    w.task = ((w.task | 0) + 1) % (F.tasks.length + 1);
+    if (w.task === F.tasks.length) {
+      this.setAct(w, w.act === 'idle' ? 'wait' : 'idle', 2 + this.rnd(w, now, 3) * 3, now);
+      return;
+    }
+    const task = F.tasks[w.task];
+    if (task === 'hay' && F.hay) {
+      this.walkTo(w, ...L([F.hay[0] + 0.14, F.hay[1] + 0.08]), 'goHay', { own: b.id });
+      return;
+    }
+    w.target = { task, look: task === 'water' ? F.water : F.feed };
+    this.walkTo(w, ...L(standBy(w.target.look, w.slot)), 'goTask', { own: b.id });
+  }
+
+  /* ───────── Ateliers ───────── */
+  workshopJob(w, b, now) {
+    const W = WORKSHOPS[b.type];
+    const L = (p) => localToWorld(b, p[0], p[1]);
+    if (!b.work || typeof b.work !== 'object') b.work = {};
+    const inf = this.game.sim.info.get(b.id);
+    const running = !!inf && inf.eff > 0 && inf.status === 'ok';
+    const stand = [W.stand[0] + (w.slot % 2) * 0.16, W.stand[1]];
+    switch (w.act) {
+      case 'fetchIn':
+        w.dir = facing(w, L(W.inAt));
+        this.setAct(w, 'pickIn', 0.8, w.until);
+        return;
+      case 'pickIn':
+        w.prop = W.input;
+        this.walkTo(w, ...L(stand), 'toStation', { own: b.id, speed: WALK * 0.85 });
+        return;
+      case 'toStation':
+        w.dir = facing(w, L(W.station));
+        w.prop = null;
+        this.setAct(w, W.act, 4 + this.rnd(w, now, 1) * 2.2, w.until);
+        return;
+      case W.act:
+        if (w.slot % 2 === 1) break; // l'aide reste à l'établi
+        w.prop = W.output;
+        this.walkTo(w, ...L([W.outAt[0], W.outAt[1] + 0.12]), 'toOut', { own: b.id, speed: WALK * 0.85 });
+        return;
+      case 'toOut':
+        w.dir = facing(w, L(W.outAt));
+        this.setAct(w, 'stack', 0.8, w.until);
+        return;
+      case 'stack':
+        w.prop = null;
+        // ce qui sort de l'atelier s'empile devant la porte (le charretier l'emporte)
+        b.work.out = Math.min(12, (b.work.out || 0) + 1);
+        break;
+      default:
+    }
+    w.prop = null;
+    if (!running) {
+      // pas de matières premières, pas de place, pas assez de monde : on attend
+      const at = L(stand);
+      if (Math.hypot(at[0] - w.x, at[1] - w.z) > 0.08) {
+        this.walkTo(w, at[0], at[1], 'walk', { own: b.id });
+        return;
+      }
+      this.setAct(w, inf?.status === 'noInput' ? 'waitIn' : 'idle', 2.5 + this.rnd(w, now, 2) * 2, now);
+      return;
+    }
+    if (w.slot % 2 === 1) {
+      const at = L(stand);
+      if (Math.hypot(at[0] - w.x, at[1] - w.z) > 0.08) {
+        this.walkTo(w, at[0], at[1], 'toStation', { own: b.id });
+        return;
+      }
+      w.dir = facing(w, L(W.station));
+      this.setAct(w, this.rnd(w, now, 4) < 0.8 ? W.act : 'idle', 3 + this.rnd(w, now, 5) * 2, now);
+      return;
+    }
+    this.walkTo(w, ...L([W.inAt[0], W.inAt[1] + 0.13]), 'fetchIn', { own: b.id });
+  }
+
+  /* ───────── Commerces ───────── */
+  shopJob(w, b, now) {
+    const S = SHOPS[b.type];
+    const L = (p) => localToWorld(b, p[0], p[1]);
+    const stand = [S.stand[0] + (w.slot % 2) * 0.24 - (w.slot % 2 ? 0.12 : 0), S.stand[1]];
+    switch (w.act) {
+      case 'trayGo':
+        this.setAct(w, 'serve', 1.6, w.until);
+        w.trayBack = true;
+        return;
+      case 'serve':
+        if (w.trayBack) {
+          w.trayBack = false;
+          w.prop = null;
+          this.walkTo(w, ...L(stand), 'walk', { own: b.id });
+          return;
+        }
+        break;
+      default:
+    }
+    const at = L(stand);
+    if (Math.hypot(at[0] - w.x, at[1] - w.z) > 0.08) {
+      this.walkTo(w, at[0], at[1], 'walk', { own: b.id });
+      return;
+    }
+    w.dir = facing(w, L(S.look));
+    // des clients ? (habitants venus se détendre ici)
+    let customers = 0;
+    for (const v of this.list) if (v.state === 'leisure' && v.leisureAt === b.id && v.act === 'rest') customers++;
+    const u = this.rnd(w, now, 1);
+    // l'aubergiste apporte les commandes en terrasse
+    if (S.tray && (customers || u < 0.3)) {
+      w.prop = 'tray';
+      const g = S.goods[Math.floor(this.rnd(w, now, 2) * S.goods.length)];
+      this.walkTo(w, ...L([g[0], g[1] + 0.16]), 'trayGo', { own: b.id });
+      return;
+    }
+    const act = customers || u < 0.35 ? 'serve' : u < 0.62 ? 'arrange' : u < 0.78 ? 'call' : 'idle';
+    this.setAct(w, act, 2 + this.rnd(w, now, 3) * 2.5, now);
+  }
+
+  /* ───────── Charretier (entrepôt) ───────── */
+  hasCarter() {
+    for (const w of this.list) if (w.role === 'carter' && w.detail) return true;
+    return false;
+  }
+
+  carterJob(w, b, now) {
+    const world = this.world;
+    const lay = siteLayout(b);
+    const home = localToWorld(b, lay.drop[0], lay.drop[1]);
+    w.cart = true;
+    switch (w.act) {
+      case 'toPile':
+        this.setAct(w, 'loadCart', 2.4, w.until);
+        return;
+      case 'loadCart': {
+        const src = world.buildings.get(w.target?.src);
+        if (src?.work) {
+          w.cartLoad = cartLoadOf(src);
+          src.work.pile = 0;
+          src.work.out = 0;
+          this.game.bus.emit('villager:pickup', { b: src, w });
+        }
+        const pts = src ? roadTrip(world, src, b, [w.x, w.z], home) : null;
+        if (pts) this.moveAlong(w, pts, 'back', WALK * 1.1);
+        else this.walkTo(w, home[0], home[1], 'back', { speed: WALK * 1.1 });
+        return;
+      }
+      case 'back':
+        this.setAct(w, 'unloadCart', 2.2, w.until);
+        return;
+      case 'unloadCart':
+        w.cartLoad = null;
+        w.target = null;
+        break;
+      default:
+    }
+    // la tournée : le plus gros tas du village (pas trop loin)
+    const c = world.centerOf(b);
+    let best = null, bestS = 0;
+    for (const o of world.buildings.values()) {
+      if (o === b || !o.work || o.cons?.k === 'new') continue;
+      const amount = WORKSITES[o.type] ? (o.work.pile || 0) / Math.max(1, (o.work.unit || 4) * 2) : (o.work.out || 0) / 4;
+      if (amount < 1) continue;
+      const oc = world.centerOf(o);
+      const d = Math.abs(oc.cx - c.cx) + Math.abs(oc.cz - c.cz);
+      if (d > 40 || (this.unreachable.get(-o.id) || 0) > this.st.time.day) continue;
+      const score = amount / (1 + d * 0.08);
+      if (score > bestS) {
+        bestS = score;
+        best = o;
+      }
+    }
+    if (best) {
+      const ol = siteLayout(best);
+      const to = localToWorld(best, ol.drop[0], ol.drop[1] + 0.1);
+      const pts = roadTrip(world, b, best, [w.x, w.z], to);
+      if (pts) {
+        w.target = { src: best.id };
+        this.moveAlong(w, pts, 'toPile', WALK * 1.1);
+        return;
+      }
+      this.unreachable.set(-best.id, this.st.time.day + 0.5);
+    }
+    if (Math.hypot(home[0] - w.x, home[1] - w.z) > 0.1) {
+      this.walkTo(w, home[0], home[1], 'walk', { own: b.id });
+      return;
+    }
+    this.setAct(w, 'idle', 3 + this.rnd(w, now, 1) * 3, now);
+  }
+
   /* ───────── Bâtiments modifiés ───────── */
   onBuildingRemoved(b) {
     const list = this.byJob.get(b.id);
@@ -840,6 +1281,13 @@ export function doorOf(b) {
   const def = BUILDINGS[b.type];
   const d0 = def.size[1];
   return localToWorld(b, 0, d0 / 2 - 0.08);
+}
+
+/** Ce que le charretier charge sur sa charrette selon le site. */
+function cartLoadOf(b) {
+  const k = { lumber: 'logs', garden: 'crates', farm: 'sacks', quarry: 'stones', mine: 'ore', claypit: 'clay', fisher: 'fish', coop: 'eggs', pasture: 'milk' }[b.type];
+  if (k) return k;
+  return WORKSHOPS[b.type]?.output || 'crates';
 }
 
 function facing(w, p) {

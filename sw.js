@@ -1,6 +1,6 @@
 // Service worker : le jeu fonctionne hors ligne une fois chargé.
 // Pense à changer VERSION à chaque mise à jour pour que les joueurs reçoivent la nouvelle version.
-const VERSION = 'batisseur-v3.1.0';
+const VERSION = 'batisseur-v3.2.0';
 const FILES = [
   './',
   './index.html',
@@ -41,6 +41,7 @@ const FILES = [
   './src/data/shop.js',
   './src/input/Input.js',
   './src/render/Agents.js',
+  './src/render/Animals.js',
   './src/render/BuildingView.js',
   './src/render/CameraController.js',
   './src/render/Clouds.js',
@@ -50,6 +51,7 @@ const FILES = [
   './src/render/People.js',
   './src/render/Renderer.js',
   './src/render/RoadView.js',
+  './src/render/Sites.js',
   './src/render/Sky.js',
   './src/render/TerrainView.js',
   './src/render/Thumbnails.js',
@@ -61,10 +63,12 @@ const FILES = [
   './src/render/kitModels.js',
   './src/render/models.js',
   './src/render/shaders.js',
+  './src/sim/Construction.js',
   './src/sim/Progression.js',
   './src/sim/RandomEvents.js',
   './src/sim/Simulation.js',
   './src/sim/Villagers.js',
+  './src/sim/jobs.js',
   './src/sim/paths.js',
   './src/ui/BuildMenu.js',
   './src/ui/InfoPanel.js',

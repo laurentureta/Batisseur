@@ -38,6 +38,7 @@ export const STATUS_TEXT = {
   fire: 'En feu !',
   unpaid: 'Caisses vides : service à l\'arrêt',
   empty: 'Personne n\'habite ici pour l\'instant',
+  building: 'En chantier',
   noTrees: 'Plus d\'arbre debout autour : il faut attendre la repousse',
 };
 
@@ -132,6 +133,7 @@ export class Simulation {
     this.produce(days);
     this.consume(days);
     this.game.villagers?.step(dt); // les travailleurs rapportent la récolte au stock
+    this.game.construction?.step(dt); // les bâtisseurs font avancer les chantiers
     this.populate(days);
     this.money(days);
     this.game.events.tick(days);
@@ -239,6 +241,7 @@ export class Simulation {
     for (const b of world.buildings.values()) {
       const def = BUILDINGS[b.type];
       if (!def.coverage && !def.beauty && !def.pollution) continue;
+      if (b.cons?.k === 'new') continue;
       const inf = this.infoFor(b);
       const [w, dd] = sizeOf(def, b.rot);
       const cx = b.x + w / 2, cz = b.z + dd / 2;
@@ -292,6 +295,7 @@ export class Simulation {
     for (const b of world.buildings.values()) {
       const def = BUILDINGS[b.type];
       const inf = this.infoFor(b);
+      if (b.cons?.k === 'new') continue; // en chantier : pas encore de logements, d'emplois, de stockage
       if (def.residents) {
         pop += b.residents || 0;
         cap += residentsAt(def, b.level);
@@ -354,6 +358,13 @@ export class Simulation {
 
       let status = 'ok';
       let eff = 0;
+      if (b.cons?.k === 'new') {
+        inf.eff = 0;
+        inf.status = 'building';
+        inf.income = 0;
+        inf.staff = 0;
+        continue;
+      }
       if (b.fire) status = 'fire';
       else if (!inf.connected) status = 'noRoad';
       else if (def.near && inf.nearCount === 0 && def.produces) status = 'noResource';
@@ -544,6 +555,7 @@ export class Simulation {
       const def = BUILDINGS[b.type];
       if (!def.residents) continue;
       if (b.residents == null) b.residents = 0;
+      if (b.cons?.k === 'new') continue;
       const inf = this.info.get(b.id);
       const cap = residentsAt(def, b.level);
       const h = inf ? inf.happiness : 0.5;

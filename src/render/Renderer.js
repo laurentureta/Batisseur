@@ -14,6 +14,8 @@ import { Clouds } from './Clouds.js';
 import { Vegetation } from './Vegetation.js';
 import { People } from './People.js';
 import { Worksites } from './Worksites.js';
+import { SiteView } from './Sites.js';
+import { Animals } from './Animals.js';
 import { buildRing } from '../world/landscape.js';
 import { SIZE } from '../world/constants.js';
 import { BUILDINGS, sizeOf } from '../data/buildings.js';
@@ -37,6 +39,7 @@ export class Renderer {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = this.quality !== 'low';
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.localClippingEnabled = true; // chantiers : les murs montent rang par rang
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(36, 1, 0.5, 420);
     this.cam = new CameraController(this.camera, canvas);
@@ -48,13 +51,16 @@ export class Renderer {
     this.agents = new Agents(this);
     this.people = new People(this);
     this.worksites = new Worksites(this);
+    this.sites = new SiteView(this);
+    this.animals = new Animals(this);
+    game.construction.extentHook = (b) => this.sites.extentOf(b);
     this.particles = new Particles();
     this.overlays = new Overlays(this);
     this.labels = new Labels(labelRoot, this.camera, canvas);
     this.thumbs = new Thumbnails(this.renderer);
     this.clouds = new Clouds();
     this.clouds.build();
-    this.scene.add(this.terrain.group, this.vegetation.group, this.roads.group, this.buildings.group, this.agents.group, this.people.group, this.worksites.group, this.particles.group, this.overlays.group, this.clouds.group);
+    this.scene.add(this.terrain.group, this.vegetation.group, this.roads.group, this.buildings.group, this.agents.group, this.people.group, this.worksites.group, this.sites.group, this.animals.group, this.particles.group, this.overlays.group, this.clouds.group);
     this.world = null;
     this.season = 1;
     this.emitAcc = 0;
@@ -142,10 +148,22 @@ export class Renderer {
     bus.on('building:placed', (b, opts = {}) => {
       this.buildings.onPlaced(b, opts);
       this.vegFootprint(b);
+      if (b.cons) this.sites.sync();
       if (!opts.undo) this.puff(b, 'dust', 18);
+    });
+    // chantiers
+    bus.on('site:started', () => this.sites.sync());
+    bus.on('site:cancelled', () => this.sites.sync());
+    bus.on('building:completed', (b, opts = {}) => {
+      this.sites.complete(b, opts);
+      this.buildings.onCompleted(b);
+      this.floatText(b, opts.skipped ? '⏩ Terminé !' : '🎉 Construit !');
+      this.game.sound?.play('built');
+      if (this.game.selection === b.id) this.overlays.setSelection(b);
     });
     bus.on('building:removed', (b, opts = {}) => {
       this.buildings.onRemoved(b);
+      this.sites.sync();
       this.vegFootprint(b, true);
       this.puff(b, opts.burnt ? 'smoke' : 'dust', opts.burnt ? 30 : 22);
       if (this.game.selection == null) this.overlays.setSelection(null);
@@ -153,12 +171,14 @@ export class Renderer {
       this.labels.remove('up' + b.id);
     });
     bus.on('building:upgraded', (b, opts = {}) => {
+      if (opts.fromSite) this.sites.complete(b, opts);
       this.buildings.onUpgraded(b, opts);
       if (!opts.undo) this.puff(b, 'sparkle', 30);
       if (this.game.selection === b.id) this.overlays.setSelection(b);
     });
     bus.on('building:moved', (b) => {
       this.buildings.onMoved(b);
+      this.sites.sync();
       this.vegFootprint(b);
       this.puff(b, 'dust', 14);
       if (this.game.selection === b.id) this.overlays.setSelection(b);
@@ -217,6 +237,10 @@ export class Renderer {
     for (const b of world.buildings.values()) this.footprints.set(b.id, world.tilesOf(b));
     this.roads.build(world, this.season);
     this.buildings.setWorld(world, this.season);
+    this.sites.clear();
+    this.sites.sync();
+    this.animals.clear();
+    this.people.resetMovers?.();
     this.agents.setWorld(world, this.game.sim);
     this.particles.clear();
     this.overlays.setSelection(null);
@@ -249,6 +273,7 @@ export class Renderer {
     this.roads.markAll();
     this.roads.flush();
     this.buildings.setSeason(s);
+    this.sites.sync();
   }
 
   /** Herbes et fleurs disparaissent sous un bâtiment (et reviennent quand il part). */
@@ -457,7 +482,9 @@ export class Renderer {
     this.buildings.update(dt, sky.night, st.time.speed);
     this.agents.update(dt, st.time.speed, sky.night, game.sim.d.population);
     this.people.update(dt, st.time.speed);
+    this.animals.update(dt, st.time.speed);
     this.worksites.update(dt);
+    this.sites.update(dt);
     this.emitAmbient(dt);
     this.particles.update(dt);
     this.overlays.update(dt);
