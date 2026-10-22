@@ -342,6 +342,17 @@ export class Animals {
     const night = this.r.night || 0;
     const people = this.r.people?.figs || [];
     for (const k in this.meshes) this.meshes[k].n = 0;
+    // ce que font les éleveurs (une fois par image pour tous les enclos)
+    this.calls = new Map();
+    const V = this.r.game.villagers;
+    for (const w of V.list) {
+      if (!w.detail || w.role !== 'breeder') continue;
+      const b = world.buildings.get(w.job);
+      if (!b) continue;
+      let list = this.calls.get(b.id);
+      if (!list) this.calls.set(b.id, (list = []));
+      list.push(w);
+    }
     for (const a of this.list) {
       const dx = a.x - tx, dz = a.z - tz;
       if (dx * dx + dz * dz > r2) continue;
@@ -368,16 +379,17 @@ export class Animals {
     // ce que font les éleveurs de son enclos
     let call = null;
     if (b && (b.type === 'coop' || b.type === 'pasture')) {
-      for (const w of game.villagers.workersOf(b.id)) {
-        if (!w.detail) continue;
+      for (const w of this.calls?.get(b.id) || []) {
         if (b.type === 'coop' && w.act === 'feed') call = { kind: 'feed', p: localToWorld(b, FARMS.coop.feed[0], FARMS.coop.feed[1]), w };
         else if (b.type === 'pasture' && (w.act === 'hay' || w.act === 'goTask' && w.prop === 'hay')) call = { kind: 'feed', p: localToWorld(b, FARMS.pasture.feed[0], FARMS.pasture.feed[1] + 0.12), w };
         else if (b.type === 'pasture' && (w.act === 'milk' || w.act === 'goTask' && w.target?.task === 'milk') && a.kind === 'cow' && a.k === w.slot) call = { kind: 'milk', p: localToWorld(b, FARMS.pasture.nest[0] - 0.12, FARMS.pasture.nest[1] - 0.02), w };
       }
     }
-    // quelqu'un passe tout près : on s'écarte (poules, moutons, chats, pigeons)
+    // quelqu'un passe tout près : on s'écarte (poules, moutons, chats, pigeons) ; on regarde 4 fois par seconde
     if (a.flee > 0) a.flee -= dt;
-    if (!call && a.kind !== 'cow' && a.kind !== 'dog' && a.flee <= 0) {
+    a.look = (a.look || (a.seed % 10) / 40) - dt;
+    if (!call && a.kind !== 'cow' && a.kind !== 'dog' && a.flee <= 0 && a.look <= 0) {
+      a.look = 0.25;
       for (const f of people) {
         const ddx = a.x - f.x, ddz = a.z - f.z;
         const d2 = ddx * ddx + ddz * ddz;
