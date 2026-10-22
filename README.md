@@ -28,19 +28,37 @@ Le jeu s'ouvre alors en plein écran, comme une vraie appli, et fonctionne même
 | 🔨 Construire + toucher | Poser un bâtiment (↻ pour le tourner) |
 | ↩️ Annuler | Annuler la dernière action (remboursée) |
 
-Sur ordinateur : clic gauche pour déplacer, molette pour zoomer, clic droit pour pivoter, `R` pour tourner un bâtiment, `Échap` pour quitter un outil.
+### 🖥️ Sur ordinateur
+
+Le jeu a sa propre mise en page sur grand écran : panneaux sur le côté, boutique et passe dans une fenêtre centrée, bulles d'aide au survol, graphismes en qualité maximale.
+
+| Touche | Action |
+|---|---|
+| Clic gauche + glisser · `Z` `Q` `S` `D` · flèches | Déplacer la caméra |
+| Molette · `+` `−` | Zoomer |
+| Clic droit + glisser · `A` `E` | Pivoter la vue |
+| `B` · `C` · `X` (ou `Suppr`) | Construire · Route · Détruire |
+| `R` | Pivoter le bâtiment |
+| `Ctrl` + `Z` | Annuler |
+| `Espace` · `1` `2` `3` | Pause · vitesse ×1, ×2, ×4 |
+| `H` | Revenir à la mairie |
+| `G` · `I` · `M` | Quêtes · Stock · Calques |
+| `Échap` | Fermer la fenêtre, quitter l'outil |
+| `?` | Liste des raccourcis |
 
 ## ✨ Ce que contient le jeu
 
 - **Vrais modèles 3D** : près de 200 modèles — maisons, commerces, châteaux, immeubles, véhicules et décors (packs KayKit et Kenney), du hameau médiéval à la ville moderne, avec chantier animé à chaque construction.
 - **HUD de jeu dessiné sur mesure** : plus de 140 icônes vectorielles (ressources, outils, bâtiments, météo, avatars…) au style « jeu mobile », compteurs, boutons et barre d'outils façon jeu pro.
-- **Monde 3D « maquette »** avec cycle jour/nuit, fenêtres et lampadaires allumés la nuit, saisons (neige l'hiver !), météo, nuages, passants et voitures.
+- **Un monde immense** 🌍 : une carte de 110 × 110 cases (5 fois plus grande), entourée de paysages qui continuent jusqu'à l'horizon — collines, forêts, chaînes de montagnes enneigées, rivières qui sortent de la carte, mer sur la côte.
+- **Nature vivante** : chaque arbre ondule au vent (plus fort sous la pluie), l'eau a de vraies vagues, du courant dans les rivières, de l'écume sur les rives et des reflets du soleil, l'hiver elle gèle. Herbes, fleurs, buissons, champignons et cailloux habillent les prés. Les montagnes sont de vraies pentes, avec la roche nue sur les à-pics et des alpages sur les replats.
+- **Cycle jour/nuit**, fenêtres et lampadaires allumés la nuit, saisons (neige l'hiver !), météo, nuages, passants et voitures.
 - **Une fête chaque semaine, toute l'année** 🎉 : chaque semaine, une journée d'événement (le jour change d'une semaine à l'autre). Les grandes dates reviennent chaque année (Nouvel An, Galette des rois, Chandeleur, Saint-Valentin, Carnaval, Pâques, 1er Mai, Fête de la musique, 14 juillet, Halloween, Marché de Noël, Noël…) et les autres semaines piochent parmi plus de 20 fêtes surprises (Ruée vers l'or, Grand Jackpot, Braderie à −50 %, Cirque, Fête foraine, Chasse au trésor, Montgolfières…). Chaque fête a ses bonus (impôts ×2, commerces ×2, production ×1,5, XP du passe ×2…), ses objets à ramasser dans le village, 5 défis et 8 paliers de récompenses tirés au sort : des pièces en masse, des gemmes, des coffres, des titres, des toits et **35 décorations exclusives** en 3D. Le calendrier se met à jour tout seul.
 - **Passe de combat** 🎖️ : une saison de 4 semaines (saison 1 : *La Nuit des Citrouilles* 🎃), 40 paliers gratuits + 40 paliers du **Passe Royal**, paliers bonus et 7 défis de la semaine.
 - **Boutique** 🛒 et **gemmes** 💎 : coffres (bois, argent, or, royal), boosts (récolte ×2, impôts ×1,5, fête, afflux d'habitants), packs de ressources, offres du jour, 31 décorations exclusives et 11 thèmes de toits. Les gemmes se gagnent uniquement en jouant — aucun achat réel.
 - **Cadeau du jour** (calendrier de 7 jours), coffre gratuit toutes les 4 heures, profil du maire (nom, avatar, titres, statistiques).
 - **3 terrains de départ** : Vallée verdoyante, Côte sauvage, Pied des montagnes.
-- **25 zones à débloquer** : tu choisis où agrandir ton territoire (forêts, lacs, montagnes, littoral…).
+- **121 zones à débloquer** : tu choisis où agrandir ton territoire (forêts, lacs, montagnes, littoral…). Les anciennes parties sont reprises telles quelles : ton village se retrouve au centre et le nouveau monde pousse autour.
 - **40 types de bâtiments**, la plupart avec **5 niveaux** qui changent leur apparence : de la cabane à l'immeuble.
 - **La mairie, colonne vertébrale** : 8 rangs, de Hameau à Métropole. Elle débloque les niveaux des autres bâtiments.
 - **Économie complète** : bois, pierre, blé → farine → pain, planches, argile → briques, fer → outils, stockage, négoce.
@@ -70,9 +88,9 @@ src/
   version.js            numéro de version
   core/                 cœur du jeu : état, actions, sauvegarde, sons, profil et événements (meta.js)
   data/                 ⚙️ réglages du jeu : bâtiments, quêtes, progression, ressources, passe, boutique
-  world/                carte, terrain, génération procédurale
+  world/                carte, terrain, génération procédurale, arbres, paysage autour de la carte
   sim/                  simulation : économie, habitants, progression, événements
-  render/               rendu 3D : terrain, routes, bâtiments, caméra, effets
+  render/               rendu 3D : terrain, végétation, eau (shaders), routes, bâtiments, caméra, effets
   input/                gestes tactiles et souris
   ui/                   interface : barre du haut, menus, fiches, panneaux
 ```

@@ -1,10 +1,16 @@
 // Constantes du monde : taille de la carte, types de terrain, rythme du temps.
 
-export const SIZE = 50; // carte de 50 x 50 cases
+export const SIZE = 110; // carte de 110 x 110 cases
 export const ZONE = 10; // une zone = 10 x 10 cases
-export const ZONES = 5; // 5 x 5 zones
+export const ZONES = 11; // 11 x 11 zones
 export const N = SIZE * SIZE;
-export const CENTER_ZONE = 12; // zone de départ (au centre)
+export const CENTER_ZONE = 60; // zone de départ (au centre)
+export const CENTER = SIZE / 2; // centre de la carte (en cases)
+
+// Anciennes cartes (v1 à v2.2) : 50 x 50 cases, recentrées dans la grande carte
+export const LEGACY_SIZE = 50;
+export const LEGACY_ZONES = 5;
+export const LEGACY_OFFSET = (SIZE - LEGACY_SIZE) / 2; // 30 cases = 3 zones
 
 export const T = {
   GRASS: 0,
@@ -37,4 +43,10 @@ export const TOWNHALL_STORAGE = 150; // par niveau de mairie
 
 export function isWater(t) {
   return t === T.WATER || t === T.DEEP;
+}
+
+/** Distance d'une zone au centre (0 = zone de départ, 1 = première couronne…). */
+export function zoneRing(zi) {
+  const c = (ZONES - 1) / 2;
+  return Math.max(Math.abs((zi % ZONES) - c), Math.abs(Math.floor(zi / ZONES) - c));
 }

@@ -73,6 +73,7 @@ export class Game extends GameCore {
 
   update(dt) {
     if (!this.world) return;
+    this.input?.update(dt);
     if (this.playing) {
       this.sim.update(dt);
       this.autosaveAcc += dt;

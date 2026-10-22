@@ -11,6 +11,8 @@ import { Overlays } from './Overlays.js';
 import { Labels } from './Labels.js';
 import { Thumbnails } from './Thumbnails.js';
 import { Clouds } from './Clouds.js';
+import { Vegetation } from './Vegetation.js';
+import { buildRing } from '../world/landscape.js';
 import { SIZE } from '../world/constants.js';
 import { BUILDINGS, sizeOf } from '../data/buildings.js';
 import { calendar } from '../core/util.js';
@@ -34,10 +36,11 @@ export class Renderer {
     this.renderer.shadowMap.enabled = this.quality !== 'low';
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(36, 1, 0.5, 260);
+    this.camera = new THREE.PerspectiveCamera(36, 1, 0.5, 420);
     this.cam = new CameraController(this.camera, canvas);
     this.sky = new Sky(this);
     this.terrain = new TerrainView(this);
+    this.vegetation = new Vegetation(this);
     this.roads = new RoadView(this);
     this.buildings = new BuildingView(this);
     this.agents = new Agents(this);
@@ -47,7 +50,7 @@ export class Renderer {
     this.thumbs = new Thumbnails(this.renderer);
     this.clouds = new Clouds();
     this.clouds.build();
-    this.scene.add(this.terrain.group, this.roads.group, this.buildings.group, this.agents.group, this.particles.group, this.overlays.group, this.clouds.group);
+    this.scene.add(this.terrain.group, this.vegetation.group, this.roads.group, this.buildings.group, this.agents.group, this.particles.group, this.overlays.group, this.clouds.group);
     this.world = null;
     this.season = 1;
     this.emitAcc = 0;
@@ -87,6 +90,14 @@ export class Renderer {
     const dpr = window.devicePixelRatio || 1;
     const mem = navigator.deviceMemory || 4;
     if (mem <= 2) return 'low';
+    // ordinateur : ombres fines et grande distance de détail
+    let desk = false;
+    try {
+      desk = matchMedia('(hover: hover) and (pointer: fine) and (min-width: 900px)').matches;
+    } catch {
+      /* ignoré */
+    }
+    if (desk) return 'high';
     return dpr >= 2 ? 'high' : 'medium';
   }
 
@@ -126,10 +137,12 @@ export class Renderer {
     const bus = this.game.bus;
     bus.on('building:placed', (b, opts = {}) => {
       this.buildings.onPlaced(b, opts);
+      this.vegFootprint(b);
       if (!opts.undo) this.puff(b, 'dust', 18);
     });
     bus.on('building:removed', (b, opts = {}) => {
       this.buildings.onRemoved(b);
+      this.vegFootprint(b, true);
       this.puff(b, opts.burnt ? 'smoke' : 'dust', opts.burnt ? 30 : 22);
       if (this.game.selection == null) this.overlays.setSelection(null);
       this.labels.remove('st' + b.id);
@@ -142,20 +155,28 @@ export class Renderer {
     });
     bus.on('building:moved', (b) => {
       this.buildings.onMoved(b);
+      this.vegFootprint(b);
       this.puff(b, 'dust', 14);
       if (this.game.selection === b.id) this.overlays.setSelection(b);
     });
     bus.on('roads:changed', (tiles) => {
       this.roads.markTiles(tiles);
       this.roads.flush();
+      this.vegetation.markTiles(tiles);
       this.agents.validate();
     });
-    bus.on('terrain:changed', () => {
-      this.terrain.buildLand();
-      this.terrain.buildTrees();
+    bus.on('terrain:changed', (tiles) => {
+      if (tiles?.length) {
+        this.terrain.markTiles(tiles);
+        this.vegetation.markTiles(tiles);
+      } else {
+        this.terrain.rebuildAll(this.season);
+        this.vegetation.markAll();
+      }
     });
     bus.on('zone:unlocked', (zi) => {
-      this.terrain.rebuildAll(this.season);
+      this.terrain.markZone(zi);
+      this.vegetation.markZone(zi);
       this.updateBounds();
       const r = this.world.zoneRect(zi);
       for (let k = 0; k < 40; k++) this.particles.emit('sparkle', r.x + Math.random() * r.w - HALF, 0.3, r.z + Math.random() * r.h - HALF, 1);
@@ -185,8 +206,11 @@ export class Renderer {
     this.world = world;
     this.season = calendar(this.game.state.time.day).season;
     this.sky.weather = this.game.state.weather?.kind || 'clear';
-    this.terrain.dispose();
-    this.terrain.build(world, this.season);
+    this.ring = buildRing(world);
+    this.terrain.build(world, this.ring, this.season);
+    this.vegetation.build(world, this.ring, this.season);
+    this.footprints = new Map();
+    for (const b of world.buildings.values()) this.footprints.set(b.id, world.tilesOf(b));
     this.roads.build(world, this.season);
     this.buildings.setWorld(world, this.season);
     this.agents.setWorld(world, this.game.sim);
@@ -216,10 +240,25 @@ export class Renderer {
     if (s === this.season) return;
     this.season = s;
     this.terrain.rebuildAll(s);
+    this.vegetation.setSeason(s);
     this.roads.season = s;
     this.roads.markAll();
     this.roads.flush();
     this.buildings.setSeason(s);
+  }
+
+  /** Herbes et fleurs disparaissent sous un bâtiment (et reviennent quand il part). */
+  vegFootprint(b, removed = false) {
+    if (!this.world || !this.footprints) return;
+    const old = this.footprints.get(b.id);
+    if (old) this.vegetation.markTiles(old);
+    if (removed) {
+      this.footprints.delete(b.id);
+      return;
+    }
+    const tiles = this.world.tilesOf(b);
+    this.footprints.set(b.id, tiles);
+    this.vegetation.markTiles(tiles);
   }
 
   updateBounds() {
@@ -386,6 +425,15 @@ export class Renderer {
     this.cam.flyTo(c.cx, c.cz, distance ?? Math.min(this.cam.distance, 18), 0.6);
   }
 
+  /** Brouillard : léger près du village, plus dense vers l'horizon quand on dézoome. */
+  updateFog() {
+    const fog = this.scene.fog;
+    if (!fog) return;
+    const d = this.cam.distance;
+    fog.near = 34 + d * 0.62;
+    fog.far = 96 + d * 1.35;
+  }
+
   /* ───────── Boucle ───────── */
   frame(dt) {
     if (!this.world) return;
@@ -398,6 +446,8 @@ export class Renderer {
     const sky = this.sky.update(hour, this.cam.target, span, dt);
     this.night = sky.night;
     this.terrain.update(dt);
+    this.vegetation.update(dt, this.camera.position, this.sky.weather, st.time.speed);
+    this.updateFog();
     this.clouds.update(dt, sky.night, this.sky.weather);
     this.roads.update(sky.night);
     this.buildings.update(dt, sky.night, st.time.speed);

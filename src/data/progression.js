@@ -22,14 +22,14 @@ export const RANKS = [
 /** Niveau de mairie requis pour qu'un bâtiment atteigne un niveau donné (index = niveau). */
 export const MAIRIE_FOR_LEVEL = [0, 1, 1, 2, 4, 5];
 
-/** Prix de la n-ième zone achetée (n = 0 pour la première). */
+/** Prix de la n-ième zone achetée (n = 0 pour la première) : 120 zones à conquérir. */
 export function zoneCost(n) {
-  return Math.round((300 + 450 * Math.pow(n, 1.5)) / 50) * 50;
+  return Math.round((300 + 380 * Math.pow(n, 1.35)) / 50) * 50;
 }
 
 /** Niveau de village requis pour acheter la n-ième zone. */
 export function zoneLevelReq(n) {
-  return Math.min(45, 2 + Math.floor(n * 1.5));
+  return Math.min(48, 2 + Math.floor(n * 0.8));
 }
 
 // Fonctionnalités débloquées avec le niveau du village

@@ -13,7 +13,7 @@ export class CameraController {
     this.target = new THREE.Vector3(0, 0, 0);
     this.distance = 22;
     this.minDist = 6;
-    this.maxDist = 62;
+    this.maxDist = 72;
     this.azimuth = Math.PI / 4; // vue depuis le sud-est
     this.vel = new THREE.Vector2();
     this.bounds = { x0: -HALF, z0: -HALF, x1: HALF, z1: HALF };

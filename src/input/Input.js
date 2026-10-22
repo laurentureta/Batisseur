@@ -3,6 +3,8 @@ import { BUILDINGS, sizeOf } from '../data/buildings.js';
 import { SIZE } from '../world/constants.js';
 
 const TAP_MOVE = 9; // px avant de considérer qu'on fait glisser
+// touches physiques (ZQSD sur un clavier français, WASD sur un clavier anglais), flèches, A / E
+const MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyQ', 'KeyE']);
 
 export class Input {
   constructor(game, canvas) {
@@ -23,6 +25,9 @@ export class Input {
     document.addEventListener('gesturestart', (e) => e.preventDefault());
     document.addEventListener('gesturechange', (e) => e.preventDefault());
     window.addEventListener('keydown', (e) => this.key(e));
+    window.addEventListener('keyup', (e) => this.held.delete(e.code));
+    window.addEventListener('blur', () => this.held.clear());
+    this.held = new Set(); // touches de déplacement enfoncées
   }
 
   get r() {
@@ -190,11 +195,113 @@ export class Input {
     else this.r.cam.zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY);
   }
 
+  /* ───────── Clavier (version ordinateur) ───────── */
   key(e) {
-    if (!this.enabled || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key === 'Escape') this.game.ui.exitTool();
-    else if (e.key === 'r' || e.key === 'R') this.game.ui.rotateTool();
-    else if ((e.ctrlKey || e.metaKey) && e.key === 'z') this.game.ui.undo();
+    const tag = e.target?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    const ui = this.game.ui;
+    if (!ui) return;
+    if (e.key === 'Escape') {
+      if (ui.escape()) e.preventDefault();
+      return;
+    }
+    if (!this.enabled) return;
+    // une fenêtre est ouverte : le clavier lui appartient
+    if (ui.modalStack.length || ui.screen) return;
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if ((e.ctrlKey || e.metaKey) && k === 'z') {
+      e.preventDefault();
+      ui.undo();
+      return;
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (MOVE_KEYS.has(e.code)) {
+      this.held.add(e.code);
+      e.preventDefault();
+      return;
+    }
+    const cam = this.r.cam;
+    const rect = this.canvas.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+    switch (true) {
+      case k === ' ':
+        e.preventDefault();
+        if (!e.repeat) ui.togglePause();
+        break;
+      case e.code === 'Digit1' || e.code === 'Numpad1':
+        ui.setSpeedTo(1);
+        break;
+      case e.code === 'Digit2' || e.code === 'Numpad2':
+        ui.setSpeedTo(2);
+        break;
+      case e.code === 'Digit3' || e.code === 'Numpad3':
+        ui.setSpeedTo(4);
+        break;
+      case k === 'b':
+        if (!e.repeat) ui.openBuildMenu();
+        break;
+      case k === 'c':
+        if (!e.repeat) ui.toolButton('road');
+        break;
+      case k === 'x' || k === 'Delete' || k === 'Backspace':
+        if (!e.repeat) ui.toolButton('demolish');
+        break;
+      case k === 'r':
+        ui.rotateTool();
+        break;
+      case k === 'h' || k === 'Home': {
+        const th = this.game.world.townhall();
+        if (th) this.r.focusBuilding(th, 22);
+        break;
+      }
+      case k === 'g':
+        ui.openQuests();
+        break;
+      case k === 'i':
+        ui.openStock();
+        break;
+      case k === 'm':
+        ui.openLayers();
+        break;
+      case k === '?' || k === 'F1':
+        e.preventDefault();
+        ui.showShortcuts();
+        break;
+      case k === '+' || k === '=' || e.code === 'NumpadAdd' || k === 'PageUp':
+        e.preventDefault();
+        cam.zoomAt(1.18, cx, cy);
+        break;
+      case k === '-' || k === '_' || e.code === 'NumpadSubtract' || k === 'PageDown':
+        e.preventDefault();
+        cam.zoomAt(1 / 1.18, cx, cy);
+        break;
+      default:
+    }
+  }
+
+  /** Déplacement et rotation de la caméra au clavier (touches maintenues). */
+  update(dt) {
+    if (!this.held.size || !this.game.world) return;
+    if (this.game.ui?.modalStack.length || this.game.ui?.screen) return;
+    const cam = this.r.cam;
+    const h = this.held;
+    let f = 0, r = 0, rot = 0;
+    if (h.has('KeyW') || h.has('ArrowUp')) f += 1;
+    if (h.has('KeyS') || h.has('ArrowDown')) f -= 1;
+    if (h.has('KeyD') || h.has('ArrowRight')) r += 1;
+    if (h.has('KeyA') || h.has('ArrowLeft')) r -= 1;
+    if (h.has('KeyQ')) rot += 1;
+    if (h.has('KeyE')) rot -= 1;
+    if (rot) cam.rotate(rot * dt * 1.6);
+    if (f || r) {
+      const a = cam.azimuth;
+      const speed = (8 + cam.distance * 0.9) * dt / Math.hypot(f, r);
+      cam.fly = null;
+      cam.vel.set(0, 0);
+      cam.target.x += (-Math.sin(a) * f + Math.cos(a) * r) * speed;
+      cam.target.z += (-Math.cos(a) * f - Math.sin(a) * r) * speed;
+      cam.clampTarget();
+    }
   }
 
   pinchState() {

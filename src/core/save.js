@@ -21,6 +21,7 @@ export function decodeBytes(b64, len) {
 export function serialize(game) {
   const st = game.state;
   st.map = { terrain: encodeBytes(game.world.terrain), road: encodeBytes(game.world.road) };
+  st.trees = game.world.trees ? game.world.trees.save() : [];
   st.buildings = [...game.world.buildings.values()].map((b) => {
     const o = { id: b.id, type: b.type, x: b.x, z: b.z, rot: b.rot, level: b.level };
     if (b.residents != null) o.residents = Math.round(b.residents * 100) / 100;

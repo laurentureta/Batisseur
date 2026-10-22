@@ -1,6 +1,7 @@
 // Le monde : cases de terrain, routes, bâtiments et zones.
-import { SIZE, ZONE, ZONES, N, T, TERRAIN_BY_NAME, TERRAIN_NAMES } from './constants.js';
+import { SIZE, ZONE, ZONES, N, T, TERRAIN_BY_NAME, TERRAIN_NAMES, CENTER_ZONE, zoneRing } from './constants.js';
 import { BUILDINGS, sizeOf } from '../data/buildings.js';
+import { TreeField } from './Trees.js';
 
 export class World {
   /**
@@ -15,11 +16,13 @@ export class World {
     this.height = gen.height;
     this.variant = gen.variant;
     this.road = gen.road || new Uint8Array(N);
+    this.field = gen.field || null; // fonctions du monde (paysage autour de la carte)
     this.occ = new Int32Array(N).fill(-1);
     this.buildings = new Map();
     this.version = 1; // change à chaque modification (routes, bâtiments, terrain)
     this.terrainVersion = 1;
     for (const b of state.buildings) this._add(b);
+    this.trees = new TreeField(this); // chaque arbre de la carte (abattu, souche, repousse)
   }
 
   idx(x, z) {
@@ -130,6 +133,7 @@ export class World {
     this.terrain[i] = t;
     this.terrainVersion++;
     this.version++;
+    if (this.trees) this.trees.onTerrainChanged([i]);
   }
 
   townhall() {
@@ -170,7 +174,7 @@ export class World {
   }
 
   zoneName(zi) {
-    if (zi === 12) return 'Cœur du village';
+    if (zi === CENTER_ZONE) return 'Cœur du village';
     const counts = this.zoneComposition(zi);
     const water = counts[T.WATER] + counts[T.DEEP];
     const rocky = counts[T.ROCK] + counts[T.MOUNTAIN];
@@ -184,9 +188,13 @@ export class World {
     else if (counts[T.SAND] > 15) word = 'Dunes';
     else word = 'Prairie';
     const zx = zi % ZONES, zz = Math.floor(zi / ZONES);
-    const ns = zz < 2 ? 'Nord' : zz > 2 ? 'Sud' : '';
-    const ew = zx < 2 ? 'Ouest' : zx > 2 ? 'Est' : '';
+    const c = (ZONES - 1) / 2;
+    const ns = zz < c ? 'Nord' : zz > c ? 'Sud' : '';
+    const ew = zx < c ? 'Ouest' : zx > c ? 'Est' : '';
     const dir = ns && ew ? `${ns}-${ew}` : ns || ew || 'Centre';
+    const ring = zoneRing(zi);
+    if (ring >= 5) return `${word} des Confins ${dir === 'Ouest' || dir === 'Est' ? 'de l\'' : 'du '}${dir}`;
+    if (ring >= 3) return `${word} du Grand ${dir}`;
     const prep = dir === 'Ouest' || dir === 'Est' ? 'de l\'' : 'du ';
     return `${word} ${prep}${dir}`;
   }

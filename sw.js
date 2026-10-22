@@ -1,6 +1,6 @@
 // Service worker : le jeu fonctionne hors ligne une fois chargé.
 // Pense à changer VERSION à chaque mise à jour pour que les joueurs reçoivent la nouvelle version.
-const VERSION = 'batisseur-v2.2.0';
+const VERSION = 'batisseur-v3.0.0';
 const FILES = [
   './',
   './index.html',
@@ -52,11 +52,13 @@ const FILES = [
   './src/render/Sky.js',
   './src/render/TerrainView.js',
   './src/render/Thumbnails.js',
+  './src/render/Vegetation.js',
   './src/render/eventModels.js',
   './src/render/geom.js',
   './src/render/kit.js',
   './src/render/kitModels.js',
   './src/render/models.js',
+  './src/render/shaders.js',
   './src/sim/Progression.js',
   './src/sim/RandomEvents.js',
   './src/sim/Simulation.js',
@@ -75,8 +77,10 @@ const FILES = [
   './src/ui/rewards.js',
   './src/ui/screens.js',
   './src/ui/shop.js',
+  './src/world/Trees.js',
   './src/world/World.js',
   './src/world/constants.js',
+  './src/world/landscape.js',
   './src/world/mapgen.js',
 ];
 

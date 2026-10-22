@@ -48,10 +48,20 @@ function setIcon(img, name) {
   }
 }
 
+/** Ordinateur (souris, clavier, grand écran) ? */
+export function isDesktop() {
+  try {
+    return matchMedia('(hover: hover) and (pointer: fine) and (min-width: 900px)').matches;
+  } catch {
+    return false;
+  }
+}
+
 export class UI {
   constructor(game, root) {
     this.game = game;
     this.root = root;
+    this.watchDesktop();
     this.sheet = null;
     this.modalStack = [];
     this.layer = null;
@@ -66,6 +76,20 @@ export class UI {
     this.start = new StartScreen(this);
     this.drops = new EventDrops(this);
     this.bindBus();
+  }
+
+  /** Mise en page « ordinateur » : panneaux sur le côté, fenêtres centrées, raccourcis clavier. */
+  watchDesktop() {
+    const apply = () => {
+      this.desk = isDesktop();
+      document.documentElement.classList.toggle('desk', this.desk);
+    };
+    apply();
+    try {
+      matchMedia('(hover: hover) and (pointer: fine) and (min-width: 900px)').addEventListener('change', apply);
+    } catch {
+      /* ancien navigateur */
+    }
   }
 
   get st() {
@@ -95,7 +119,7 @@ export class UI {
     e.timeText = h('span.tt', '');
     e.date = h('button.time-chip', { onclick: () => this.openStock() }, e.seasonIco, e.timeText, e.weatherIco);
     e.speedIco = icon('play');
-    e.speed = h('button.speed-btn', { onclick: () => this.cycleSpeed(), 'aria-label': 'Vitesse' }, e.speedIco);
+    e.speed = h('button.speed-btn', { onclick: () => this.cycleSpeed(), 'aria-label': 'Vitesse', title: 'Vitesse (Espace : pause · 1, 2, 3 : vitesse)' }, e.speedIco);
     e.quest = h('button.quest-tracker', { onclick: () => this.openQuests() });
     e.alerts = h('div.alerts');
     e.boosts = h('div.boost-chips');
@@ -109,7 +133,7 @@ export class UI {
     );
     // boutons latéraux (icône + libellé)
     const side = (name, label, fn, key, cls = '') => {
-      const b = h('button.side-btn' + cls, { onclick: fn, 'aria-label': label }, icon(name), h('span.sl', label), h('i.badge.hidden'));
+      const b = h('button.side-btn' + cls, { onclick: fn, 'aria-label': label, title: label }, icon(name), h('span.sl', label), h('i.badge.hidden'));
       e[key] = b;
       return b;
     };
@@ -129,12 +153,12 @@ export class UI {
 
   buildBottom() {
     const e = this.el;
-    const tb = (tool, name, label, cls) => h('button.tb.' + cls, { dataset: { tool }, onclick: () => this.toolButton(tool) }, h('span.tb-face', icon(name)), h('span.l', label));
-    e.tbSelect = tb('select', 'hand', 'Explorer', 'tb-blue');
-    e.tbRoad = tb('road', 'road', 'Route', 'tb-stone');
-    e.tbBuild = h('button.tb.big.tb-green', { onclick: () => this.openBuildMenu() }, h('span.tb-face', icon('hammer')), h('span.l', 'Construire'));
-    e.tbDemolish = tb('demolish', 'bulldozer', 'Détruire', 'tb-red');
-    e.tbUndo = h('button.tb.tb-yellow', { onclick: () => this.undo() }, h('span.tb-face', icon('undo')), h('span.l', 'Annuler'));
+    const tb = (tool, name, label, cls, key) => h('button.tb.' + cls, { dataset: { tool }, onclick: () => this.toolButton(tool), title: `${label} (${key})` }, h('span.tb-face', icon(name)), h('span.l', label), h('kbd.tb-key', key));
+    e.tbSelect = tb('select', 'hand', 'Explorer', 'tb-blue', 'Échap');
+    e.tbRoad = tb('road', 'road', 'Route', 'tb-stone', 'C');
+    e.tbBuild = h('button.tb.big.tb-green', { onclick: () => this.openBuildMenu(), title: 'Construire (B)' }, h('span.tb-face', icon('hammer')), h('span.l', 'Construire'), h('kbd.tb-key', 'B'));
+    e.tbDemolish = tb('demolish', 'bulldozer', 'Détruire', 'tb-red', 'X');
+    e.tbUndo = h('button.tb.tb-yellow', { onclick: () => this.undo(), title: 'Annuler (Ctrl+Z)' }, h('span.tb-face', icon('undo')), h('span.l', 'Annuler'), h('kbd.tb-key', 'Ctrl+Z'));
     this.bottom = h('div.bottom-bar', e.tbSelect, e.tbRoad, e.tbBuild, e.tbDemolish, e.tbUndo);
     this.banner = h('div.tool-banner.hidden');
     this.root.append(this.banner, this.bottom);
@@ -357,11 +381,90 @@ export class UI {
   cycleSpeed() {
     const cur = this.st.time.speed;
     const k = SPEEDS.indexOf(cur);
-    const next = SPEEDS[(k + 1) % SPEEDS.length];
+    this.setSpeedTo(SPEEDS[(k + 1) % SPEEDS.length]);
+  }
+
+  setSpeedTo(next) {
+    if (!this.st) return;
+    if (this.st.time.speed > 0) this.lastSpeed = this.st.time.speed;
     this.game.setSpeed(next);
     this.game.sound.play('tap');
     this.refreshHud();
     this.toast(next === 0 ? '⏸ Pause' : `Vitesse ×${next}`, 'mini');
+  }
+
+  /** Espace : pause, puis reprise à la vitesse d'avant. */
+  togglePause() {
+    if (!this.st) return;
+    this.setSpeedTo(this.st.time.speed > 0 ? 0 : this.lastSpeed || 1);
+  }
+
+  /**
+   * Échap : ferme ce qui est ouvert, du plus haut au plus bas
+   * (fenêtre, écran, panneau, outil, sélection). Renvoie true si quelque chose a été fermé.
+   */
+  escape() {
+    const top = this.modalStack[this.modalStack.length - 1];
+    if (top) {
+      if (top.dataset.dismissable !== '0') top._close?.();
+      return true;
+    }
+    if (this.screen) {
+      this.closeScreen();
+      return true;
+    }
+    if (this.sheet) {
+      this.closeSheet();
+      return true;
+    }
+    if (this.game.tool.kind !== 'select') {
+      this.exitTool();
+      return true;
+    }
+    if (this.game.selection != null) {
+      this.game.select(null);
+      return true;
+    }
+    return false;
+  }
+
+  /** Liste des raccourcis clavier (version ordinateur). */
+  showShortcuts() {
+    const row = (keys, text) => h('div.kb-row', h('span.kb-keys', ...keys.map((k) => h('kbd', k))), h('span.kb-text', text));
+    this.modal({
+      title: '⌨️ Raccourcis clavier',
+      cls: 'kb-card',
+      body: h('div.kb-grid',
+        h('div.kb-col',
+          h('div.kb-head', 'Caméra'),
+          row(['Z', 'Q', 'S', 'D'], 'Se déplacer (ou les flèches)'),
+          row(['Clic gauche'], 'Glisser pour déplacer la carte'),
+          row(['Molette'], 'Zoomer, dézoomer (ou + et −)'),
+          row(['Clic droit'], 'Glisser pour pivoter la vue'),
+          row(['A', 'E'], 'Pivoter la vue'),
+          row(['H'], 'Revenir à la mairie'),
+        ),
+        h('div.kb-col',
+          h('div.kb-head', 'Construction'),
+          row(['B'], 'Construire'),
+          row(['C'], 'Route'),
+          row(['X'], 'Détruire (ou Suppr)'),
+          row(['R'], 'Pivoter le bâtiment'),
+          row(['Ctrl', 'Z'], 'Annuler'),
+          row(['Échap'], 'Fermer, quitter l\'outil'),
+        ),
+        h('div.kb-col',
+          h('div.kb-head', 'Temps et menus'),
+          row(['Espace'], 'Pause / reprendre'),
+          row(['1', '2', '3'], 'Vitesse ×1, ×2, ×4'),
+          row(['G'], 'Quêtes'),
+          row(['I'], 'Stock et statistiques'),
+          row(['M'], 'Calques'),
+          row(['?'], 'Cette aide'),
+        ),
+      ),
+      actions: [{ label: 'Compris !', cls: 'primary' }],
+    });
   }
 
   /* ───────── Outils ───────── */
@@ -427,7 +530,7 @@ export class UI {
       const img = this.game.renderer.thumbs.get(tool.type, 1);
       b.append(
         h('img.banner-thumb', { src: img, alt: '' }),
-        h('div.banner-text', h('b', def.name), costChips(def.costs[0], this.st.res, { libre: this.libre }), h('small', 'Touche la carte pour construire')),
+        h('div.banner-text', h('b', def.name), costChips(def.costs[0], this.st.res, { libre: this.libre }), h('small', this.desk ? 'Clique sur la carte pour construire · R pour pivoter · Échap pour finir' : 'Touche la carte pour construire')),
         h('button.banner-btn', { onclick: () => this.rotateTool(), 'aria-label': 'Pivoter' }, tool.rot == null ? '↻ Auto' : '↻'),
         close,
       );
@@ -448,15 +551,15 @@ export class UI {
       });
       const rt = ROAD_TYPES[tool.roadType];
       b.append(
-        h('div.banner-text', h('div.segs', types), h('small', `${costLine(rt.cost)} par case · glisse pour tracer · 2 doigts pour bouger`)),
+        h('div.banner-text', h('div.segs', types), h('small', `${costLine(rt.cost)} par case · ${this.desk ? 'clique et glisse pour tracer · clic droit pour tourner' : 'glisse pour tracer · 2 doigts pour bouger'}`)),
         close,
       );
     } else if (tool.kind === 'demolish') {
-      b.append(h('div.banner-text', h('b', '💥 Détruire'), h('small', 'Touche un bâtiment (50 % remboursés) ou glisse sur des routes')), close);
+      b.append(h('div.banner-text', h('b', '💥 Détruire'), h('small', this.desk ? 'Clique sur un bâtiment (50 % remboursés) ou glisse sur des routes' : 'Touche un bâtiment (50 % remboursés) ou glisse sur des routes')), close);
     } else if (tool.kind === 'move') {
       const bld = this.game.world.buildings.get(tool.id);
       b.append(
-        h('div.banner-text', h('b', `✋ Déplacer : ${bld ? levelName(BUILDINGS[bld.type], bld.level) : ''}`), h('small', 'Touche le nouvel emplacement (gratuit)')),
+        h('div.banner-text', h('b', `✋ Déplacer : ${bld ? levelName(BUILDINGS[bld.type], bld.level) : ''}`), h('small', this.desk ? 'Clique sur le nouvel emplacement (gratuit) · R pour pivoter' : 'Touche le nouvel emplacement (gratuit)')),
         h('button.banner-btn', { onclick: () => this.rotateTool() }, '↻'),
         close,
       );
@@ -726,6 +829,8 @@ export class UI {
       card.appendChild(row);
     }
     back.appendChild(card);
+    back._close = close;
+    back.dataset.dismissable = dismissable ? '1' : '0';
     if (dismissable) back.addEventListener('click', (e) => e.target === back && close());
     this.root.appendChild(back);
     this.modalStack.push(back);

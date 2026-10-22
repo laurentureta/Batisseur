@@ -5,8 +5,8 @@ import { Progression } from '../sim/Progression.js';
 import { RandomEvents } from '../sim/RandomEvents.js';
 import { Actions } from './Actions.js';
 import { World } from '../world/World.js';
-import { generateMap } from '../world/mapgen.js';
-import { N } from '../world/constants.js';
+import { generateMap, embedLegacy } from '../world/mapgen.js';
+import { N, LEGACY_SIZE } from '../world/constants.js';
 import { decodeBytes } from './save.js';
 import { calendar } from './util.js';
 
@@ -28,9 +28,18 @@ export class GameCore {
   loadState(state, { demo = false } = {}) {
     this.state = state;
     this.isDemo = demo;
-    const gen = generateMap(state.seed, state.preset);
-    if (state.map?.terrain) gen.terrain = decodeBytes(state.map.terrain, N);
-    gen.road = state.map?.road ? decodeBytes(state.map.road, N) : new Uint8Array(N);
+    let gen;
+    if (state.map?.legacy === 50 && state.map.terrain) {
+      // ancienne carte 50 x 50 : recentrée, le nouveau monde pousse autour
+      gen = generateMap(state.seed, state.preset, { legacy: true });
+      const L2 = LEGACY_SIZE * LEGACY_SIZE;
+      embedLegacy(gen, decodeBytes(state.map.terrain, L2), state.map.road ? decodeBytes(state.map.road, L2) : null, state.seed);
+      delete state.map.legacy;
+    } else {
+      gen = generateMap(state.seed, state.preset);
+      if (state.map?.terrain) gen.terrain = decodeBytes(state.map.terrain, N);
+      gen.road = state.map?.road ? decodeBytes(state.map.road, N) : new Uint8Array(N);
+    }
     this.world = new World(state, gen);
     this.selection = null;
     this.tool = { kind: 'select' };

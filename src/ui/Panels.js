@@ -244,6 +244,7 @@ export function renderMenu(ui, body) {
   item('📦', 'Stock et statistiques', () => ui.openStock());
   item('🗺️', 'Calques', () => ui.openLayers());
   item('❓', 'Aide et commandes', () => showHelp(ui));
+  if (ui.desk) item('⌨️', 'Raccourcis clavier', () => ui.showShortcuts());
   item('⚙️', 'Réglages', () => ui.openSettings());
   item('🏠', 'Menu principal', () => {
     ui.closeSheet(true);
@@ -446,12 +447,24 @@ export function showHelp(ui) {
     title: '❓ Comment jouer',
     cls: 'help-card',
     body: h('div',
-      item('☝️', 'Glisser un doigt', 'Déplace la carte.'),
-      item('🤏', 'Pincer à deux doigts', 'Zoome et dézoome.'),
-      item('🔄', 'Tourner à deux doigts', 'Fait pivoter la vue.'),
-      item('👆', 'Toucher un bâtiment', 'Ouvre sa fiche : améliorer, déplacer, détruire.'),
-      item('🛣️', 'Route', 'Glisse le doigt pour tracer. Tout doit être relié à la mairie.'),
-      item('🔨', 'Construire', 'Choisis un bâtiment puis touche la carte. ↻ pour le tourner.'),
+      ...(ui.desk
+        ? [
+          item('🖱️', 'Clic gauche et glisser', 'Déplace la carte (ou Z Q S D, les flèches).'),
+          item('🔍', 'Molette', 'Zoome et dézoome (ou + et −).'),
+          item('🔄', 'Clic droit et glisser', 'Fait pivoter la vue (ou A et E).'),
+          item('👆', 'Cliquer sur un bâtiment', 'Ouvre sa fiche : améliorer, déplacer, détruire.'),
+          item('🛣️', 'Route (C)', 'Clique et glisse pour tracer. Tout doit être relié à la mairie.'),
+          item('🔨', 'Construire (B)', 'Choisis un bâtiment puis clique sur la carte. R pour le tourner.'),
+          item('⌨️', 'Raccourcis clavier', 'Espace pour la pause, 1 2 3 pour la vitesse, ? pour la liste complète.'),
+        ]
+        : [
+          item('☝️', 'Glisser un doigt', 'Déplace la carte.'),
+          item('🤏', 'Pincer à deux doigts', 'Zoome et dézoome.'),
+          item('🔄', 'Tourner à deux doigts', 'Fait pivoter la vue.'),
+          item('👆', 'Toucher un bâtiment', 'Ouvre sa fiche : améliorer, déplacer, détruire.'),
+          item('🛣️', 'Route', 'Glisse le doigt pour tracer. Tout doit être relié à la mairie.'),
+          item('🔨', 'Construire', 'Choisis un bâtiment puis touche la carte. ↻ pour le tourner.'),
+        ]),
       item('🏛️', 'La mairie', 'Améliore-la pour monter de rang et débloquer les niveaux des autres bâtiments.'),
       item('😊', 'Le bonheur', 'Eau, commerces, loisirs, école, santé, sécurité et décorations rendent les habitants heureux.'),
       item('🔒', 'Les zones', 'Touche un cadenas au bord de la carte pour agrandir ton territoire.'),
@@ -470,8 +483,10 @@ export function showWelcome(ui) {
     body: h('div',
       h('p', 'Ton village n\'est qu\'une mairie au milieu des prés. À toi de le faire grandir jusqu\'à devenir une métropole !'),
       h('div.help-item', h('span.hi', '🎯'), h('div', h('b', 'Suis les quêtes'), h('small', 'En haut à gauche : elles te guident pas à pas.'))),
-      h('div.help-item', h('span.hi', '☝️'), h('div', h('b', 'Un doigt pour bouger'), h('small', 'Deux doigts pour zoomer et tourner.'))),
-      h('div.help-item', h('span.hi', '🛣️'), h('div', h('b', 'Commence par une route'), h('small', 'Touche « Route » puis glisse depuis la mairie.'))),
+      ui.desk
+        ? h('div.help-item', h('span.hi', '🖱️'), h('div', h('b', 'Clic gauche pour bouger'), h('small', 'Molette pour zoomer, clic droit pour tourner. Appuie sur ? pour les raccourcis.')))
+        : h('div.help-item', h('span.hi', '☝️'), h('div', h('b', 'Un doigt pour bouger'), h('small', 'Deux doigts pour zoomer et tourner.'))),
+      h('div.help-item', h('span.hi', '🛣️'), h('div', h('b', 'Commence par une route'), h('small', ui.desk ? 'Clique sur « Route » (ou C) puis glisse depuis la mairie.' : 'Touche « Route » puis glisse depuis la mairie.'))),
     ),
     actions: [{ label: 'C\'est parti !', cls: 'primary' }],
     dismissable: false,

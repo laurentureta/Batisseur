@@ -1,4 +1,4 @@
-// Nuages qui flottent autour de la maquette (modèles KayKit).
+// Nuages qui flottent au-dessus du paysage, autour de la carte (modèles KayKit).
 import * as THREE from 'three';
 import { GeoBuilder } from './geom.js';
 import { kit, kitReady } from './kit.js';
@@ -22,15 +22,15 @@ export class Clouds {
     });
     let seed = 7;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    const n = 16;
+    const n = 26;
     for (let k = 0; k < n; k++) {
       const a = (k / n) * Math.PI * 2 + rnd() * 0.3;
-      const r = 33 + rnd() * 18;
+      const r = 80 + rnd() * 42;
       const m = new THREE.Mesh(geos[k % 2], this.mat);
-      m.scale.setScalar(1.3 + rnd() * 1.6);
+      m.scale.setScalar(2.2 + rnd() * 2.4);
       m.rotation.y = rnd() * 6.28;
       this.group.add(m);
-      this.items.push({ m, a, r, y: 3.5 + rnd() * 6, speed: (0.006 + rnd() * 0.006) * (k % 3 ? 1 : -1), bob: rnd() * 6 });
+      this.items.push({ m, a, r, y: 7 + rnd() * 9, speed: (0.003 + rnd() * 0.003) * (k % 3 ? 1 : -1), bob: rnd() * 6 });
     }
     this.place(0);
   }

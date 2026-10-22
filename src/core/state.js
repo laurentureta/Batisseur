@@ -1,12 +1,12 @@
 // Création de l'état initial d'une partie.
 import { emptyStock } from '../data/resources.js';
-import { CENTER_ZONE } from '../world/constants.js';
+import { CENTER_ZONE, ZONES, CENTER, LEGACY_ZONES, LEGACY_OFFSET, ZONE } from '../world/constants.js';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export function createNewState({ name = 'Mon village', preset = 'vallee', mode = 'carriere', seed, slot = 0 } = {}) {
   const libre = mode === 'libre';
-  const zones = new Array(25).fill(libre);
+  const zones = new Array(ZONES * ZONES).fill(libre);
   zones[CENTER_ZONE] = true;
   const res = emptyStock();
   Object.assign(res, { coins: 600, wood: 120, stone: 60, food: 60 });
@@ -27,7 +27,7 @@ export function createNewState({ name = 'Mon village', preset = 'vallee', mode =
     zones,
     zonesBought: 0,
     map: null,
-    buildings: [{ id: 1, type: 'townhall', x: 24, z: 24, rot: 0, level: 1 }],
+    buildings: [{ id: 1, type: 'townhall', x: CENTER - 1, z: CENTER - 1, rot: 0, level: 1 }],
     nextId: 2,
     quests: { main: 0, mainReady: false, daily: null, achievements: {} },
     orders: { slots: [null, null, null], cooldown: [0, 0.15, 0.3], nextId: 1 },
@@ -42,7 +42,7 @@ export function createNewState({ name = 'Mon village', preset = 'vallee', mode =
       coinsEarned: 0,
       produced: {},
       questsDone: 0,
-      zonesUnlocked: libre ? 25 : 1,
+      zonesUnlocked: libre ? ZONES * ZONES : 1,
       monuments: 0,
       daily: null,
     },
@@ -55,8 +55,31 @@ export function createNewState({ name = 'Mon village', preset = 'vallee', mode =
   };
 }
 
+/**
+ * Anciennes parties (carte de 50 x 50) : le village est recentré dans la grande carte.
+ * Les bâtiments et les zones sont décalés ici ; le terrain est recomposé au chargement (GameCore).
+ */
+function migrateLegacyMap(st) {
+  const O = LEGACY_OFFSET, OZ = O / ZONE;
+  for (const b of st.buildings || []) {
+    b.x += O;
+    b.z += O;
+  }
+  const old = Array.isArray(st.zones) ? st.zones : [];
+  const zones = new Array(ZONES * ZONES).fill(st.mode === 'libre');
+  for (let zi = 0; zi < old.length && zi < LEGACY_ZONES * LEGACY_ZONES; zi++) {
+    const zx = zi % LEGACY_ZONES, zz = Math.floor(zi / LEGACY_ZONES);
+    zones[(zz + OZ) * ZONES + (zx + OZ)] = !!old[zi] || zones[(zz + OZ) * ZONES + (zx + OZ)];
+  }
+  zones[CENTER_ZONE] = true;
+  st.zones = zones;
+  if (st.mode === 'libre' && st.stats) st.stats.zonesUnlocked = ZONES * ZONES;
+  if (st.map) st.map.legacy = 50;
+}
+
 /** Complète une sauvegarde ancienne avec les champs manquants. */
 export function migrateState(st) {
+  if (!(st.version >= 2)) migrateLegacyMap(st);
   const base = createNewState({ name: st.name, preset: st.preset, mode: st.mode, seed: st.seed, slot: st.slot });
   for (const k of Object.keys(base)) if (st[k] === undefined) st[k] = base[k];
   for (const k of Object.keys(base.stats)) if (st.stats[k] === undefined) st.stats[k] = base.stats[k];

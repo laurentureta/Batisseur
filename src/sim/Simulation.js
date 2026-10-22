@@ -125,6 +125,7 @@ export class Simulation {
       this.recalc();
       this.recalcAcc = 0;
       this.dirty = false;
+      this.game.world?.trees?.update(st.time.day); // souches qui repoussent
     }
     this.produce(days);
     this.consume(days);

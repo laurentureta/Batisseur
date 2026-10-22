@@ -6,6 +6,8 @@ import { seasonAt } from '../data/pass.js';
 
 export function populateDemo(world) {
   const rng = mulberry32(4242);
+  // le plan du village de démonstration a été dessiné pour l'ancienne carte (50 x 50) : on le recentre
+  const O = (SIZE - 50) / 2;
   const land = (x, z) => {
     if (!world.inside(x, z)) return false;
     const t = world.terrain[world.idx(x, z)];
@@ -19,12 +21,12 @@ export function populateDemo(world) {
     if (world.terrain[i] === T.FOREST || world.terrain[i] === T.ROCK) world.terrain[i] = T.GRASS;
   };
   // rues
-  for (let x = 15; x <= 34; x++) road(x, 26, 2);
-  for (let x = 17; x <= 32; x++) road(x, 21, 2);
-  for (let z = 16; z <= 33; z++) road(27, z, 2);
-  for (let z = 17; z <= 32; z++) road(21, z, 1);
-  for (let x = 21; x <= 31; x++) road(x, 30, 1);
-  for (let z = 21; z <= 26; z++) road(32, z, 1);
+  for (let x = 15 + O; x <= 34 + O; x++) road(x, 26 + O, 2);
+  for (let x = 17 + O; x <= 32 + O; x++) road(x, 21 + O, 2);
+  for (let z = 16 + O; z <= 33 + O; z++) road(27 + O, z, 2);
+  for (let z = 17 + O; z <= 32 + O; z++) road(21 + O, z, 1);
+  for (let x = 21 + O; x <= 31 + O; x++) road(x, 30 + O, 1);
+  for (let z = 21 + O; z <= 26 + O; z++) road(32 + O, z, 1);
 
   let id = 2;
   const free = (type, x, z, rot) => {
@@ -60,27 +62,27 @@ export function populateDemo(world) {
   };
   // grands bâtiments
   world.buildings.get(1).level = 7;
-  place('farm', 14, 28, 0, 3);
-  place('farm', 16, 22, 1, 2);
-  place('mill', 18, 31, 0, 2);
-  place('mill', 14, 31, 0, 1);
-  place('park', 28, 27, 0, 3);
-  place('school', 28, 22, 0, 3);
-  place('clocktower', 26, 27, 0, 1);
+  place('farm', 14 + O, 28 + O, 0, 3);
+  place('farm', 16 + O, 22 + O, 1, 2);
+  place('mill', 18 + O, 31 + O, 0, 2);
+  place('mill', 14 + O, 31 + O, 0, 1);
+  place('park', 28 + O, 27 + O, 0, 3);
+  place('school', 28 + O, 22 + O, 0, 3);
+  place('clocktower', 26 + O, 27 + O, 0, 1);
   // le château, au bord de la rivière (premier emplacement libre)
-  for (const [cx, cz] of [[28, 31], [22, 31], [29, 17], [17, 17]]) if (place('castle', cx, cz, 0, 1)) break;
-  place('hospital', 22, 27, 0, 1);
-  place('fountain', 23, 25, 0, 1);
-  place('watertower', 33, 20, 0, 1);
+  for (const [cx, cz] of [[28, 31], [22, 31], [29, 17], [17, 17]]) if (place('castle', cx + O, cz + O, 0, 1)) break;
+  place('hospital', 22 + O, 27 + O, 0, 1);
+  place('fountain', 23 + O, 25 + O, 0, 1);
+  place('watertower', 33 + O, 20 + O, 0, 1);
   // décorations de la saison en cours, près de la mairie
   const sd = seasonAt().theme.decor;
-  place(sd[0], 26, 23, 0, 1);
-  place(sd[1], 23, 23, 0, 1);
-  place(sd[2], 26, 25, 0, 1);
+  place(sd[0], 26 + O, 23 + O, 0, 1);
+  place(sd[1], 23 + O, 23 + O, 0, 1);
+  place(sd[2], 26 + O, 25 + O, 0, 1);
   // remplissage le long des rues
   const shops = ['market', 'bakery', 'tavern', 'forge', 'shop', 'market', 'tavern', 'well'];
-  for (let z = 14; z <= 35; z++) {
-    for (let x = 13; x <= 36; x++) {
+  for (let z = 14 + O; z <= 35 + O; z++) {
+    for (let x = 13 + O; x <= 36 + O; x++) {
       if (!land(x, z) || world.road[world.idx(x, z)] || world.occ[world.idx(x, z)] >= 0) continue;
       const adj = facing(x, z);
       const nearRoad = [[0, 1], [1, 0], [0, -1], [-1, 0]].some(([dx, dz]) => world.inside(x + dx, z + dz) && world.road[world.idx(x + dx, z + dz)]);
@@ -88,7 +90,7 @@ export function populateDemo(world) {
         if (rng() < 0.12) place('tree', x, z, 0, 1);
         continue;
       }
-      const dist = Math.hypot(x - 24.5, z - 24.5);
+      const dist = Math.hypot(x - 24.5 - O, z - 24.5 - O);
       const r = rng();
       if (r < 0.1) place(shops[Math.floor(rng() * shops.length)], x, z, adj, 1 + Math.floor(rng() * 3));
       else if (r < 0.16) place(rng() < 0.5 ? 'flowers' : 'tree', x, z, adj, 1);
@@ -102,5 +104,5 @@ export function populateDemo(world) {
   world.state.nextId = id;
   world.version++;
   world.terrainVersion++;
-  void SIZE;
+  world.trees?.rebuild(); // les cases défrichées n'ont plus d'arbres
 }
