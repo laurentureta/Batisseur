@@ -1,7 +1,10 @@
 // Point d'entrée : écran de chargement, modèles 3D, puis le jeu ; installe le mode hors ligne.
 import { loadKit } from './render/kit.js';
+import { emojify } from './ui/icons.js';
 
 const root = document.getElementById('app');
+// les emoji de l'interface deviennent les icônes dessinées du jeu
+emojify(root);
 const loading = document.getElementById('loading');
 
 function fail(msg) {

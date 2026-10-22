@@ -39,7 +39,7 @@ export class StartScreen {
     const p = meta.p;
     this.pill = gemPill(this.ui, { onclick: () => this.ui.openShop('gems') });
     return h('div.start-top',
-      h('button.profile-chip', { onclick: () => this.ui.openProfile() }, h('span.pc-avatar', p.avatar), h('span.pc-text', h('b', p.name), h('small', p.title))),
+      h('button.profile-chip', { onclick: () => this.ui.openProfile() }, h('span.pc-avatar', { dataset: { av: p.avatar } }, p.avatar), h('span.pc-text', h('b', p.name), h('small', p.title))),
       this.pill,
     );
   }
@@ -63,7 +63,11 @@ export class StartScreen {
     const p = this.game.meta.p;
     const chip = this.el.querySelector('.profile-chip');
     if (chip) {
-      chip.querySelector('.pc-avatar').textContent = p.avatar;
+      const av = chip.querySelector('.pc-avatar');
+      if (av.dataset.av !== p.avatar) {
+        av.dataset.av = p.avatar;
+        av.textContent = p.avatar;
+      }
       chip.querySelector('b').textContent = p.name;
       chip.querySelector('small').textContent = p.title;
     }

@@ -1,6 +1,7 @@
 // Écrans plein écran (boutique, passe de combat) avec en-tête, onglets et rafraîchissement.
 import { h, clear } from './dom.js';
 import { fmt } from '../core/util.js';
+import { emojifyTree } from './icons.js';
 
 export function gemPill(ui, { onclick } = {}) {
   const meta = ui.game.meta;
@@ -33,14 +34,19 @@ export function openScreen(ui, opts) {
       if (screen.pressed && !force) return;
       pill.update();
       if (opts.tabs) {
-        clear(tabsEl);
-        for (const t of opts.tabs) {
-          const badge = t.badge ? t.badge() : 0;
-          tabsEl.appendChild(h('button.stab' + (t.id === screen.tab ? '.on' : ''), { onclick: () => screen.setTab(t.id) }, t.label, badge ? h('i.badge', String(badge)) : null));
+        const key = screen.tab + '|' + opts.tabs.map((t) => (t.badge ? t.badge() : 0)).join(',');
+        if (key !== screen.tabsKey) {
+          screen.tabsKey = key;
+          clear(tabsEl);
+          for (const t of opts.tabs) {
+            const badge = t.badge ? t.badge() : 0;
+            tabsEl.appendChild(h('button.stab' + (t.id === screen.tab ? '.on' : ''), { onclick: () => screen.setTab(t.id) }, t.label, badge ? h('i.badge', String(badge)) : null));
+          }
         }
       }
       const tmp = h('div');
       opts.render(tmp, screen);
+      emojifyTree(tmp);
       if (!force && tmp.innerHTML === body.innerHTML) return;
       const top = body.scrollTop;
       const scrolls = [...body.querySelectorAll('[data-keep-scroll]')].map((n) => [n.dataset.keepScroll, n.scrollLeft]);

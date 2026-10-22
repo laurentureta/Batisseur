@@ -495,10 +495,10 @@ export class Meta {
         if (!def) continue;
         if (this.ownsDecor(v)) {
           this.addGems(25, 'duplicate');
-          out.push({ icon: def.icon, text: `${def.name} (déjà à toi) → +25 💎`, gems: 25 });
+          out.push({ icon: def.icon, text: `${def.name} (déjà à toi) → +25 💎`, gems: 25, decor: v });
         } else {
           this.p.owned.decor.push(v);
-          out.push({ icon: def.icon, text: `Décoration : ${def.name}`, rare: true });
+          out.push({ icon: def.icon, text: `Décoration : ${def.name}`, rare: true, decor: v });
           this.bus.emit('decor:unlocked', v);
         }
       } else if (k === 'theme') {

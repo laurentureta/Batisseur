@@ -8,9 +8,14 @@ import { fmt } from '../core/util.js';
 import { scaledResources } from '../data/pass.js';
 import { chestArt } from './art.js';
 
-/** Icône d'une récompense : illustration pour les coffres, emoji sinon. */
-export function rewardIcon(p) {
-  return p?.chest ? chestArt(p.chest) : p?.icon ?? '';
+/** Icône d'une récompense : coffre dessiné, vignette 3D pour une décoration, icône sinon. */
+export function rewardIcon(p, ui = null) {
+  if (p?.chest) return chestArt(p.chest);
+  if (p?.decor && ui) {
+    const src = ui.game.renderer?.thumbs?.get(p.decor, 1);
+    if (src) return h('img.rw-thumb', { src, alt: '' });
+  }
+  return p?.icon ?? '';
 }
 
 /** Aperçu court d'une récompense (sans la donner) : [{ icon, text }]. */
@@ -59,7 +64,7 @@ export function showRewards(ui, items, { title = 'Récompenses !', subtitle = ''
       continue;
     }
     const el = h('div.reward-card' + (it.rare ? '.rare' : '') + (it.gems ? '.gems' : ''), { style: { animationDelay: `${(chest ? 0.75 : 0.1) + k * 0.12}s` } },
-      h('span.ri', rewardIcon(it)), h('span.rt', it.text), it.bank ? h('small.rb', 'livré au prochain village') : null);
+      h('span.ri', rewardIcon(it, ui)), h('span.rt', it.text), it.bank ? h('small.rb', 'livré au prochain village') : null);
     list.appendChild(el);
     k++;
   }
@@ -80,7 +85,7 @@ export function showLogin(ui, { onDone } = {}) {
     const state = i < idx ? 'past' : i === idx ? 'today' : 'next';
     grid.appendChild(h('div.login-day.' + state + (i === 6 ? '.big' : ''),
       h('b', `Jour ${i + 1}`),
-      h('div.ld-icons', parts.map((p) => h('span', rewardIcon(p)))),
+      h('div.ld-icons', parts.map((p) => h('span', rewardIcon(p, ui)))),
       h('small', parts.map((p) => p.text).join(' + ')),
       state === 'past' ? h('i.ld-check', '✓') : null,
     ));

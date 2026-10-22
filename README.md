@@ -33,6 +33,7 @@ Sur ordinateur : clic gauche pour déplacer, molette pour zoomer, clic droit pou
 ## ✨ Ce que contient le jeu
 
 - **Vrais modèles 3D** : près de 200 modèles — maisons, commerces, châteaux, immeubles, véhicules et décors (packs KayKit et Kenney), du hameau médiéval à la ville moderne, avec chantier animé à chaque construction.
+- **HUD de jeu dessiné sur mesure** : plus de 120 icônes vectorielles (ressources, outils, bâtiments, météo, avatars…) au style « jeu mobile », compteurs, boutons et barre d'outils façon jeu pro.
 - **Monde 3D « maquette »** avec cycle jour/nuit, fenêtres et lampadaires allumés la nuit, saisons (neige l'hiver !), météo, nuages, passants et voitures.
 - **Passe de combat** 🎖️ : une saison de 4 semaines (saison 1 : *La Nuit des Citrouilles* 🎃), 40 paliers gratuits + 40 paliers du **Passe Royal**, paliers bonus et 7 défis de la semaine.
 - **Boutique** 🛒 et **gemmes** 💎 : coffres (bois, argent, or, royal), boosts (récolte ×2, impôts ×1,5, fête, afflux d'habitants), packs de ressources, offres du jour, 31 décorations exclusives et 11 thèmes de toits. Les gemmes se gagnent uniquement en jouant — aucun achat réel.
@@ -105,5 +106,7 @@ Après une modification, change la valeur `VERSION` en haut de `sw.js` (et dans 
 Jeu créé avec [Three.js](https://threejs.org) (licence MIT, voir `lib/THREE-LICENSE.txt`).
 
 Modèles 3D : packs gratuits et libres de droits (CC0) de **KayKit** par Kay Lousberg (Medieval Hexagon, City Builder Bits, Halloween Bits, Restaurant Bits) et de **Kenney** (voir `assets/CREDITS.md`). Ils sont regroupés dans `assets/models.bin` par `tools/bake_models.py`.
+
+Icônes : dessinées pour le jeu en SVG (`src/ui/iconDefs.js`).
 
 Polices : **Lilita One** et **Fredoka** (Google Fonts, licence SIL OFL, voir `fonts/`). Sons générés en code.

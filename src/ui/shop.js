@@ -255,7 +255,8 @@ function dealCard(ui, d) {
     sub = Object.entries(p.give(meta.level())).map(([k, v]) => `${RESOURCES[k].icon}${fmt(v)}`).join(' ');
   } else if (d.kind === 'decor') {
     const def = BUILDINGS[d.id];
-    icon = def.icon;
+    const src = ui.game.renderer.thumbs.get(d.id, 1);
+    icon = src ? h('img.rw-thumb', { src, alt: '' }) : def.icon;
     name = def.name;
     sub = meta.ownsDecor(d.id) ? 'Déjà à toi' : 'Décoration exclusive';
   } else if (d.kind === 'chest') (icon = chestArt(d.id)), (name = CHESTS[d.id].name), (sub = 'Coffre');

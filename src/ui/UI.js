@@ -3,7 +3,7 @@ import { h, clear, costChips, rewardChips } from './dom.js';
 import { BUILDINGS, ROAD_TYPES, levelName } from '../data/buildings.js';
 import { RESOURCES } from '../data/resources.js';
 import { fmt, fmtCompact, calendar, SEASONS, hourLabel } from '../core/util.js';
-import { WEATHER, EVENT_INFO } from '../sim/RandomEvents.js';
+import { EVENT_INFO } from '../sim/RandomEvents.js';
 import { renderBuildMenu } from './BuildMenu.js';
 import { renderInfo } from './InfoPanel.js';
 import * as Panels from './Panels.js';
@@ -16,9 +16,12 @@ import { closeScreen } from './screens.js';
 import { BOOSTS } from '../data/shop.js';
 import { COVER_COLORS } from '../render/Renderer.js';
 import { SIZE } from '../world/constants.js';
+import { icon, iconURL, iconHTML, emojifyTree } from './icons.js';
 
 const SPEEDS = [1, 2, 4, 0];
-const SPEED_ICONS = { 0: '⏸', 1: '▶', 2: '▶▶', 4: '▶▶▶' };
+const SPEED_ICONS = { 0: 'pause', 1: 'play', 2: 'ff', 4: 'fff' };
+const SEASON_ICONS = ['blossom', 'sun', 'leaf', 'snowflake'];
+const WEATHER_ICONS = { clear: 'sun', cloudy: 'partly', rain: 'rain', snow: 'snow' };
 
 export function moodIcon(h) {
   if (h >= 0.8) return '😄';
@@ -26,6 +29,22 @@ export function moodIcon(h) {
   if (h >= 0.45) return '😐';
   if (h >= 0.3) return '🙁';
   return '😠';
+}
+
+export function moodName(h) {
+  if (h >= 0.8) return 'happy';
+  if (h >= 0.62) return 'smile';
+  if (h >= 0.45) return 'neutral';
+  if (h >= 0.3) return 'sad';
+  return 'angry';
+}
+
+/** Change l'image d'une icône seulement si besoin. */
+function setIcon(img, name) {
+  if (img.dataset.i !== name) {
+    img.dataset.i = name;
+    img.src = iconURL(name);
+  }
 }
 
 export class UI {
@@ -56,16 +75,25 @@ export class UI {
 
   /* ───────── Barre du haut ───────── */
   buildHud() {
-    const ring = `<svg viewBox="0 0 44 44" class="ring"><circle cx="22" cy="22" r="19" class="bg"/><circle cx="22" cy="22" r="19" class="fg" stroke-dasharray="119.4" stroke-dashoffset="119.4"/></svg>`;
+    const ring = '<svg viewBox="0 0 52 52" class="ring"><defs><linearGradient id="lvRing" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff38a"/><stop offset="1" stop-color="#ffae1a"/></linearGradient></defs>'
+      + '<circle cx="26" cy="26" r="22.5" class="bg"/><circle cx="26" cy="26" r="22.5" class="fg" stroke-dasharray="141.4" stroke-dashoffset="141.4"/></svg>';
     this.el = {};
     const e = this.el;
-    e.level = h('button.lvl', { html: ring + '<span class="num">1</span>', onclick: () => this.openQuests(), 'aria-label': 'Niveau et quêtes' });
-    e.coins = h('button.chip-stat', { onclick: () => this.openStock() }, h('span.ic', '🪙'), h('span.v', h('b', '0'), h('small', '')));
-    e.pop = h('button.chip-stat', { onclick: () => this.openStock() }, h('span.ic', '👥'), h('span.v', h('b', '0'), h('small', '')));
-    e.happy = h('button.chip-stat', { onclick: () => this.openLayers('happiness') }, h('span.ic', '🙂'), h('span.v', h('b', '0%'), h('small', 'bonheur')));
-    e.menu = h('button.icon-btn', { onclick: () => this.openMenu(), 'aria-label': 'Menu' }, '☰');
-    e.date = h('button.time-chip', { onclick: () => this.openStock() }, '');
-    e.speed = h('button.speed-btn', { onclick: () => this.cycleSpeed(), 'aria-label': 'Vitesse' }, '▶');
+    e.level = h('button.lvl', { onclick: () => this.openQuests(), 'aria-label': 'Niveau et quêtes' },
+      h('span.lv-ring', { html: ring }), h('span.lv-disc', h('b.num', '1')), h('i.badge.hidden'));
+    const stat = (name, cls, fn) => h('button.chip-stat.' + cls, { onclick: fn }, icon(name, 'ic'), h('span.v', h('b', '0'), h('small', '')));
+    e.coins = stat('coins', 'st-coins', () => this.openStock());
+    e.pop = stat('people', 'st-pop', () => this.openStock());
+    e.happy = stat('smile', 'st-happy', () => this.openLayers('happiness'));
+    e.happyIco = e.happy.querySelector('.ic');
+    e.happy.querySelector('small').textContent = 'bonheur';
+    e.menu = h('button.icon-btn.menu-btn', { onclick: () => this.openMenu(), 'aria-label': 'Menu' }, icon('menu'));
+    e.seasonIco = icon('blossom', 'tc-ico');
+    e.weatherIco = icon('sun', 'tc-ico');
+    e.timeText = h('span.tt', '');
+    e.date = h('button.time-chip', { onclick: () => this.openStock() }, e.seasonIco, e.timeText, e.weatherIco);
+    e.speedIco = icon('play');
+    e.speed = h('button.speed-btn', { onclick: () => this.cycleSpeed(), 'aria-label': 'Vitesse' }, e.speedIco);
     e.quest = h('button.quest-tracker', { onclick: () => this.openQuests() });
     e.alerts = h('div.alerts');
     e.boosts = h('div.boost-chips');
@@ -75,33 +103,34 @@ export class UI {
       e.boosts,
       e.alerts,
     );
-    // boutons latéraux
-    const side = (icon, label, fn, key) => {
-      const b = h('button.side-btn', { onclick: fn, 'aria-label': label }, h('span', icon), h('i.badge.hidden'));
+    // boutons latéraux (icône + libellé)
+    const side = (name, label, fn, key, cls = '') => {
+      const b = h('button.side-btn' + cls, { onclick: fn, 'aria-label': label }, icon(name), h('span.sl', label), h('i.badge.hidden'));
       e[key] = b;
       return b;
     };
-    e.sShop = h('button.side-btn.shop-btn', { onclick: () => this.openShop(), 'aria-label': 'Boutique' }, h('span', '🛒'), h('i.badge.hidden'), h('em.gem-count', '💎 0'));
+    side('stall', 'Boutique', () => this.openShop(), 'sShop', '.shop-btn');
+    e.sShop.appendChild(h('em.gem-count', icon('gem'), h('span', '0')));
     this.side = h('div.side',
       e.sShop,
-      side('🎖️', 'Passe de combat', () => this.openPass(), 'sPass'),
-      side('🎯', 'Quêtes', () => this.openQuests(), 'sQuests'),
-      side('📜', 'Commandes', () => this.openOrders(), 'sOrders'),
-      side('🏆', 'Succès', () => this.openAchievements(), 'sAch'),
-      side('📦', 'Stock', () => this.openStock(), 'sStock'),
-      side('🗺️', 'Calques', () => this.openLayers(), 'sLayers'),
+      side('medal', 'Passe', () => this.openPass(), 'sPass', '.pass-btn'),
+      side('target', 'Quêtes', () => this.openQuests(), 'sQuests'),
+      side('scroll', 'Commandes', () => this.openOrders(), 'sOrders'),
+      side('trophy', 'Succès', () => this.openAchievements(), 'sAch'),
+      side('crate', 'Stock', () => this.openStock(), 'sStock'),
+      side('map', 'Calques', () => this.openLayers(), 'sLayers'),
     );
     this.root.append(this.hud, this.side);
   }
 
   buildBottom() {
     const e = this.el;
-    const tb = (tool, icon, label) => h('button.tb', { dataset: { tool }, onclick: () => this.toolButton(tool) }, h('span.i', icon), h('span.l', label));
-    e.tbSelect = tb('select', '👆', 'Explorer');
-    e.tbRoad = tb('road', '🛣️', 'Route');
-    e.tbBuild = h('button.tb.big', { onclick: () => this.openBuildMenu() }, h('span.i', '🔨'), h('span.l', 'Construire'));
-    e.tbDemolish = tb('demolish', '💥', 'Détruire');
-    e.tbUndo = h('button.tb', { onclick: () => this.undo() }, h('span.i', '↩️'), h('span.l', 'Annuler'));
+    const tb = (tool, name, label, cls) => h('button.tb.' + cls, { dataset: { tool }, onclick: () => this.toolButton(tool) }, h('span.tb-face', icon(name)), h('span.l', label));
+    e.tbSelect = tb('select', 'hand', 'Explorer', 'tb-blue');
+    e.tbRoad = tb('road', 'road', 'Route', 'tb-stone');
+    e.tbBuild = h('button.tb.big.tb-green', { onclick: () => this.openBuildMenu() }, h('span.tb-face', icon('hammer')), h('span.l', 'Construire'));
+    e.tbDemolish = tb('demolish', 'bulldozer', 'Détruire', 'tb-red');
+    e.tbUndo = h('button.tb.tb-yellow', { onclick: () => this.undo() }, h('span.tb-face', icon('undo')), h('span.l', 'Annuler'));
     this.bottom = h('div.bottom-bar', e.tbSelect, e.tbRoad, e.tbBuild, e.tbDemolish, e.tbUndo);
     this.banner = h('div.tool-banner.hidden');
     this.root.append(this.banner, this.bottom);
@@ -116,7 +145,7 @@ export class UI {
       probe.remove();
     }
     const safeTop = this.safeTop;
-    this.game.renderer.labels.setMargins(on ? 125 + safeTop : 0, on ? 95 : 0);
+    this.game.renderer.labels.setMargins(on ? 130 + safeTop : 0, on ? 110 : 0);
   }
 
   /* ───────── Mise à jour régulière ───────── */
@@ -140,7 +169,7 @@ export class UI {
   refreshMeta() {
     const meta = this.game.meta, e = this.el;
     if (!meta || !e?.sShop) return;
-    e.sShop.querySelector('.gem-count').textContent = `💎 ${fmtCompact(meta.p.gems)}`;
+    e.sShop.querySelector('.gem-count span').textContent = fmtCompact(meta.p.gems);
     this.badge(e.sShop, meta.freeChestIn() <= 0 ? 1 : 0);
     this.badge(e.sPass, meta.passClaimables() + meta.weeklyClaimables());
   }
@@ -190,7 +219,7 @@ export class UI {
     // niveau
     const lp = game.prog.levelProgress();
     e.level.querySelector('.num').textContent = libre ? '∞' : lp.level;
-    e.level.querySelector('.fg').setAttribute('stroke-dashoffset', String(119.4 * (1 - (libre ? 1 : lp.pct))));
+    e.level.querySelector('.fg').setAttribute('stroke-dashoffset', String(141.4 * (1 - (libre ? 1 : lp.pct))));
     // pièces
     e.coins.querySelector('b').textContent = libre ? '∞' : fmtCompact(st.res.coins);
     const net = d.income.total - (d.broke ? 0 : d.upkeep);
@@ -200,16 +229,19 @@ export class UI {
     e.pop.querySelector('b').textContent = fmt(d.population);
     e.pop.querySelector('small').textContent = `sur ${fmt(d.capacity)}`;
     // bonheur
-    e.happy.querySelector('.ic').textContent = moodIcon(d.happiness);
+    setIcon(e.happyIco, moodName(d.happiness));
     e.happy.querySelector('b').textContent = `${Math.round(d.happiness * 100)}%`;
     // date
     const cal = calendar(st.time.day);
-    const w = WEATHER[st.weather?.kind] || WEATHER.clear;
     const nightNow = cal.hour < 6 || cal.hour >= 20.5;
-    const wIcon = nightNow && (st.weather?.kind === 'clear' || !st.weather) ? '🌙' : w.icon;
-    e.date.textContent = `${SEASONS[cal.season].icon} J${cal.day} · ${hourLabel(cal.hour)} ${wIcon}`;
-    e.speed.textContent = SPEED_ICONS[st.time.speed] ?? '▶';
+    const wk = st.weather?.kind || 'clear';
+    setIcon(e.seasonIco, SEASON_ICONS[cal.season] || 'sun');
+    setIcon(e.weatherIco, nightNow && wk === 'clear' ? 'moon' : WEATHER_ICONS[wk] || 'sun');
+    const tt = `J${cal.day} · ${hourLabel(cal.hour)}`;
+    if (e.timeText.textContent !== tt) e.timeText.textContent = tt;
+    setIcon(e.speedIco, SPEED_ICONS[st.time.speed] ?? 'play');
     e.speed.classList.toggle('paused', st.time.speed === 0);
+    e.speed.classList.toggle('fast', st.time.speed > 1);
     // quête
     const q = game.prog.currentQuest();
     if (q && !libre) {
@@ -217,9 +249,13 @@ export class UI {
       e.quest.classList.remove('hidden');
       e.quest.classList.toggle('ready', st.quests.mainReady);
       const unit = p.unit || '';
-      e.quest.innerHTML = st.quests.mainReady
-        ? `<span class="qi">🎁</span><span class="qt">Récompense prête !</span>`
-        : `<span class="qi">🎯</span><span class="qt">${q.title}</span><em>${fmt(Math.min(p.cur, p.target))}${unit}/${fmt(p.target)}${unit}</em>`;
+      const html = st.quests.mainReady
+        ? `${iconHTML('gift', 'qi')}<span class="qt">Récompense prête !</span>`
+        : `${iconHTML('target', 'qi')}<span class="qt">${q.title}</span><em>${fmt(Math.min(p.cur, p.target))}${unit}/${fmt(p.target)}${unit}</em>`;
+      if (html !== this.questHtml) {
+        this.questHtml = html;
+        e.quest.innerHTML = html;
+      }
     } else e.quest.classList.add('hidden');
     // boosts actifs
     const active = (st.boosts || []).filter((b) => b.until > st.time.day);
@@ -485,6 +521,7 @@ export class UI {
         if (sheet.pressed && !force) return;
         const tmp = h('div');
         render(tmp, sheet);
+        emojifyTree(tmp);
         if (!force && tmp.innerHTML === body.innerHTML) return;
         const top = body.scrollTop;
         clear(body);

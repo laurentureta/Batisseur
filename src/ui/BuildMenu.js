@@ -49,7 +49,7 @@ export function renderBuildMenu(ui, body, sheet) {
     const owned = def.unique && game.prog.countType(def.id) > 0;
     const [w, d] = sizeOf(def, 0);
     grid.appendChild(card({
-      img: unlocked || def.exclusive ? game.renderer.thumbs.get(def.id, 1) : null,
+      img: game.renderer.thumbs.get(def.id, 1),
       icon: def.icon,
       name: def.name,
       desc: def.desc,
