@@ -236,6 +236,7 @@ export function renderMenu(ui, body) {
   });
   item('🛒', 'Boutique', () => ui.openShop());
   item('🎖️', 'Passe de combat', () => ui.openPass());
+  item('🎉', 'Événements de la semaine', () => ui.openEvent());
   item('👤', 'Mon profil', () => {
     ui.closeSheet(true);
     ui.openProfile();
@@ -454,6 +455,7 @@ export function showHelp(ui) {
       item('🏛️', 'La mairie', 'Améliore-la pour monter de rang et débloquer les niveaux des autres bâtiments.'),
       item('😊', 'Le bonheur', 'Eau, commerces, loisirs, école, santé, sécurité et décorations rendent les habitants heureux.'),
       item('🔒', 'Les zones', 'Touche un cadenas au bord de la carte pour agrandir ton territoire.'),
+      item('🎉', 'Les fêtes de la semaine', 'Chaque semaine, une journée de fête : bonus, objets à ramasser dans le village, pièces, gemmes et décorations exclusives.'),
       item('↩️', 'Annuler', 'Annule ta dernière action (remboursée).'),
     ),
     actions: [{ label: 'Compris !', cls: 'primary' }],

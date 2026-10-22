@@ -70,15 +70,16 @@ function renderPass(ui, body, screen) {
   if (screen.tab === 'weekly') return renderWeekly(ui, body, screen);
   // passe royal
   if (!premium) {
+    const cost = meta.price(PREMIUM_COST);
     body.appendChild(h('div.premium-cta', { style: { '--c1': th.colors[0], '--c2': th.colors[1] } },
       h('div', h('b', '👑 Passe Royal'), h('small', `Débloque les 40 récompenses royales : ${fmt(830)} 💎, décorations et toits exclusifs, coffres d'or…`)),
       h('button.price-btn.go', {
         onclick: async () => {
-          if (!meta.canPay(PREMIUM_COST)) {
+          if (!meta.canPay(cost)) {
             ui.game.sound.play('error');
-            return ui.toast(`Il te manque ${fmt(PREMIUM_COST - meta.p.gems)} 💎 — continue de jouer, les gemmes arrivent vite !`, 'error');
+            return ui.toast(`Il te manque ${fmt(cost - meta.p.gems)} 💎 — continue de jouer, les gemmes arrivent vite !`, 'error');
           }
-          const ok = await ui.confirm('Débloquer le Passe Royal ?', h('p.confirm-price', 'Prix : ', h('b', `💎 ${fmt(PREMIUM_COST)}`), h('small', ' — les récompenses déjà atteintes sont à récupérer tout de suite.')), 'Débloquer', 'primary');
+          const ok = await ui.confirm('Débloquer le Passe Royal ?', h('p.confirm-price', 'Prix : ', h('b', `💎 ${fmt(cost)}`), h('small', ' — les récompenses déjà atteintes sont à récupérer tout de suite.')), 'Débloquer', 'primary');
           if (!ok) return;
           if (meta.buyPremium()) {
             ui.game.sound.play('levelup');
@@ -87,7 +88,7 @@ function renderPass(ui, body, screen) {
             screen.refresh(true);
           }
         },
-      }, h('span.pg', '💎'), h('b', fmt(PREMIUM_COST))),
+      }, cost < PREMIUM_COST ? h('s', fmt(PREMIUM_COST)) : null, h('span.pg', '💎'), h('b', fmt(cost))),
     ));
   } else body.appendChild(h('div.premium-owned', '👑 Passe Royal actif'));
   // piste

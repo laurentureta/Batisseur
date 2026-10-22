@@ -98,6 +98,10 @@ export const EMOJI = {
   '🛍': 'stall', '🧺': 'basket', '🍺': 'mug', '🥖': 'bread', '🥕': 'carrot', '🪓': 'axe', '⛏': 'pickaxe', '⚒': 'pickaxe',
   '🎣': 'fishing', '🚜': 'tractor', '🌀': 'windmill', '🪣': 'bucket', '🏬': 'mall', '🗼': 'tower', '🕰': 'clock', '⛲': 'fountain',
   '🪑': 'bench', '🗽': 'statue', '🎶': 'music', '🏟': 'stadium', '🚉': 'train', '🌋': 'mountain',
+  '🎆': 'firework', '🎇': 'firework', '🏮': 'lantern', '🥞': 'crepe', '🎭': 'mask', '🌈': 'rainbow', '🐟': 'fish', '🐠': 'fish',
+  '🥚': 'egg', '🌼': 'lily', '🎤': 'music', '🎵': 'music', '💡': 'lantern', '🔭': 'moon', '🍇': 'grapes', '🧪': 'sparkles',
+  '🎄': 'xmastree', '🌽': 'wheat', '⛵': 'ship', '🏴‍☠️': 'ship', '🎠': 'ferris', '🎈': 'balloon', '🎪': 'circus', '🧊': 'snowflake',
+  '🍦': 'icecream', '🍨': 'icecream', '☘': 'clover', '🍀': 'clover', '🎟': 'token', '🎫': 'ticket', '🥳': 'party', '🎊': 'party',
 };
 
 const SKIP_SEL = '.no-ico, textarea, input, script, style, svg, [contenteditable]';

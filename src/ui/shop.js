@@ -10,6 +10,8 @@ import { RESOURCES } from '../data/resources.js';
 import { fmt } from '../core/util.js';
 import { ALL_EXCLUSIVES } from '../core/meta.js';
 import { chestArt } from './art.js';
+import { nextEventWith, openEvent, previewEvent } from './event.js';
+import { eventDateLabel } from '../data/events.js';
 
 const TABS = [
   { id: 'featured', label: '⭐ À la une' },
@@ -28,7 +30,7 @@ export function openShop(ui, tab = 'featured') {
   return s;
 }
 
-function priceBtn(price, onclick, { disabled = false, label = null, was = null } = {}) {
+function basePriceBtn(price, onclick, { disabled = false, label = null, was = null } = {}) {
   return h('button.price-btn' + (disabled ? '.disabled' : ''), { onclick, disabled },
     was ? h('s', `${fmt(was)}`) : null,
     label ? h('span', label) : [h('span.pg', '💎'), h('b', fmt(price))],
@@ -36,8 +38,9 @@ function priceBtn(price, onclick, { disabled = false, label = null, was = null }
 }
 
 /** Achat avec confirmation ; fn() renvoie la liste des récompenses (ou null). */
-async function purchase(ui, what, price, fn, { reveal = true, title } = {}) {
+async function purchase(ui, what, base, fn, { reveal = true, title } = {}) {
   const meta = ui.game.meta;
+  const price = meta.price(base);
   if (!meta.canPay(price)) {
     ui.game.sound.play('error');
     ui.toast(`Il te manque ${fmt(price - meta.p.gems)} 💎 — gagne-les en jouant !`, 'error', { label: 'Comment ?', onclick: () => ui.screen?.setTab('gems') });
@@ -76,6 +79,14 @@ function renderShop(ui, body, screen) {
   const inVillage = !!meta.village;
   const L = meta.level();
   const tab = screen.tab;
+  // braderie : les prix sont remisés toute la journée
+  const priceBtn = (price, onclick, o = {}) => basePriceBtn(meta.price(price), onclick, { ...o, was: o.was ?? (meta.price(price) < price ? price : null) });
+  const sale = meta.eventMods('any')?.shop;
+  if (sale && tab !== 'gems') {
+    const ev = meta.event();
+    body.appendChild(h('button.sale-banner', { style: { '--c1': ev.theme.colors[0], '--c2': ev.theme.colors[1] }, onclick: () => openEvent(ui) },
+      h('span', '🏷️'), h('div', h('b', `${ev.theme.name} : −${Math.round((1 - sale) * 100)} % sur tout !`), h('small', 'Coffres, boosts, ressources, décorations, toits et Passe Royal — aujourd\'hui seulement.'))));
+  }
 
   if (tab === 'featured') {
     // coffre gratuit
@@ -97,7 +108,7 @@ function renderShop(ui, body, screen) {
       body.appendChild(h('button.offer-hero.pass-promo', { style: { '--c1': season.theme.colors[0], '--c2': season.theme.colors[1] }, onclick: () => ui.openPass() },
         h('div.oh-icon', '👑'),
         h('div.oh-text', h('b', 'Passe Royal'), h('small', `${season.theme.icon} ${season.theme.name} : 40 récompenses royales, décorations et toits exclusifs`)),
-        h('span.price-btn', h('span.pg', '💎'), h('b', fmt(PREMIUM_COST))),
+        h('span.price-btn', meta.price(PREMIUM_COST) < PREMIUM_COST ? h('s', fmt(PREMIUM_COST)) : null, h('span.pg', '💎'), h('b', fmt(meta.price(PREMIUM_COST)))),
       ));
     }
     // offres du jour
@@ -105,7 +116,7 @@ function renderShop(ui, body, screen) {
     tomorrow.setHours(24, 0, 0, 0);
     body.appendChild(h('div.shop-sec', h('b', '🔥 Offres du jour'), h('small', `Nouvelles offres dans ${countdown(tomorrow - Date.now())}`)));
     const row = h('div.offer-grid');
-    for (const d of meta.deals()) row.appendChild(dealCard(ui, d));
+    for (const d of meta.deals()) row.appendChild(dealCard(ui, d, priceBtn));
     body.appendChild(row);
     // boosts possédés
     const owned = Object.keys(BOOSTS).filter((id) => meta.boostCount(id) > 0);
@@ -177,7 +188,7 @@ function renderShop(ui, body, screen) {
     const g = h('div.decor-grid');
     const season = meta.season();
     const sale = new Map(SHOP_DECOR.map((d) => [d.id, d.price]));
-    for (const id of ALL_EXCLUSIVES) {
+    for (const id of ALL_EXCLUSIVES.filter((x) => !BUILDINGS[x].event)) {
       const def = BUILDINGS[id];
       const owned = meta.ownsDecor(id);
       const inSeason = season.theme.decor.includes(id);
@@ -194,6 +205,28 @@ function renderShop(ui, body, screen) {
       ));
     }
     body.appendChild(g);
+    // décorations des fêtes de la semaine : elles ne s'achètent pas, elles se gagnent
+    const now = meta.now();
+    const evDecor = ALL_EXCLUSIVES.filter((x) => BUILDINGS[x].event)
+      .map((id) => ({ id, ev: nextEventWith(id, now) }))
+      .sort((a, b) => (meta.ownsDecor(a.id) ? 1 : 0) - (meta.ownsDecor(b.id) ? 1 : 0) || (a.ev?.start ?? Infinity) - (b.ev?.start ?? Infinity));
+    const mine = evDecor.filter((x) => meta.ownsDecor(x.id)).length;
+    body.appendChild(h('div.shop-sec', h('b', '🎉 Décorations des fêtes'), h('small', `${mine}/${evDecor.length} · à gagner pendant les événements`)));
+    const g2 = h('div.decor-grid');
+    for (const { id, ev } of evDecor) {
+      const def = BUILDINGS[id];
+      const owned = meta.ownsDecor(id);
+      const img = game.renderer.thumbs.get(id, 1);
+      const cur = ev && ev.key === meta.event().key;
+      const action = owned ? h('span.owned-tag', '✓ À toi')
+        : ev ? h('button.src-tag.fete', { style: { '--c1': ev.theme.colors[0], '--c2': ev.theme.colors[1] }, onclick: () => (cur ? openEvent(ui) : previewEvent(ui, ev)) }, cur ? '🎉 Cette semaine !' : `🎉 ${eventDateLabel(ev, { short: true })}`)
+          : h('span.src-tag', '🎉 Fêtes');
+      g2.appendChild(h('div.decor-card.fete' + (owned ? '.owned' : ''),
+        h('div.dc-pic', img ? h('img', { src: img, alt: '' }) : h('span', def.icon), def.size[0] * def.size[1] > 1 ? h('span.size-badge', `${def.size[0]}×${def.size[1]}`) : null),
+        h('b', def.name), h('small', ev ? ev.theme.name : `✨ Beauté +${Math.round(def.beauty.v * 100)}`), action,
+      ));
+    }
+    body.appendChild(g2);
     return;
   }
 
@@ -244,7 +277,7 @@ function renderShop(ui, body, screen) {
   body.appendChild(h('p.shop-foot', `Gemmes gagnées depuis le début : ${fmt(meta.p.stats.gemsEarned)} · dépensées : ${fmt(meta.p.stats.gemsSpent)}`));
 }
 
-function dealCard(ui, d) {
+function dealCard(ui, d, priceBtn) {
   const meta = ui.game.meta;
   let icon = '🎁', name = '', sub = '';
   if (d.kind === 'boost') ({ icon, name } = BOOSTS[d.id]), (sub = 'Boost');

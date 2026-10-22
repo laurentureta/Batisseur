@@ -4,6 +4,7 @@ import { GeoBuilder, shade, mix } from './geom.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { ROOF_THEMES } from '../data/cosmetics.js';
 import { KM, hasKitModel, treeKit } from './kitModels.js';
+import './eventModels.js'; // décorations des événements de la semaine
 
 export const P = {
   wood: 0x9b6b43, woodDark: 0x6e4a2f, woodLight: 0xc49a6c, plank: 0xb98a5a,

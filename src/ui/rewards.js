@@ -7,6 +7,7 @@ import { ROOF_THEMES } from '../data/cosmetics.js';
 import { fmt } from '../core/util.js';
 import { scaledResources } from '../data/pass.js';
 import { chestArt } from './art.js';
+import { scaledCash } from '../data/events.js';
 
 /** Icône d'une récompense : coffre dessiné, vignette 3D pour une décoration, icône sinon. */
 export function rewardIcon(p, ui = null) {
@@ -24,6 +25,7 @@ export function describeReward(r, level = 1, scaled = null) {
   if (!r) return out;
   for (const [k, v] of Object.entries(r)) {
     if (RESOURCES[k]) out.push({ icon: RESOURCES[k].icon, text: fmt(v) });
+    else if (k === 'cash') out.push({ icon: '💰', text: fmt(scaledCash(v, level)), cash: true });
     else if (k === 'res') {
       const res = scaled ? scaled(v, level) : {};
       for (const [rk, rv] of Object.entries(res)) out.push({ icon: RESOURCES[rk].icon, text: fmt(rv) });
@@ -42,8 +44,8 @@ export function describeReward(r, level = 1, scaled = null) {
 /**
  * Affiche des récompenses obtenues. items : [{ icon, text, header?, chest?, rare?, gems? }]
  */
-export function showRewards(ui, items, { title = 'Récompenses !', subtitle = '' } = {}) {
-  if (!items?.length) return;
+export function showRewards(ui, items, { title = 'Récompenses !', subtitle = '', onClose = null } = {}) {
+  if (!items?.length) return onClose?.();
   const game = ui.game;
   const chest = items.find((i) => i.header && i.chest);
   const list = h('div.reward-grid');
@@ -70,7 +72,7 @@ export function showRewards(ui, items, { title = 'Récompenses !', subtitle = ''
   }
   game.sound.play(chest ? 'chest' : items.some((i) => i.gems) ? 'gem' : 'quest');
   if (chest) setTimeout(() => game.sound.play('gem'), 900);
-  ui.modal({ title, body: card, cls: 'rewards-modal', actions: [{ label: 'Super !', cls: 'primary' }] });
+  ui.modal({ title, body: card, cls: 'rewards-modal', actions: [{ label: 'Super !', cls: 'primary' }], onClose });
   ui.refreshMeta?.();
 }
 
@@ -97,8 +99,8 @@ export function showLogin(ui, { onDone } = {}) {
       label: 'Récupérer', cls: 'primary',
       onclick: () => {
         const out = meta.claimLogin();
-        if (out) showRewards(ui, out, { title: `Jour ${idx + 1} récupéré !` });
-        onDone?.();
+        if (out) showRewards(ui, out, { title: `Jour ${idx + 1} récupéré !`, onClose: onDone });
+        else onDone?.();
       },
     }],
   });

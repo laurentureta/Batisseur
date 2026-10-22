@@ -368,6 +368,46 @@ excl('x_mini_mill', 'Moulin décoratif', '🌀', 0.08, 3, { price: 60, desc: 'Un
 excl('x_watchtower', 'Tour de guet', '🏯', 0.08, 4, { price: 100, desc: 'Une tour en pierre surmontée d\'un drapeau.' });
 excl('x_catapult', 'Catapulte', '🏹', 0.09, 4, { price: 120, desc: 'Une catapulte sur sa tour, pour impressionner les voisins.' });
 
+// Événements de la semaine : décorations exclusives gagnées pendant les fêtes (jamais dans les coffres)
+function evdec(id, name, icon, beauty, r, extra = {}) {
+  def({ id, name, icon, cat: 'decor', tab: 'exclusive', exclusive: true, event: true, unlock: 1, cost: { coins: extra.price ?? 60 }, beauty: { v: beauty, r }, xp: 2, ...extra });
+}
+evdec('e_fireworks', 'Feu d\'artifice', '🎆', 0.1, 4, { price: 80, desc: 'Des fusées prêtes à partir et des gerbes de lumière dans le ciel.' });
+evdec('e_lanterns', 'Guirlande de lanternes', '🏮', 0.1, 4, { size: [2, 1], price: 90, desc: 'Des lanternes en papier qui s\'allument à la nuit tombée.' });
+evdec('e_galette', 'Table de la galette', '👑', 0.07, 3, { desc: 'Une galette dorée, sa couronne et ses chaises.' });
+evdec('e_crepes', 'Stand de crêpes', '🥞', 0.08, 3, { desc: 'Crêpes, confitures et petite ardoise des prix.' });
+evdec('e_heart', 'Cœur fleuri', '❤️', 0.1, 4, { price: 80, desc: 'Une sculpture végétale en forme de cœur, entourée de roses.' });
+evdec('e_carnival', 'Char du carnaval', '🎭', 0.13, 5, { size: [2, 1], price: 150, coverage: { need: 'leisure', radius: [4] }, desc: 'Le géant du carnaval sur son char couvert de ballons.' });
+evdec('e_cotton_candy', 'Stand de barbe à papa', '🎉', 0.07, 3, { desc: 'Des nuages de sucre rose et bleu.' });
+evdec('e_rainbow', 'Arc-en-ciel et chaudron d\'or', '🌈', 0.15, 5, { size: [2, 1], price: 160, desc: 'Au pied de l\'arc-en-ciel… un chaudron rempli d\'or !' });
+evdec('e_fish', 'Fontaine du poisson', '🐟', 0.1, 4, { price: 90, desc: 'Un poisson farceur qui crache de l\'eau.' });
+evdec('e_easter_egg', 'Œuf de Pâques géant', '🥚', 0.1, 4, { price: 80, desc: 'Un œuf rayé dans son nid, et des petits œufs cachés autour.' });
+evdec('e_picnic', 'Pique-nique', '🧺', 0.07, 3, { desc: 'Une nappe à carreaux, un panier et de bonnes choses.' });
+evdec('e_lily', 'Muguet géant', '🌼', 0.08, 3, { desc: 'Des clochettes de muguet porte-bonheur.' });
+evdec('e_stage', 'Scène de concert', '🎤', 0.15, 6, { size: [2, 2], price: 220, coverage: { need: 'leisure', radius: [7] }, desc: 'Projecteurs, enceintes et public : beauté et loisirs.' });
+evdec('e_bonfire', 'Feu de joie', '🔥', 0.08, 4, { desc: 'Un grand feu de bois et des bancs pour se réchauffer.' });
+evdec('e_guinguette', 'Guinguette lumineuse', '💡', 0.13, 5, { size: [2, 2], price: 200, coverage: { need: 'leisure', radius: [6] }, desc: 'Tables, guirlandes et piste de danse : beauté et loisirs.' });
+evdec('e_telescope', 'Télescope des étoiles', '🔭', 0.08, 3, { desc: 'Pour observer les étoiles filantes.' });
+evdec('e_grape_press', 'Pressoir des vendanges', '🍇', 0.09, 4, { price: 90, desc: 'Un vieux pressoir, des tonneaux et des grappes de raisin.' });
+evdec('e_cauldron', 'Chaudron de sorcière', '🧪', 0.09, 4, { price: 90, desc: 'Une potion verte qui bouillonne, la nuit surtout.' });
+evdec('e_xmas_market', 'Chalets du marché de Noël', '🎄', 0.13, 5, { size: [2, 1], price: 160, coverage: { need: 'commerce', radius: [3] }, desc: 'Deux chalets enneigés et leurs guirlandes : beauté et commerces.' });
+evdec('e_gold_cart', 'Wagonnet d\'or', '💰', 0.1, 4, { price: 100, desc: 'Un wagonnet de mine qui déborde de pépites.' });
+evdec('e_wishing_well', 'Puits à vœux', '✨', 0.1, 4, { price: 90, desc: 'Un puits magique où l\'on jette des pièces.' });
+evdec('e_market_stall', 'Étal de la braderie', '🏷️', 0.07, 3, { coverage: { need: 'commerce', radius: [3] }, desc: 'Des cagettes de légumes à prix cassés : beauté et commerces.' });
+evdec('e_haystacks', 'Meules de foin', '🌾', 0.06, 3, { desc: 'Des bottes de foin et une fourche.' });
+evdec('e_scarecrow', 'Épouvantail', '🌽', 0.06, 3, { desc: 'Il garde le potager… et fait peur aux corbeaux.' });
+evdec('e_builder_statue', 'Marteau d\'or', '🔨', 0.13, 5, { price: 120, desc: 'Le monument des bâtisseurs : un marteau en or massif.' });
+evdec('e_joust', 'Lice du tournoi', '🛡️', 0.13, 5, { size: [2, 2], price: 200, coverage: { need: 'leisure', radius: [6] }, desc: 'La tente des chevaliers, la barrière de joute et leurs écus.' });
+evdec('e_pirate_ship', 'Bateau pirate', '⛵', 0.15, 6, { size: [2, 2], price: 220, desc: 'Un navire pirate échoué près de son trésor.' });
+evdec('e_carousel', 'Manège de chevaux de bois', '🎠', 0.16, 6, { size: [2, 2], price: 240, coverage: { need: 'leisure', radius: [8] }, desc: 'Il tourne pour de vrai ! Beauté et loisirs.' });
+evdec('e_balloon', 'Montgolfière', '🎈', 0.12, 5, { price: 120, desc: 'Une montgolfière à rayures prête à décoller.' });
+evdec('e_circus', 'Chapiteau du cirque', '🎪', 0.16, 6, { size: [2, 2], price: 240, coverage: { need: 'leisure', radius: [8] }, desc: 'Un grand chapiteau rouge et jaune : beauté et loisirs.' });
+evdec('e_igloo', 'Igloo', '🧊', 0.09, 4, { price: 90, desc: 'Un igloo, ses blocs de glace et deux pingouins.' });
+evdec('e_sandcastle', 'Château de sable', '🏰', 0.09, 4, { price: 80, desc: 'Avec ses tours, son drapeau, son seau et sa pelle.' });
+evdec('e_icecream', 'Kiosque à glaces', '🍦', 0.08, 3, { desc: 'Trois parfums, un parasol et un cornet géant.' });
+evdec('e_foodtruck', 'Food truck', '🚚', 0.1, 4, { size: [2, 1], price: 150, coverage: { need: 'commerce', radius: [4] }, desc: 'Un camion gourmand, ses tables et ses guirlandes : beauté et commerces.' });
+evdec('e_giant_tree', 'Chêne millénaire', '🌳', 0.17, 6, { size: [2, 2], price: 200, desc: 'Un arbre immense avec une porte de lutin et une balançoire.' });
+
 /* ───────────── Mairie ───────────── */
 def({
   id: 'townhall', name: 'Mairie', icon: '🏛️', cat: 'special', unlock: 1, maxLevel: 8, size: [2, 2],

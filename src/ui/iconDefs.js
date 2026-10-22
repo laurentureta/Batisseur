@@ -1325,3 +1325,247 @@ export const ICON_DEFS = {
   path: () => ({ defs: mats('dirt'), parts: [R(8, 8, 48, 48, 9, u('dirt')), D(C(22, 24, 2.4, '#e8c08e')), D(C(40, 38, 3, '#7e4c24', { op: 0.5 })), D(C(36, 18, 1.8, '#7e4c24', { op: 0.5 }))] }),
   paved: () => ({ defs: mats('asphalt'), parts: [R(8, 8, 48, 48, 9, u('asphalt')), D(S('M32 13 V22 M32 28 V36 M32 42 V51', '#ffd23a', 3))] }),
 };
+
+/* ───────── événements de la semaine ───────── */
+const cloudPuff = (x, y, s) => G(`translate(${x} ${y}) scale(${s})`, [P('M-12 6 Q-18 6 -18 0 Q-18 -6 -11 -6 Q-9 -13 -1 -13 Q7 -13 9 -6 Q18 -6 18 1 Q18 6 12 6 Z', u('cloud'))], { sep: true });
+Object.assign(ICON_DEFS, {
+  token: () => ({
+    defs: [lin('t1', [[0, '#ffd3ee'], [0.5, '#ff4fb0'], [1, '#b81e78']]), lin('t2', [[0, '#d83a92'], [1, '#86104f']])],
+    parts: [
+      C(32, 35.5, 23.5, u('t2')),
+      C(32, 31, 23.5, u('t1')),
+      D(C(32, 31, 17.5, 'none', { stroke: '#ffd34d', sw: 2.4 })),
+      D(P(star(32, 31.8, 10.5, 4.6), '#ffffff', { stroke: '#ffb3dc', sw: 1.4 })),
+      H('M13.5 27 A19 19 0 0 1 29 12.6 A20.5 20.5 0 0 0 16.4 31 Z', 0.65),
+    ],
+  }),
+  ticket: () => ({
+    defs: [lin('tk', [[0, '#ffe58a'], [0.5, '#ffb72e'], [1, '#f08a12']]), ...mats('red')],
+    parts: [
+      G('rotate(-16 32 32)', [
+        P('M6 19 H58 V27.5 A4.5 4.5 0 0 0 58 36.5 V45 H6 V36.5 A4.5 4.5 0 0 0 6 27.5 Z', u('tk')),
+        D(S('M44 21 V43', '#c96a0a', 1.6, { dash: '2.6 2.4' })),
+        D(R(10.5, 23, 29, 18, 3, 'none', { stroke: '#fff3c4', sw: 1.6 })),
+        D(P(star(25, 32, 7, 3.1), u('red'), { line: 1 })),
+        D(C(51, 32, 3, '#c96a0a', { op: 0.5 })),
+      ]),
+    ],
+  }),
+  firework: () => {
+    const cols = ['red', 'yellow', 'blue', 'green', 'pink', 'orange', 'purple', 'yellow', 'red', 'blue'];
+    const n = 10, cx = 32, cy = 31;
+    const pt = (a, r) => `${f2(cx + Math.cos(a) * r)} ${f2(cy + Math.sin(a) * r)}`;
+    const rays = range(n).map((i) => {
+      const a = (i / n) * Math.PI * 2 - Math.PI / 2, w = 0.15;
+      return P(`M${pt(a, 8)} L${pt(a - w, 16)} L${pt(a, 23)} L${pt(a + w, 16)} Z`, u(cols[i]), { rnd: 1.2 });
+    });
+    const dots = range(n).map((i) => {
+      const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+      return C(f2(cx + Math.cos(a) * 27.5), f2(cy + Math.sin(a) * 27.5), 2.4, u(cols[i]));
+    });
+    return {
+      defs: [...mats('red', 'yellow', 'blue', 'green', 'orange', 'purple'), lin('pink', MATS.pink)],
+      parts: [...rays, ...dots, C(cx, cy, 7, u('yellow'), { sep: true }), D(P(sparkle(cx, cy, 4.6), '#fff')),
+        D(P(sparkle(9, 9, 4), '#fff3a0')), D(P(sparkle(55, 54, 3.4), '#fff3a0'))],
+    };
+  },
+  crepe: () => ({
+    defs: [lin('cp', [[0, '#ffe2a0'], [1, '#e7a64a']]), ...mats('white', 'red')],
+    parts: [
+      E(32, 47, 27, 9, u('white')),
+      E(32, 43, 21, 7.5, u('cp'), { sep: true }),
+      E(32, 37, 21, 7.5, u('cp'), { sep: true }),
+      E(32, 31, 21, 7.5, u('cp'), { sep: true }),
+      D(P('M19 30 Q26 25 34 27 Q42 25 45 30 Q42 34 38 32 L37 37 Q35 39 34 35 Q30 34 26 34 L25 38 Q23 39 23 34 Q19 33 19 30 Z', '#7a3a1a')),
+      R(27.5, 21, 9, 7, 2, '#ffe66a', { sep: true }),
+      C(45, 23, 4.5, u('red'), { sep: true }),
+      D(C(46.5, 21.5, 1.2, '#fff', { op: 0.7 })),
+    ],
+  }),
+  mask: () => ({
+    defs: [...mats('purple', 'gold', 'red', 'blue')],
+    parts: [
+      S('M52 40 L60 58', u('gold'), 3.4),
+      P('M24 20 Q16 4 22 3 Q28 6 28 19 Z', u('red')),
+      P('M30 19 Q32 1 37 2 Q41 6 35 20 Z', u('blue')),
+      P('M37 21 Q46 6 50 9 Q51 15 41 23 Z', u('gold')),
+      P('M5 28 Q7 17 20 19 Q28 20.5 32 26 Q36 20.5 44 19 Q57 17 59 28 Q59 42 46 44 Q38 45 32 38 Q26 45 18 44 Q5 42 5 28 Z', u('purple'), { sep: true }),
+      D(E(19.5, 30, 6.5, 4.5, O, { tr: 'rotate(8 19.5 30)' })),
+      D(E(44.5, 30, 6.5, 4.5, O, { tr: 'rotate(-8 44.5 30)' })),
+      D(S('M8 27 Q10 20 19 21.5 M56 27 Q54 20 45 21.5', '#ffd34d', 1.8)),
+      D(C(32, 31, 2.4, '#ffd34d')),
+      H('M9 27 Q11 21 18 21.5 Q12 24 11 30 Z', 0.55),
+    ],
+  }),
+  clover: () => {
+    const leaf = 'M32 32 Q21 31 18.5 22 Q17.5 13.5 24.5 13 Q29.5 13 32 18 Q34.5 13 39.5 13 Q46.5 13.5 45.5 22 Q43 31 32 32 Z';
+    return {
+      defs: mats('green', 'greenD'),
+      parts: [
+        S('M33 36 Q38 49 30 59', u('greenD'), 3.8),
+        ...[0, 90, 180, 270].map((a) => G(`rotate(${a} 32 32)`, [P(leaf, u('green'), { line: 1.3 })])),
+        D(C(32, 32, 2.6, '#2f8a25')),
+        H('M22 16 Q26 15 28.5 18.5 Q24 18 22.5 21 Z', 0.6),
+      ],
+    };
+  },
+  fish: () => ({
+    defs: [lin('fb', [[0, '#a6ecff'], [0.5, '#35aef2'], [1, '#1c63c6']]), ...mats('orange')],
+    parts: [
+      P('M47 32 L61 18 Q57 32 61 46 Z', u('orange')),
+      P('M24 19 Q33 6 42 20 Z', u('orange')),
+      P('M5 32 Q15 15 33 16 Q48 17 52 32 Q48 47 33 48 Q15 49 5 32 Z', u('fb'), { sep: true }),
+      D(S('M30 18 Q36 32 30 46 M39 19 Q44 32 39 45', '#bff1ff', 2, { op: 0.75 })),
+      D(C(16.5, 28.5, 4.2, '#fff')), D(C(15.6, 28.8, 2.2, O)),
+      D(S('M7.5 35 Q11 37.5 14.5 36', O, 1.6)),
+      H('M10 30 Q16 20 28 19 Q18 23 13 31 Z', 0.55),
+    ],
+  }),
+  egg: () => ({
+    defs: [lin('eg', [[0, '#fff3a8'], [1, '#ffc93a']]), '<clipPath id="ce"><path d="M32 6 Q50 6 52 34 Q52 58 32 58 Q12 58 12 34 Q14 6 32 6 Z"/></clipPath>', lin('pk', MATS.pink), ...mats('blue', 'green')],
+    parts: [
+      P('M32 6 Q50 6 52 34 Q52 58 32 58 Q12 58 12 34 Q14 6 32 6 Z', u('eg')),
+      D(G(null, [
+        P('M8 26 L14 21 L20 26 L26 21 L32 26 L38 21 L44 26 L50 21 L56 26 V31 L50 26 L44 31 L38 26 L32 31 L26 26 L20 31 L14 26 L8 31 Z', u('pk')),
+        R(6, 38, 52, 6, 0, u('blue')),
+        ...range(5).map((k) => C(16 + k * 8, 49.5, 2.4, u('green'))),
+        ...range(3).map((k) => C(24 + k * 8, 15, 2.2, u('pk'))),
+      ], { at: { 'clip-path': 'url(#ce)' } })),
+      H('M19 30 Q19 14 30 9.5 Q23 18 23 32 Z', 0.6),
+    ],
+  }),
+  lily: () => {
+    const bell = (x, y) => P(`M${x - 5.5} ${y + 6} Q${x - 6} ${y - 3} ${x} ${y - 3} Q${x + 6} ${y - 3} ${x + 5.5} ${y + 6} Q${x + 3.5} ${y + 3.5} ${x + 1.8} ${y + 6.5} Q${x} ${y + 4} ${x - 1.8} ${y + 6.5} Q${x - 3.5} ${y + 3.5} ${x - 5.5} ${y + 6} Z`, u('white'), { sep: true });
+    return {
+      defs: mats('green', 'greenD', 'white'),
+      parts: [
+        P('M20 59 Q6 36 17 12 Q28 33 27 59 Z', u('green')),
+        S('M29 59 Q28 30 38 16 Q44 9 51 12', u('greenD'), 2.6),
+        S('M36 21 V24 M43 12.5 V17 M50 12 V20', u('greenD'), 1.8),
+        bell(36, 28), bell(43.5, 21), bell(50, 25),
+        bell(32, 39),
+        P('M33 59 Q46 44 56 34 Q52 52 38 59 Z', u('greenD'), { sep: true }),
+      ],
+    };
+  },
+  music: () => ({
+    defs: [lin('m', [[0, '#c9a6ff'], [0.5, '#7a5cff'], [1, '#3a2aa8']])],
+    parts: [
+      P('M24 15 L53 8 V18 L24 25 Z', u('m'), { rnd: 1.5 }),
+      R(23, 15, 5, 34, 2, u('m')),
+      R(48.5, 9, 5, 34, 2, u('m')),
+      E(19, 49, 9, 6.5, u('m'), { tr: 'rotate(-22 19 49)' }),
+      E(44.5, 43, 9, 6.5, u('m'), { tr: 'rotate(-22 44.5 43)' }),
+      H('M13 47 Q15 43 20 43 Q16 46 15 49 Z', 0.6),
+      H('M38.5 41 Q40.5 37 45.5 37 Q41.5 40 40.5 43 Z', 0.6),
+    ],
+  }),
+  grapes: () => {
+    const pts = [[22, 24], [32, 23], [42, 24], [17, 33], [27, 33], [37, 33], [47, 33], [22, 42], [32, 42], [42, 42], [27, 51], [37, 51], [32, 59]];
+    return {
+      defs: [lin('gp', [[0, '#d9a6ff'], [0.5, '#8a3ad6'], [1, '#4a1a8a']]), ...mats('green', 'woodD')],
+      parts: [
+        S('M32 17 Q33 9 38 5', u('woodD'), 3),
+        P('M34 13 Q44 3 56 8 Q50 18 38 16 Z', u('green')),
+        ...pts.map(([x, y]) => C(x, y - 4, 6.2, u('gp'), { sep: true })),
+        ...pts.map(([x, y]) => D(C(x - 2, y - 6.5, 1.5, '#fff', { op: 0.6 }))),
+      ],
+    };
+  },
+  xmastree: () => ({
+    defs: mats('wood', 'pineG', 'gold', 'red', 'blue'),
+    parts: [
+      R(28.5, 49, 7, 9, 2, u('wood')),
+      P('M32 26 L54 51 H10 Z', u('pineG'), { line: 1.4 }),
+      P('M32 16 L49.5 38 H14.5 Z', u('pineG'), { line: 1.4 }),
+      P('M32 7 L45 25 H19 Z', u('pineG'), { line: 1.4 }),
+      D(S('M21 33 Q32 37 43 31 M16 45 Q32 50 48 43', '#ffd34d', 2)),
+      C(23, 41, 3, u('red'), { sep: true }), C(41, 46, 3, u('blue'), { sep: true }), C(36, 33, 2.6, u('gold'), { sep: true }), C(27, 25, 2.6, u('red'), { sep: true }),
+      P(star(32, 7.5, 7.5, 3.3), u('gold'), { sep: true, rnd: 1 }),
+    ],
+  }),
+  balloon: () => ({
+    defs: [lin('b1', [[0, '#ff9b7a'], [1, '#d63a1a']]), lin('b2', [[0, '#fff2a0'], [1, '#f2b01a']]), '<clipPath id="cb"><path d="M32 4 Q55 4 55 26 Q55 38 41 46 H23 Q9 38 9 26 Q9 4 32 4 Z"/></clipPath>', ...mats('wood')],
+    parts: [
+      D(S('M24 46 L26 51 M40 46 L38 51', '#5a3a22', 1.4)),
+      R(24.5, 50, 15, 9, 2.5, u('wood')),
+      P('M32 4 Q55 4 55 26 Q55 38 41 46 H23 Q9 38 9 26 Q9 4 32 4 Z', u('b1')),
+      D(G(null, [P('M21 2 Q16 24 26 47 H31 Q24 24 27 2 Z', u('b2')), P('M37 2 Q40 24 33 47 H38 Q48 24 43 2 Z', u('b2')), R(4, 34, 56, 3, 0, '#ffffff', { op: 0.8 })], { at: { 'clip-path': 'url(#cb)' } })),
+      H('M14 24 Q14 10 25 7 Q17 14 18 28 Z', 0.55),
+    ],
+  }),
+  circus: () => ({
+    defs: [...mats('red', 'yellow', 'blue', 'woodD'), lin('w', MATS.white), '<clipPath id="cr"><path d="M5 31 L32 10 L59 31 Z"/></clipPath>', '<clipPath id="cw"><rect x="9" y="30" width="46" height="27"/></clipPath>'],
+    parts: [
+      S('M32 11 V3', u('woodD'), 2.4),
+      P('M33 3 L43 6 L33 9 Z', u('blue')),
+      R(9, 30, 46, 27, 1.5, u('red')),
+      D(G(null, range(6).map((k) => R(9 + k * 8, 30, 4, 27, 0, u('yellow'))), { at: { 'clip-path': 'url(#cw)' } })),
+      P('M5 31 L32 10 L59 31 Z', u('w'), { rnd: 2 }),
+      D(G(null, range(6).map((k) => P(`M32 10 L${5 + k * 9} 31 L${9.5 + k * 9} 31 Z`, u('red'))), { at: { 'clip-path': 'url(#cr)' } })),
+      D(P('M25 57 V44 Q25 38 32 38 Q39 38 39 44 V57 Z', '#3a1408')),
+      ...range(5).map((k) => D(C(9 + k * 11.5, 31, 2.4, u('yellow')))),
+    ],
+  }),
+  lantern: () => ({
+    defs: [lin('ln', [[0, '#ffd27a'], [0.45, '#ff6a2a'], [1, '#c92a16']]), ...mats('gold', 'red')],
+    parts: [
+      S('M32 4 V12', '#5a3a22', 1.8),
+      R(24, 10, 16, 6, 2, u('gold')),
+      E(32, 33, 19, 18.5, u('ln'), { sep: true }),
+      D(S('M32 15 V51 M23 16.5 Q16 33 23 49.5 M41 16.5 Q48 33 41 49.5', '#a8200f', 1.5, { op: 0.6 })),
+      R(24, 50, 16, 6, 2, u('gold'), { sep: true }),
+      S('M32 56 V62', u('red'), 3),
+      H('M18 30 Q19 21 27 17 Q21 25 21.5 35 Z', 0.55),
+    ],
+  }),
+  basket: () => ({
+    defs: [lin('bk', [[0, '#e9b878'], [1, '#a8682f']]), ...mats('red', 'woodD')],
+    parts: [
+      S('M15 30 Q15 8 32 8 Q49 8 49 30', u('woodD'), 4),
+      P('M11 27 H53 L56 33 H8 Z', u('red')),
+      D(G(null, range(5).map((k) => R(12 + k * 9, 27, 4.5, 3, 0, '#ffffff')))),
+      P('M8 33 H56 L50 57 H14 Z', u('bk'), { sep: true }),
+      D(S('M10 40 H54 M12 47 H52 M13.5 53 H50.5', '#8a5226', 1.6)),
+      D(S('M20 33 L22 57 M32 33 V57 M44 33 L42 57', '#c98a4b', 1.6)),
+    ],
+  }),
+  icecream: () => ({
+    defs: [lin('cn', [[0, '#ffd590'], [1, '#d98a3a']]), lin('pk', MATS.pink), lin('mt', [[0, '#d9fff0'], [1, '#6fd6b0']]), ...mats('red')],
+    parts: [
+      P('M19 36 H45 L32 61 Z', u('cn'), { rnd: 1.5 }),
+      D(S('M23 40 L35 56 M29 38 L39 48 M41 40 L29 56 M35 38 L25 48', '#b8702a', 1.4)),
+      P('M16.5 37 Q14 26 22 23 Q24 15 32 15 Q40 15 42 23 Q50 26 47.5 37 Q44 41 41 37 Q37 42 32 38 Q27 42 23 37 Q20 41 16.5 37 Z', u('mt'), { sep: true }),
+      C(32, 17, 9.5, u('pk'), { sep: true }),
+      S('M34 9 Q36 4 40 3', '#5a3a22', 1.6),
+      C(33, 9, 3.6, u('red'), { sep: true }),
+      H('M24 26 Q26 21 31 20 Q27 24 27 28 Z', 0.6),
+      H('M25.5 15 Q27 10 31 9.5 Q28 13 28 16 Z', 0.6),
+    ],
+  }),
+  ship: () => ({
+    defs: [...mats('wood', 'woodD', 'white', 'red', 'blue'), lin('sl', [[0, '#ffffff'], [1, '#e6dcc4']])],
+    parts: [
+      S('M30 50 V6', u('woodD'), 3.2),
+      P('M31 6 L42 9.5 L31 13 Z', u('red')),
+      P('M33 12 Q50 22 52 44 H33 Z', u('sl')),
+      P('M28 16 Q15 28 12 44 H28 Z', u('sl'), { sep: true }),
+      D(S('M33 22 Q43 27 46 36 M28 26 Q20 32 17.5 38', '#d9ccae', 1.6)),
+      P('M5 44 H59 L53 56 Q32 60 11 56 Z', u('wood'), { sep: true }),
+      D(S('M8 49.5 H56', '#8c4f22', 1.8)),
+      D(C(20, 49.5, 1.9, u('blue'))), D(C(32, 49.5, 1.9, u('blue'))), D(C(44, 49.5, 1.9, u('blue'))),
+      H('M9 46 H40 Q22 48 12 52 Z', 0.4),
+    ],
+  }),
+  rainbow: () => {
+    const cols = ['#ff5a4a', '#ffa23a', '#ffe14d', '#5ad15a', '#4da6ff', '#9b6bff'];
+    return {
+      defs: [...mats('cloud')],
+      parts: [
+        ...cols.map((c, k) => S(`M${8 + k * 4} 46 A${24 - k * 4} ${24 - k * 4} 0 0 1 ${56 - k * 4} 46`, c, 4.3)),
+        cloudPuff(11, 47, 0.62),
+        cloudPuff(53, 47, 0.62),
+      ],
+    };
+  },
+});

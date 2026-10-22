@@ -59,13 +59,16 @@ export class Game extends GameCore {
 
   greet() {
     const meta = this.meta;
+    const login = () => {
+      if (!this.ui.showLogin({ onDone: () => this.ui.eventIntro() })) this.ui.eventIntro();
+    };
     if (!meta.p.welcome) {
       meta.p.welcome = true;
       meta.save();
-      this.ui.welcomeGift(() => this.ui.showLogin());
+      this.ui.welcomeGift(login);
       return;
     }
-    this.ui.showLogin();
+    login();
   }
 
   update(dt) {
@@ -145,6 +148,8 @@ export class Game extends GameCore {
       st.flags.welcome = true;
       showWelcome(this.ui);
     }
+    // jour de fête : petite annonce (une fois par événement)
+    if (st.mode !== 'libre') setTimeout(() => this.playing && this.ui.eventIntro(), 1500);
   }
 
   save() {

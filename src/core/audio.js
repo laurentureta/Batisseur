@@ -132,6 +132,17 @@ export class Sound {
       case 'whoosh':
         this.noise(0.25, { vol: 0.12, freq: 900, q: 0.4 });
         break;
+      case 'pop':
+        this.tone(480, 0.1, { vol: 0.17, type: 'triangle', slide: 2.4 });
+        this.tone(1568, 0.1, { vol: 0.07, delay: 0.07 });
+        this.tone(2349, 0.16, { vol: 0.05, delay: 0.11 });
+        break;
+      case 'fete':
+        this.noise(0.35, { vol: 0.12, freq: 2600, q: 0.5, delay: 0.42 });
+        [392, 523, 659, 784].forEach((f, k) => this.tone(f, 0.16, { vol: 0.13, delay: k * 0.09, type: 'square' }));
+        [523, 659, 784, 1047].forEach((f) => this.tone(f, 0.6, { vol: 0.07, delay: 0.38, type: 'triangle' }));
+        [1568, 2093, 2637].forEach((f, k) => this.tone(f, 0.3, { vol: 0.05, delay: 0.55 + k * 0.07 }));
+        break;
       default:
         break;
     }

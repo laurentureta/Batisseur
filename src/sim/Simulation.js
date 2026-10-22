@@ -329,6 +329,15 @@ export class Simulation {
     const cal = calendar(st.time.day);
     const ev = game.events.modifiers();
     const bm = boostMul(st);
+    // bonus de l'événement du jour (impôts, commerces, production, bonheur, croissance)
+    const em = game.meta?.eventMods?.();
+    if (em) {
+      if (em.prod) bm.prod *= em.prod;
+      if (em.tax) bm.tax *= em.tax;
+      if (em.happy) bm.happy += em.happy;
+      if (em.growth) bm.growth *= em.growth;
+      if (em.commerce) bm.commerce = em.commerce;
+    }
     this.boost = bm;
     let taxes = 0, commerce = 0, hSum = 0, hW = 0, hHouses = 0, hCount = 0;
     for (const b of world.buildings.values()) {
@@ -379,7 +388,7 @@ export class Simulation {
       if (def.income && inf.connected && !b.fire && !(def.upkeep && d.broke)) {
         const near = def.income.radius ? this.residentsNear(b, def.income.radius) : 0;
         inf.residentsNear = near;
-        inf.income = (def.income.base + def.income.perRes * Math.min(near, 500)) * INCOME_MULT[Math.min(b.level, 5) - 1] * staff * bm.tax;
+        inf.income = (def.income.base + def.income.perRes * Math.min(near, 500)) * INCOME_MULT[Math.min(b.level, 5) - 1] * staff * bm.tax * (bm.commerce || 1);
         commerce += inf.income;
       } else inf.income = 0;
     }

@@ -33,8 +33,9 @@ Sur ordinateur : clic gauche pour déplacer, molette pour zoomer, clic droit pou
 ## ✨ Ce que contient le jeu
 
 - **Vrais modèles 3D** : près de 200 modèles — maisons, commerces, châteaux, immeubles, véhicules et décors (packs KayKit et Kenney), du hameau médiéval à la ville moderne, avec chantier animé à chaque construction.
-- **HUD de jeu dessiné sur mesure** : plus de 120 icônes vectorielles (ressources, outils, bâtiments, météo, avatars…) au style « jeu mobile », compteurs, boutons et barre d'outils façon jeu pro.
+- **HUD de jeu dessiné sur mesure** : plus de 140 icônes vectorielles (ressources, outils, bâtiments, météo, avatars…) au style « jeu mobile », compteurs, boutons et barre d'outils façon jeu pro.
 - **Monde 3D « maquette »** avec cycle jour/nuit, fenêtres et lampadaires allumés la nuit, saisons (neige l'hiver !), météo, nuages, passants et voitures.
+- **Une fête chaque semaine, toute l'année** 🎉 : chaque semaine, une journée d'événement (le jour change d'une semaine à l'autre). Les grandes dates reviennent chaque année (Nouvel An, Galette des rois, Chandeleur, Saint-Valentin, Carnaval, Pâques, 1er Mai, Fête de la musique, 14 juillet, Halloween, Marché de Noël, Noël…) et les autres semaines piochent parmi plus de 20 fêtes surprises (Ruée vers l'or, Grand Jackpot, Braderie à −50 %, Cirque, Fête foraine, Chasse au trésor, Montgolfières…). Chaque fête a ses bonus (impôts ×2, commerces ×2, production ×1,5, XP du passe ×2…), ses objets à ramasser dans le village, 5 défis et 8 paliers de récompenses tirés au sort : des pièces en masse, des gemmes, des coffres, des titres, des toits et **35 décorations exclusives** en 3D. Le calendrier se met à jour tout seul.
 - **Passe de combat** 🎖️ : une saison de 4 semaines (saison 1 : *La Nuit des Citrouilles* 🎃), 40 paliers gratuits + 40 paliers du **Passe Royal**, paliers bonus et 7 défis de la semaine.
 - **Boutique** 🛒 et **gemmes** 💎 : coffres (bois, argent, or, royal), boosts (récolte ×2, impôts ×1,5, fête, afflux d'habitants), packs de ressources, offres du jour, 31 décorations exclusives et 11 thèmes de toits. Les gemmes se gagnent uniquement en jouant — aucun achat réel.
 - **Cadeau du jour** (calendrier de 7 jours), coffre gratuit toutes les 4 heures, profil du maire (nom, avatar, titres, statistiques).
@@ -67,7 +68,7 @@ icons/                  icônes de l'appli et logo (tools/make_logo.py)
 src/
   main.js               démarrage
   version.js            numéro de version
-  core/                 cœur du jeu : état, actions, sauvegarde, sons, profil (meta.js)
+  core/                 cœur du jeu : état, actions, sauvegarde, sons, profil et événements (meta.js)
   data/                 ⚙️ réglages du jeu : bâtiments, quêtes, progression, ressources, passe, boutique
   world/                carte, terrain, génération procédurale
   sim/                  simulation : économie, habitants, progression, événements
@@ -85,7 +86,8 @@ Tout se règle dans `src/data/` :
 - `quests.js` : quêtes principales, missions du jour, succès ;
 - `resources.js` : ressources et leur valeur ;
 - `pass.js` : saisons du passe de combat, paliers, défis de la semaine ;
-- `shop.js` : coffres, boosts, packs, prix en gemmes, cadeau du jour.
+- `shop.js` : coffres, boosts, packs, prix en gemmes, cadeau du jour ;
+- `events.js` : fêtes de la semaine (thèmes, dates, bonus, récompenses, défis).
 
 ### Publier une mise à jour
 

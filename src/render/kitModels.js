@@ -861,6 +861,9 @@ KM.x_catapult = (g, L, ctx) => {
   K(g, ctx, 'resource_stone', { s: 0.4, x: 0.32, z: 0.3 });
 };
 
+/* outils partagés avec les décorations d'événements (eventModels.js) */
+export const KH = { K, KF, pad, path, glowBox, giftBox, flag, bush, lantern, barrels, smokeAt, hw, COBBLE, SAND, SOIL };
+
 /* ───────── Repli : les modèles faits main restent disponibles ───────── */
 export function hasKitModel(type) {
   return !!KM[type] && kitHas('home_A');

@@ -36,12 +36,16 @@ export function renderBuildMenu(ui, body, sheet) {
     return;
   }
 
-  const list = BUILDING_LIST.filter((d) => (d.tab || d.cat) === ui.buildCat && !d.notBuildable).sort((a, b) => a.unlock - b.unlock);
+  let list = BUILDING_LIST.filter((d) => (d.tab || d.cat) === ui.buildCat && !d.notBuildable).sort((a, b) => a.unlock - b.unlock);
   if (ui.buildCat === 'exclusive') {
+    const fete = list.filter((d) => d.event);
+    const won = fete.filter((d) => game.meta?.ownsDecor(d.id)).length;
+    list = list.filter((d) => !d.event || game.meta?.ownsDecor(d.id));
     const owned = list.filter((d) => game.meta?.ownsDecor(d.id));
     grid.appendChild(h('div.card-note', owned.length
-      ? `⭐ ${owned.length} décoration${owned.length > 1 ? 's' : ''} exclusive${owned.length > 1 ? 's' : ''} à toi. Trouve les autres dans la boutique, les coffres et le passe de combat !`
-      : '⭐ Les décorations exclusives se gagnent dans la boutique, les coffres et le passe de combat.'));
+      ? `⭐ ${owned.length} décoration${owned.length > 1 ? 's' : ''} exclusive${owned.length > 1 ? 's' : ''} à toi : boutique, coffres, passe et fêtes de la semaine.`
+      : '⭐ Les décorations exclusives se gagnent dans la boutique, les coffres, le passe et les fêtes de la semaine.'));
+    grid.appendChild(h('button.card-note.fete-note', { onclick: () => ui.openEvent('cal') }, `🎉 Décos des fêtes : ${won}/${fete.length} gagnées · voir le calendrier ›`));
     list.sort((a, b) => (game.meta?.ownsDecor(b.id) ? 1 : 0) - (game.meta?.ownsDecor(a.id) ? 1 : 0));
   }
   for (const def of list) {

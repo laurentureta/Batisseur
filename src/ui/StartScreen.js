@@ -8,6 +8,7 @@ import { fmt } from '../core/util.js';
 import { gemPill, countdown } from './screens.js';
 import { TIERS } from '../data/pass.js';
 import { chestArt } from './art.js';
+import { eventCard, eventCardKey } from './event.js';
 
 export class StartScreen {
   constructor(ui) {
@@ -73,6 +74,8 @@ export class StartScreen {
     }
     const free = this.el.querySelector('.si-chest');
     if (free) this.updateChestIcon(free);
+    const card = this.el.querySelector('.event-card');
+    if (card && card.dataset.key !== eventCardKey(this.game.meta)) card.replaceWith(eventCard(this.ui));
   }
 
   tick() {
@@ -116,7 +119,7 @@ export class StartScreen {
     el.append(
       this.topBar(),
       this.logo(),
-      this.seasonChip(),
+      h('div.start-chips', this.seasonChip(), eventCard(this.ui)),
       panel,
       icons,
       h('div.start-foot',

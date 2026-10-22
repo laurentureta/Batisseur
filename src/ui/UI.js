@@ -10,6 +10,7 @@ import * as Panels from './Panels.js';
 import { StartScreen } from './StartScreen.js';
 import { openShop } from './shop.js';
 import { openPass } from './pass.js';
+import { openEvent, refreshEventChip, EventDrops, eventIntro } from './event.js';
 import { openProfile } from './profile.js';
 import { showRewards, showLogin } from './rewards.js';
 import { closeScreen } from './screens.js';
@@ -63,6 +64,7 @@ export class UI {
     this.strokeInfo = h('div.stroke-info.hidden');
     this.root.append(this.toastRoot, this.strokeInfo);
     this.start = new StartScreen(this);
+    this.drops = new EventDrops(this);
     this.bindBus();
   }
 
@@ -97,9 +99,11 @@ export class UI {
     e.quest = h('button.quest-tracker', { onclick: () => this.openQuests() });
     e.alerts = h('div.alerts');
     e.boosts = h('div.boost-chips');
+    e.event = h('button.event-chip.hidden', { onclick: () => this.openEvent(), 'aria-label': 'Événement de la semaine' });
     this.hud = h('div.hud',
       h('div.hud-top', e.level, h('div.stats', e.coins, e.pop, e.happy), e.menu),
       h('div.hud-sub', e.quest, h('div.time', e.date, e.speed)),
+      e.event,
       e.boosts,
       e.alerts,
     );
@@ -150,6 +154,7 @@ export class UI {
 
   /* ───────── Mise à jour régulière ───────── */
   update(dt) {
+    this.drops.update(dt);
     this.hudAcc += dt;
     this.screenAcc = (this.screenAcc || 0) + dt;
     if (this.screen && this.screenAcc >= 1) {
@@ -182,6 +187,33 @@ export class UI {
   openPass(tab) {
     this.closeSheet(true);
     return openPass(this, tab);
+  }
+
+  openEvent(tab) {
+    this.closeSheet(true);
+    return openEvent(this, tab);
+  }
+
+  /** Annonce de la fête du jour (et récompenses oubliées), dès qu'aucune fenêtre n'est ouverte. */
+  eventIntro() {
+    this.whenIdle(() => eventIntro(this));
+  }
+
+  /** Lance fn quand aucune fenêtre ni écran n'est ouvert (réessaie pendant une minute). */
+  whenIdle(fn, tries = 75) {
+    if (!this.modalStack.length && !this.screen) return fn();
+    if (tries > 0) setTimeout(() => this.whenIdle(fn, tries - 1), 800);
+  }
+
+  refreshEventChip() {
+    const e = this.el;
+    if (!e?.event) return;
+    if (this.libre || !this.game.playing) {
+      e.event.classList.add('hidden');
+      e.event.dataset.key = '';
+      return;
+    }
+    refreshEventChip(this, e.event);
   }
 
   openProfile() {
@@ -269,6 +301,7 @@ export class UI {
       }
     }
     this.refreshMeta();
+    this.refreshEventChip();
     // pastilles
     const c = game.prog.claimables();
     this.badge(e.sQuests, c.quests);
@@ -821,6 +854,26 @@ export class UI {
     bus.on('decor:unlocked', (id) => this.toast(`⭐ Nouvelle décoration : ${BUILDINGS[id].name} (Construire → Exclusifs)`, 'good'));
     bus.on('boost:on', () => this.refreshHud());
     bus.on('boost:off', () => this.toast('⏱️ Un boost vient de se terminer', 'mini'));
+    // événement de la semaine
+    bus.on('fete:start', () => {
+      this.refreshEventChip();
+      this.start?.refreshMeta?.();
+      this.eventIntro();
+    });
+    bus.on('fete:end', () => {
+      this.refreshEventChip();
+      this.start?.refreshMeta?.();
+      if (game.meta.eventClaimables()) this.toast('🎉 La fête est finie : récupère tes récompenses avant la fin de la semaine !', 'info', { label: 'Voir', onclick: () => this.openEvent() });
+    });
+    bus.on('fete:milestone', () => {
+      game.sound.play('tier');
+      this.refreshEventChip();
+      this.toast('🎉 Nouveau palier de la fête atteint !', 'good', { label: 'Récupérer', onclick: () => this.openEvent() });
+    });
+    bus.on('fete:taskdone', (t) => {
+      game.sound.play('quest');
+      this.toast(`🎯 Défi de la fête réussi : ${t.label}`, 'good', { label: 'Récupérer', onclick: () => this.openEvent() });
+    });
   }
 }
 
