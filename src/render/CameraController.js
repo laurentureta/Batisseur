@@ -41,6 +41,7 @@ export class CameraController {
   }
 
   update(dt) {
+    if (this.cinematic) return; // la cinématique tient la caméra
     if (this.fly) {
       const f = this.fly;
       f.t = Math.min(1, f.t + dt / f.dur);

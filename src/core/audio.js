@@ -215,6 +215,177 @@ export class Sound {
     }
   }
 
+  /**
+   * Musique de la cinématique d'introduction (synthétisée) : nappes d'accords, vent qui se lève
+   * dans les nuages, notes égrenées pendant le survol, oiseaux au-dessus du village, carillon
+   * et souffle à l'apparition du titre. Tout est calé sur la ligne de temps de la caméra.
+   */
+  cineScore() {
+    if (!this.settings.sound || !this.ctx || this.ctx.state !== 'running') return null;
+    const c = this.ctx;
+    const out = c.createGain();
+    out.gain.value = 0.0001;
+    out.connect(this.master);
+    const t0 = c.currentTime + 0.05;
+    out.gain.exponentialRampToValueAtTime(1, t0 + 1.2);
+    // réverbération légère (écho filtré)
+    const delay = c.createDelay(1);
+    delay.delayTime.value = 0.32;
+    const fb = c.createGain();
+    fb.gain.value = 0.32;
+    const damp = c.createBiquadFilter();
+    damp.type = 'lowpass';
+    damp.frequency.value = 2200;
+    delay.connect(damp).connect(fb).connect(delay);
+    const wet = c.createGain();
+    wet.gain.value = 0.35;
+    delay.connect(wet).connect(out);
+    const bus = c.createGain();
+    bus.connect(out);
+    bus.connect(delay);
+    const pad = (freqs, at, dur, vol = 0.045) => {
+      for (const f of freqs) {
+        for (const det of [-7, 7]) {
+          const o = c.createOscillator();
+          o.type = 'sawtooth';
+          o.frequency.value = f;
+          o.detune.value = det;
+          const lp = c.createBiquadFilter();
+          lp.type = 'lowpass';
+          lp.frequency.setValueAtTime(700, t0 + at);
+          lp.frequency.linearRampToValueAtTime(1500, t0 + at + dur * 0.6);
+          lp.frequency.linearRampToValueAtTime(900, t0 + at + dur);
+          const g = c.createGain();
+          g.gain.setValueAtTime(0.0001, t0 + at);
+          g.gain.exponentialRampToValueAtTime(vol / freqs.length, t0 + at + Math.min(2.2, dur * 0.35));
+          g.gain.setValueAtTime(vol / freqs.length, t0 + at + dur - 1.8);
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + dur + 0.8);
+          o.connect(lp).connect(g).connect(bus);
+          o.start(t0 + at);
+          o.stop(t0 + at + dur + 1);
+        }
+      }
+    };
+    const pluck = (f, at, vol = 0.05, len = 1.4) => {
+      const o = c.createOscillator();
+      o.type = 'triangle';
+      o.frequency.value = f;
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, t0 + at);
+      g.gain.exponentialRampToValueAtTime(vol, t0 + at + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + len);
+      o.connect(g).connect(bus);
+      o.start(t0 + at);
+      o.stop(t0 + at + len + 0.05);
+    };
+    const bell = (f, at, vol = 0.05) => {
+      for (const [m, v, d] of [[1, 1, 2.6], [2.76, 0.35, 1.2], [5.4, 0.12, 0.6]]) {
+        const o = c.createOscillator();
+        o.type = 'sine';
+        o.frequency.value = f * m;
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.0001, t0 + at);
+        g.gain.exponentialRampToValueAtTime(vol * v, t0 + at + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + d);
+        o.connect(g).connect(bus);
+        o.start(t0 + at);
+        o.stop(t0 + at + d + 0.05);
+      }
+    };
+    // vent : bruit filtré en boucle, il forcit en traversant les nuages
+    const len = Math.floor(c.sampleRate * 2.5);
+    const buf = c.createBuffer(1, len, c.sampleRate);
+    const data = buf.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < len; i++) {
+      last = last * 0.97 + (Math.random() * 2 - 1) * 0.03;
+      data[i] = last * 6;
+    }
+    const wind = c.createBufferSource();
+    wind.buffer = buf;
+    wind.loop = true;
+    const wf = c.createBiquadFilter();
+    wf.type = 'lowpass';
+    wf.frequency.setValueAtTime(500, t0);
+    wf.frequency.linearRampToValueAtTime(900, t0 + 9);
+    wf.frequency.linearRampToValueAtTime(2200, t0 + 12.5);
+    wf.frequency.linearRampToValueAtTime(600, t0 + 17);
+    const wg = c.createGain();
+    wg.gain.setValueAtTime(0.0001, t0);
+    wg.gain.exponentialRampToValueAtTime(0.09, t0 + 2);
+    wg.gain.linearRampToValueAtTime(0.1, t0 + 8.5);
+    wg.gain.linearRampToValueAtTime(0.32, t0 + 12.3);
+    wg.gain.linearRampToValueAtTime(0.06, t0 + 16);
+    wg.gain.linearRampToValueAtTime(0.015, t0 + 23);
+    wg.gain.exponentialRampToValueAtTime(0.0001, t0 + 30);
+    wind.connect(wf).connect(wg).connect(out);
+    wind.start(t0);
+    wind.stop(t0 + 31);
+    // accords
+    pad([174.6, 220, 261.6, 329.6], 0, 9.6);
+    pad([164.8, 196, 261.6, 293.7], 9.2, 6.8);
+    pad([110, 164.8, 196, 261.6], 15.6, 6.4);
+    pad([123.5, 146.8, 196, 329.6], 21.6, 6.6);
+    pad([130.8, 196, 261.6, 329.6, 587.3], 27.6, 9, 0.06);
+    // notes égrenées pendant le survol
+    const arps = [[523.3, 659.3, 784, 880], [440, 523.3, 659.3, 784], [493.9, 587.3, 784, 987.8]];
+    for (let k = 0; k < 20; k++) {
+      const at = 12.5 + k * 0.75;
+      const chord = arps[Math.min(2, Math.floor((at - 12.5) / 5))];
+      pluck(chord[k % 4] * (k % 8 >= 4 ? 1 : 0.5), at, 0.035);
+    }
+    // les oiseaux au-dessus du village
+    for (let k = 0; k < 7; k++) {
+      const at = 19.5 + k * 1.15 + (k % 3) * 0.2;
+      const base = 2400 + (k % 3) * 500;
+      for (let j = 0; j < 3; j++) {
+        const o = c.createOscillator();
+        o.frequency.setValueAtTime(base + j * 120, t0 + at + j * 0.11);
+        o.frequency.exponentialRampToValueAtTime(base * 1.3, t0 + at + j * 0.11 + 0.08);
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.0001, t0 + at + j * 0.11);
+        g.gain.exponentialRampToValueAtTime(0.02, t0 + at + j * 0.11 + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + j * 0.11 + 0.09);
+        o.connect(g).connect(out);
+        o.start(t0 + at + j * 0.11);
+        o.stop(t0 + at + j * 0.11 + 0.1);
+      }
+    }
+    // le titre : souffle, carillon
+    const swoosh = c.createBufferSource();
+    swoosh.buffer = buf;
+    const sf = c.createBiquadFilter();
+    sf.type = 'bandpass';
+    sf.Q.value = 0.7;
+    sf.frequency.setValueAtTime(400, t0 + 27.9);
+    sf.frequency.exponentialRampToValueAtTime(3500, t0 + 28.9);
+    const sg = c.createGain();
+    sg.gain.setValueAtTime(0.0001, t0 + 27.9);
+    sg.gain.exponentialRampToValueAtTime(0.25, t0 + 28.4);
+    sg.gain.exponentialRampToValueAtTime(0.0001, t0 + 29.3);
+    swoosh.connect(sf).connect(sg).connect(out);
+    swoosh.start(t0 + 27.9);
+    swoosh.stop(t0 + 29.5);
+    [523.3, 659.3, 784, 1046.5, 1318.5].forEach((f, k) => bell(f, 28.25 + k * 0.13, 0.05));
+    bell(2093, 29.1, 0.03);
+    return {
+      stop: (fade = 0.6) => {
+        const now = c.currentTime;
+        out.gain.cancelScheduledValues(now);
+        out.gain.setValueAtTime(Math.max(0.0001, out.gain.value), now);
+        out.gain.exponentialRampToValueAtTime(0.0001, now + fade);
+        setTimeout(() => {
+          try {
+            wind.stop();
+          } catch {
+            /* déjà arrêté */
+          }
+          out.disconnect();
+        }, (fade + 0.2) * 1000);
+      },
+    };
+  }
+
   /** Petits bruits d'ambiance : oiseaux le jour, grillons la nuit. */
   ambience(dt, night, zoomedIn) {
     if (!this.settings.sound || !this.settings.ambience || !this.ctx || this.ctx.state !== 'running') return;

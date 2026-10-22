@@ -16,8 +16,9 @@ import { People } from './People.js';
 import { Worksites } from './Worksites.js';
 import { SiteView } from './Sites.js';
 import { Animals } from './Animals.js';
+import { Cinematic } from './Cinematic.js';
 import { buildRing } from '../world/landscape.js';
-import { SIZE } from '../world/constants.js';
+import { SIZE, T } from '../world/constants.js';
 import { BUILDINGS, sizeOf } from '../data/buildings.js';
 import { calendar } from '../core/util.js';
 
@@ -53,6 +54,9 @@ export class Renderer {
     this.worksites = new Worksites(this);
     this.sites = new SiteView(this);
     this.animals = new Animals(this);
+    this.cinematic = new Cinematic(this);
+    this.hourOverride = null; // la cinématique règle elle-même la lumière
+    this.fogOverride = null;
     game.construction.extentHook = (b) => this.sites.extentOf(b);
     this.particles = new Particles();
     this.overlays = new Overlays(this);
@@ -426,6 +430,26 @@ export class Renderer {
       this.particles.emit('fire', c.cx + (Math.random() - 0.5) * c.w * 0.6, h * (0.4 + Math.random() * 0.6), c.cz + (Math.random() - 0.5) * c.d * 0.6, 3);
       this.particles.emit('smoke', c.cx, h + 0.1, c.cz, 1, { scale: 1.6, color: [0.35, 0.35, 0.38] });
     }
+    // des feuilles tombent des arbres près de la caméra (beaucoup en automne)
+    if (this.quality !== 'low' && this.cam.distance < 34 && this.season !== 3) {
+      const n = this.season === 2 ? 4 : 1;
+      const t = this.cam.target;
+      for (let k = 0; k < n; k++) {
+        if (Math.random() > (this.season === 2 ? 0.8 : 0.35)) continue;
+        const x = t.x + (Math.random() - 0.5) * 18, z = t.z + (Math.random() - 0.5) * 18;
+        const tx = Math.floor(x + HALF), tz = Math.floor(z + HALF);
+        if (!this.world.inside(tx, tz)) continue;
+        const i = this.world.idx(tx, tz);
+        let ok = this.world.terrain[i] === T.FOREST;
+        if (!ok) {
+          const o = this.world.occ[i];
+          ok = o >= 0 && this.world.buildings.get(o)?.type === 'tree';
+        }
+        if (!ok) continue;
+        const col = this.season === 2 ? [[0.92, 0.52, 0.14], [0.84, 0.34, 0.12], [0.96, 0.72, 0.22]][k % 3] : this.season === 0 ? [1, 0.82, 0.9] : [0.42, 0.68, 0.28];
+        this.particles.emit('falling', x, 0.42 + Math.random() * 0.3, z, 1, { color: col });
+      }
+    }
     // météo
     const kind = this.sky.weather;
     if ((kind === 'rain' || kind === 'snow') && this.quality !== 'low') {
@@ -458,6 +482,11 @@ export class Renderer {
   updateFog() {
     const fog = this.scene.fog;
     if (!fog) return;
+    if (this.fogOverride) {
+      fog.near = this.fogOverride.near;
+      fog.far = this.fogOverride.far;
+      return;
+    }
     const d = this.cam.distance;
     fog.near = 34 + d * 0.62;
     fog.far = 96 + d * 1.35;
@@ -469,8 +498,9 @@ export class Renderer {
     this.watchPerf(dt);
     const game = this.game;
     const st = game.state;
-    const hour = calendar(st.time.day).hour;
-    this.cam.update(dt);
+    const hour = this.hourOverride ?? calendar(st.time.day).hour;
+    if (this.cinematic.active) this.cineState = this.cinematic.update(dt);
+    else this.cam.update(dt);
     const span = Math.min(40, this.cam.distance * 1.1 + 6);
     const sky = this.sky.update(hour, this.cam.target, span, dt);
     this.night = sky.night;

@@ -289,6 +289,11 @@ export function renderSettings(ui, body) {
   toggle('Ambiance (oiseaux, grillons)', 'ambience');
   body.appendChild(h('div.section-title', 'Jeu'));
   toggle('Incendies', 'fires');
+  toggle('Cinématique d\'introduction au lancement', 'intro', () => {
+    if (s.intro) s.introSeen = false;
+    save();
+  });
+  body.appendChild(h('div.setting', h('span', 'Revoir l\'introduction'), h('button.btn.small', { onclick: () => game.replayIntro() }, '▶ Lancer')));
   toggle('Chantiers animés (les bâtisseurs construisent)', 'sites', () => {
     // sans chantier : tout ce qui est en cours se termine tout de suite
     if (!s.sites && game.world) for (const b of game.construction.sites()) game.construction.finish(b, { skipped: true });

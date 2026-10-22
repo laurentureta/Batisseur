@@ -13,6 +13,7 @@ import { BUILDING_LIST } from '../data/buildings.js';
 import { Meta } from './meta.js';
 import { RESOURCES } from '../data/resources.js';
 import { fmt } from './util.js';
+import { introWanted, playIntro } from '../ui/intro.js';
 
 export class Game extends GameCore {
   constructor() {
@@ -53,8 +54,21 @@ export class Game extends GameCore {
 
   boot() {
     this.toMainMenu();
+    // la première fois : la cinématique d'introduction, puis l'accueil
+    if (introWanted(this)) {
+      playIntro(this, { onDone: () => setTimeout(() => this.greet(), 700) });
+      return;
+    }
     // cadeau de bienvenue puis cadeau du jour
     setTimeout(() => this.greet(), 900);
+  }
+
+  /** Revoir la cinématique (depuis les réglages). */
+  replayIntro() {
+    if (this.playing) this.save();
+    this.ui.closeSheet(true);
+    this.toMainMenu();
+    playIntro(this);
   }
 
   greet() {
@@ -82,9 +96,10 @@ export class Game extends GameCore {
         this.save();
       }
     } else {
-      this.state.time.day += (dt / DAY_SECONDS) * 0.6;
-      this.villagers.demoTick(dt * 0.6); // le village du menu vit aussi
-      this.construction.demoTick(dt * 0.6);
+      const rate = this.demoRate ?? 0.6;
+      this.state.time.day += (dt / DAY_SECONDS) * rate;
+      this.villagers.demoTick(dt * rate); // le village du menu vit aussi
+      this.construction.demoTick(dt * rate);
     }
     this.meta.tick(dt);
     this.renderer.frame(dt);
@@ -105,7 +120,7 @@ export class Game extends GameCore {
     this.sim.recalc();
     this.renderer.buildings.setTheme('mix');
     this.renderer.setWorld(this.world);
-    this.renderer.cam.distance = 30;
+    this.renderer.cam.distance = 26;
     this.renderer.cam.autoOrbit = 0.04;
     this.ui.setPlayingUI(false);
     this.ui.start.show();
