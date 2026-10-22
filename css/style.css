@@ -1723,3 +1723,18 @@ kbd.tb-key { display: none; }
 .desk .start { padding-top: calc(var(--safe-top) + 24px); }
 /* le titre d'une offre (.deal-card b) ne doit pas déformer le prix */
 .deal-card .price-btn b, .decor-card .price-btn b { min-height: 0; line-height: 1; font-size: 17px; }
+
+/* ═════════════════════ v3.1 : habitants au travail ═════════════════════ */
+.site-box { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 14px; background: #fff; border: 1px solid var(--line); }
+.bed-row { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 8px; row-gap: 3px; font-size: 13px; }
+.bed-row .bl { font-weight: 700; color: var(--ink); }
+.bed-row .bs { font-family: var(--display); font-size: 12.5px; color: #5a3a22; }
+.bed-bar { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: #efe3cc; overflow: hidden; }
+.bed-bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #8bc34a, #f2c94c); }
+.team { display: flex; flex-direction: column; gap: 5px; }
+.mate { display: flex; align-items: center; gap: 8px; padding: 6px 9px; border-radius: 12px; background: #fff; border: 1px solid var(--line); }
+.mate .mi { font-size: 20px; }
+.mate .mt { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.mate .mt b { font-size: 13px; }
+.mate .mt small { font-size: 11.5px; color: var(--ink-soft); font-weight: 700; }
+.team .more { color: var(--ink-soft); font-weight: 700; padding-left: 4px; }

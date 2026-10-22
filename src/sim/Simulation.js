@@ -8,6 +8,7 @@ import {
 } from '../world/constants.js';
 import { GOODS } from '../data/resources.js';
 import { clamp, calendar } from '../core/util.js';
+import { WORKSITES } from './Villagers.js';
 
 const STEP = 0.25; // pas de simulation (secondes de jeu)
 const SEASON_FACTORS = {
@@ -37,6 +38,7 @@ export const STATUS_TEXT = {
   fire: 'En feu !',
   unpaid: 'Caisses vides : service à l\'arrêt',
   empty: 'Personne n\'habite ici pour l\'instant',
+  noTrees: 'Plus d\'arbre debout autour : il faut attendre la repousse',
 };
 
 export class Simulation {
@@ -129,6 +131,7 @@ export class Simulation {
     }
     this.produce(days);
     this.consume(days);
+    this.game.villagers?.step(dt); // les travailleurs rapportent la récolte au stock
     this.populate(days);
     this.money(days);
     this.game.events.tick(days);
@@ -369,6 +372,7 @@ export class Simulation {
         } else if (def.workers && staff < 0.5) status = 'noWorkers';
         else if (def.consumes && inf.inFrac < 0.15) status = 'noInput';
         else if (def.produces && inf.full) status = 'full';
+        else if (b.work?.noTrees && b.work.acc >= b.work.unit) status = 'noTrees';
         else if (def.residents && !(b.residents >= 0.5)) status = 'empty';
       }
       inf.eff = eff;
@@ -399,6 +403,7 @@ export class Simulation {
     d.income = { taxes, commerce, tourism, total: taxes + commerce + tourism };
 
     this.computeRates();
+    game.villagers?.sync();
     game.bus.emit('sim:recalc');
   }
 
@@ -469,9 +474,12 @@ export class Simulation {
       }
       const mult = prodMult(b.level) * inf.eff;
       let frac = 1;
+      const vill = this.game.villagers;
       if (def.consumes) {
         for (const r in def.consumes) {
           const need = def.consumes[r] * mult * days;
+          // stock vide : on prend directement ce qui attend au champ ou à la cabane
+          if (vill && res[r] < need) res[r] += vill.takeBuffered(r, need - res[r]);
           if (need > 0) frac = Math.min(frac, res[r] / need);
         }
         frac = clamp(frac, 0, 1);
@@ -482,6 +490,13 @@ export class Simulation {
       for (const r in def.produces) if (libre || res[r] < cap) room = true;
       inf.full = !room;
       if (!room) continue;
+      // métiers de terrain : la production s'accumule sur place, les travailleurs la rapportent
+      if (vill && WORKSITES[b.type]) {
+        let siteFull = false;
+        for (const r in def.produces) siteFull = vill.accumulate(b, def.produces[r] * mult * days * frac) || siteFull;
+        b.work.full = siteFull; // les travailleurs ne suivent plus (pas d'arbre, personne)
+        continue;
+      }
       if (def.consumes) for (const r in def.consumes) res[r] = Math.max(0, res[r] - def.consumes[r] * mult * days * frac);
       for (const r in def.produces) {
         const add = def.produces[r] * mult * days * frac;
@@ -502,6 +517,8 @@ export class Simulation {
       return;
     }
     const need = this.d.population * FOOD_PER_RESIDENT * days;
+    // grenier vide : on mange ce qui attend au potager
+    if (st.res.food < need && this.game.villagers) st.res.food += this.game.villagers.takeBuffered('food', need - st.res.food);
     if (this.d.population < 1) {
       this.foodShort = 0;
       this.d.starving = false;

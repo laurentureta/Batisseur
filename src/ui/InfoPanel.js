@@ -9,6 +9,7 @@ import { STATUS_TEXT, TIER_NAMES, workTier } from '../sim/Simulation.js';
 import { fmt, fmtDec } from '../core/util.js';
 import { moodIcon } from './UI.js';
 import { nearLabel } from '../core/Actions.js';
+import { WORKSITES, ACT_TEXT, ROLE_NAMES } from '../sim/Villagers.js';
 
 export function renderInfo(ui, body, sheet, id) {
   const game = ui.game;
@@ -107,6 +108,8 @@ export function renderInfo(ui, body, sheet, id) {
     row('✨ Bonus', parts.join(', '));
   }
   if (!def.residents && rows.childNodes.length) body.appendChild(rows);
+  // l'équipe : qui travaille ici et ce que chacun fait en ce moment
+  renderTeam(game, b, def, body);
   body.appendChild(h('p.desc', def.desc));
 
   // amélioration
@@ -185,4 +188,60 @@ export function renderInfo(ui, body, sheet, id) {
   actions.appendChild(h('button.btn', { onclick: () => game.renderer.focusBuilding(b, 12) }, '🔍 Zoomer'));
   body.appendChild(actions);
   void sizeOf;
+}
+
+/* ───────── Équipe au travail ───────── */
+const CROP_NAMES = { carrot: 'carottes', tomato: 'tomates', potato: 'pommes de terre', wheat: 'blé', corn: 'maïs' };
+
+function renderTeam(game, b, def, body) {
+  const V = game.villagers;
+  if (!V || !def.workers) return;
+  const team = V.workersOf(b.id);
+  const ws = WORKSITES[b.type];
+  const s = b.work;
+  // le site : récolte en cours, arbres autour
+  if (ws && s) {
+    const box = h('div.site-box');
+    if (b.type === 'lumber') {
+      const c = game.world.centerOf(b);
+      const r = (def.near?.radius || 3) + 0.5;
+      const standing = game.world.trees.findNear(c.cx - game.world.size / 2, c.cz - game.world.size / 2, r, 99).length;
+      box.append(
+        siteRow('🌲', 'Arbres debout autour', `${standing}`),
+        siteRow('🪓', 'Bois par arbre', `${fmtDec(s.unit || 0, 0)}`),
+        siteRow('⏳', 'Travail en cours', `${fmtDec(Math.min(s.acc, s.unit || 1) / Math.max(1, s.unit) * 100, 0)} %`),
+        siteRow('🪵', 'Rapporté aujourd\'hui', `${fmtDec(s.pile || 0, 0)} bois`),
+      );
+    } else if (s.beds) {
+      const PH = ['à bêcher', 'bêché, à semer', 'pousse', 'prêt à récolter'];
+      s.beds.forEach((bed, k) => {
+        const crop = CROP_NAMES[ws.crops[bed.crop % ws.crops.length]];
+        const pct = bed.ph === 3 ? 100 : bed.ph === 2 ? Math.round((bed.a / Math.max(0.01, s.unit)) * 100) : 0;
+        const label = `${b.type === 'farm' ? 'Champ' : 'Planche'} ${k + 1} · ${crop}`;
+        const row = h('div.bed-row', h('span.bl', label), h('span.bs', bed.ph === 2 ? `${pct} %` : PH[bed.ph]));
+        if (bed.ph >= 2) row.appendChild(h('div.bed-bar', h('i', { style: { width: `${pct}%` } })));
+        box.appendChild(row);
+      });
+      box.appendChild(siteRow('🧺', 'Rapporté aujourd\'hui', `${fmtDec(s.pile || 0, 0)} ${RESOURCES[ws.res].name.toLowerCase()}`));
+    }
+    body.appendChild(h('div.section-title', b.type === 'lumber' ? 'La coupe' : b.type === 'farm' ? 'Les champs' : 'Le potager'));
+    body.appendChild(box);
+  }
+  if (!team.length) return;
+  const list = h('div.team');
+  const hour = V.hour();
+  for (const w of team.slice(0, 8)) {
+    let act;
+    if (w.detail) act = ACT_TEXT[w.act] || ACT_TEXT[w.state] || '';
+    else act = hour >= w.start && hour < w.end ? 'travaille' : hour >= w.end || hour < 5 ? 'à la maison' : 'en route vers le travail';
+    if (w.load) act += ` (${fmtDec(w.load.n, 0)} ${RESOURCES[w.load.res]?.icon || ''})`;
+    list.appendChild(h('div.mate', h('span.mi', w.girl ? '👩' : '👨'), h('div.mt', h('b', `${w.name} · ${ROLE_NAMES[w.role] || 'Employé'}`), h('small', act))));
+  }
+  if (team.length > 8) list.appendChild(h('small.more', `et ${team.length - 8} autres`));
+  body.appendChild(h('div.section-title', `L'équipe (${team.length})`));
+  body.appendChild(list);
+}
+
+function siteRow(icon, label, value) {
+  return h('div.info-row', h('span', `${icon} ${label}`), h('b', value));
 }

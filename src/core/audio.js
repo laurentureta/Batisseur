@@ -73,6 +73,23 @@ export class Sound {
       case 'road':
         this.noise(0.08, { vol: 0.18, freq: 900 });
         break;
+      case 'chop': // coup de hache
+        this.noise(0.05, { vol: 0.16, freq: 1700, q: 2.5 });
+        this.tone(190, 0.07, { vol: 0.1, type: 'triangle', slide: 0.7 });
+        break;
+      case 'timber': // l'arbre craque et tombe
+        this.noise(0.35, { vol: 0.14, freq: 420, q: 0.7 });
+        this.tone(110, 0.4, { vol: 0.08, type: 'sawtooth', slide: 0.5, delay: 0.05 });
+        this.noise(0.18, { vol: 0.16, freq: 260, delay: 0.85 });
+        break;
+      case 'harvest':
+        this.noise(0.06, { vol: 0.1, freq: 2400, q: 1.5 });
+        this.tone(660, 0.05, { vol: 0.05, type: 'triangle', delay: 0.02 });
+        break;
+      case 'drop':
+        this.noise(0.07, { vol: 0.12, freq: 600 });
+        this.tone(240, 0.08, { vol: 0.07, type: 'triangle', slide: 0.8 });
+        break;
       case 'coin':
         this.tone(1320, 0.08, { vol: 0.15, type: 'square' });
         this.tone(1760, 0.16, { vol: 0.12, delay: 0.07, type: 'square' });

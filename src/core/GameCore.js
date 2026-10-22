@@ -4,6 +4,7 @@ import { Simulation } from '../sim/Simulation.js';
 import { Progression } from '../sim/Progression.js';
 import { RandomEvents } from '../sim/RandomEvents.js';
 import { Actions } from './Actions.js';
+import { Villagers } from '../sim/Villagers.js';
 import { World } from '../world/World.js';
 import { generateMap, embedLegacy } from '../world/mapgen.js';
 import { N, LEGACY_SIZE } from '../world/constants.js';
@@ -20,6 +21,10 @@ export class GameCore {
     this.prog = new Progression(this);
     this.events = new RandomEvents(this);
     this.actions = new Actions(this);
+    this.villagers = new Villagers(this); // habitants au travail
+    this.bus.on('building:removed', (b) => this.villagers.onBuildingRemoved(b));
+    this.bus.on('building:moved', (b) => this.villagers.onBuildingMoved(b));
+    this.bus.on('building:upgraded', (b) => this.villagers.onBuildingUpgraded(b));
     this.tool = { kind: 'select' };
     this.selection = null;
     this.isDemo = false;
@@ -43,6 +48,7 @@ export class GameCore {
     this.world = new World(state, gen);
     this.selection = null;
     this.tool = { kind: 'select' };
+    this.villagers.reset();
     this.sim.reset();
     this.actions.reset();
     this.prog.reset();

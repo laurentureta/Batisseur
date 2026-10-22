@@ -240,9 +240,11 @@ KM.townhall = (g, L, ctx) => {
 KM.garden = (g, L, ctx) => {
   pad(g, ctx, 0.92, 0.92, SOIL, { h: 0.02 });
   const rows = 4;
-  for (let k = 0; k < rows; k++) cropRow(g, ctx, -0.32 + k * 0.17, -0.3, 0.26, k % 3, k);
+  // dans le monde, les plantes poussent pour de vrai (Worksites) : on ne pose que les planches
+  if (ctx.live) for (let k = 0; k < rows; k++) g.box(-0.3 + k * 0.17, 0, -0.05, 0.12, 0.028, 0.5, { top: ctx.ground(SOIL_DARK), side: SOIL });
+  else for (let k = 0; k < rows; k++) cropRow(g, ctx, -0.32 + k * 0.17, -0.3, 0.26, k % 3, k);
   if (ctx.autumn) for (let k = 0; k < 3; k++) kit(g, 'hw_pumpkin_orange_small', { s: 0.13, x: -0.3 + k * 0.26, z: 0.36, rot: k });
-  K(g, ctx, 'wheelbarrow', { s: 0.7, x: 0.36, z: 0.32, rot: 0.6 });
+  if (!ctx.live) K(g, ctx, 'wheelbarrow', { s: 0.7, x: 0.36, z: 0.32, rot: 0.6 });
   if (L >= 2) K(g, ctx, 'crate_open', { s: 0.6, x: -0.34, z: -0.38 });
   if (L >= 3) K(g, ctx, 'tent', { s: 0.6, x: 0.3, z: -0.32 });
   else K(g, ctx, 'bucket_water', { s: 0.8, x: 0.36, z: -0.36 });
@@ -252,8 +254,10 @@ KM.lumber = (g, L, ctx) => {
   pad(g, ctx, 0.9, 0.9, 0xb38f5f, { h: 0.01 });
   if (L >= 3) KF(g, ctx, 'home_A', 0.5, 0.52, { x: -0.22, z: -0.24, team: 0x8a5a3a });
   else K(g, ctx, 'tent', { s: 0.75, x: -0.22, z: -0.24 });
-  K(g, ctx, 'resource_lumber', { s: 0.6, x: 0.2, z: 0.18 });
+  // le tas de bûches grandit à chaque dépôt (Worksites) ; une réserve reste derrière la cabane
+  if (!ctx.live) K(g, ctx, 'resource_lumber', { s: 0.6, x: 0.2, z: 0.18 });
   if (L >= 2) K(g, ctx, 'resource_lumber', { s: 0.55, x: 0.22, z: -0.22, rot: 0.3 });
+  if (ctx.live) K(g, ctx, 'pallet', { s: 0.7, x: 0.22, z: 0.18 });
   for (const [x, z] of [[-0.3, 0.3], [-0.05, 0.38], [0.36, -0.42]]) K(g, ctx, 'tree_single_A_cut', { s: 0.75, x, z, snow: ctx.snow });
   K(g, ctx, 'wheelbarrow', { s: 0.6, x: 0.38, z: 0.36, rot: -0.5 });
   if (L >= 4) K(g, ctx, 'crate_A_big', { s: 0.6, x: -0.38, z: 0.05 });
@@ -288,16 +292,16 @@ KM.farm = (g, L, ctx) => {
   pad(g, ctx, 1.94, 1.94, 0xa9c45a, { h: 0.006 });
   const grainTint = ctx.spring ? [0.62, 1.05, 0.5] : ctx.season === 1 ? null : ctx.autumn ? [1.05, 0.9, 0.7] : null;
   for (const [x, z] of [[-0.45, 0.4], [0.5, 0.4]]) {
-    if (ctx.winter) pad(g, ctx, 0.84, 0.9, SOIL, { x, z, h: 0.03 });
+    if (ctx.winter || ctx.live) pad(g, ctx, 0.84, 0.9, SOIL, { x, z, h: 0.006 });
     else KF(g, ctx, 'grain', 0.86, 0.96, { x, z, tint: grainTint });
   }
   if (L >= 3) {
-    if (ctx.winter) pad(g, ctx, 0.84, 0.7, SOIL, { x: 0.5, z: -0.45, h: 0.03 });
+    if (ctx.winter || ctx.live) pad(g, ctx, 0.84, 0.7, SOIL, { x: 0.5, z: -0.45, h: 0.006 });
     else KF(g, ctx, 'grain', 0.84, 0.75, { x: 0.5, z: -0.45, tint: grainTint });
   }
   KF(g, ctx, 'home_A', 0.78, 0.8, { x: -0.48, z: -0.48, team: 0xc0392b });
   if (L < 3) KF(g, ctx, 'tent', 0.5, 0.5, { x: 0.5, z: -0.5 });
-  for (let k = 0; k < 3; k++) K(g, ctx, 'sack', { s: 1, x: 0.05 + k * 0.1, z: -0.32 });
+  if (!ctx.live) for (let k = 0; k < 3; k++) K(g, ctx, 'sack', { s: 1, x: 0.05 + k * 0.1, z: -0.32 });
   if (L >= 4 && kitHas('mk_tractor')) KF(g, ctx, 'mk_tractor', 0.36, 0.48, { x: 0.05, z: -0.6, rot: Math.PI / 2 });
   else K(g, ctx, 'wheelbarrow', { s: 0.75, x: 0.02, z: -0.62, rot: 1.2 });
   // clôtures

@@ -1026,9 +1026,10 @@ MODELS.fallback = (g, L, ctx, out) => {
  * Construit le modèle d'un bâtiment.
  * @returns {{body, glass, parts, emitters}}
  */
-export function buildModel(type, level = 1, variant = 0, season = 1, theme = 'mix') {
+export function buildModel(type, level = 1, variant = 0, season = 1, theme = 'mix', { live = false } = {}) {
   const g = new GeoBuilder();
   const ctx = makeCtx(variant, season, theme);
+  ctx.live = live; // dans le monde : les cultures et les tas de bûches sont animés à part
   const out = { parts: [], emitters: [] };
   ctx.out = out;
   const L = Math.max(1, Math.min(level, BUILDINGS[type]?.maxLevel || 1));

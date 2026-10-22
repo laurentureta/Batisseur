@@ -1,5 +1,6 @@
 // Sauvegarde locale (localStorage) : 3 emplacements, export / import, réglages.
 import { migrateState } from './state.js';
+import { saveWork } from '../sim/Villagers.js';
 
 const PREFIX = 'batisseur.';
 export const SLOT_COUNT = 3;
@@ -27,6 +28,7 @@ export function serialize(game) {
     if (b.residents != null) o.residents = Math.round(b.residents * 100) / 100;
     if (b.fire) o.fire = b.fire;
     if (b.born != null) o.born = Math.round(b.born * 100) / 100;
+    if (b.work) o.work = saveWork(b.work);
     return o;
   });
   st.savedAt = Date.now();

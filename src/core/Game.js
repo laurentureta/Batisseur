@@ -83,6 +83,7 @@ export class Game extends GameCore {
       }
     } else {
       this.state.time.day += (dt / DAY_SECONDS) * 0.6;
+      this.villagers.demoTick(dt * 0.6); // le village du menu vit aussi
     }
     this.meta.tick(dt);
     this.renderer.frame(dt);

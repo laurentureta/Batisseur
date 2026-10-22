@@ -4,8 +4,8 @@
 import { SIZE, N, T } from './constants.js';
 import { hash2 } from '../core/rng.js';
 
-export const STUMP_DAYS = 1.1; // temps passé à l'état de souche (jours de jeu)
-export const GROW_DAYS = 1.6; // temps de repousse jusqu'à l'arbre adulte
+export const STUMP_DAYS = 0.8; // temps passé à l'état de souche (jours de jeu)
+export const GROW_DAYS = 1.4; // temps de repousse jusqu'à l'arbre adulte
 
 const HALF = SIZE / 2;
 

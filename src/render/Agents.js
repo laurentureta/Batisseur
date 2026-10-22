@@ -175,7 +175,8 @@ export class Agents {
     const w = this.world;
     const move = gameSpeed > 0 ? Math.min(gameSpeed, 3) : 0;
     // nombre souhaité
-    const wantPeople = Math.min(this.maxPeople, Math.floor(population / 3) + (population > 0 ? 2 : 0)) * (night > 0.6 ? 0.35 : 1);
+    // promeneurs : enfants, retraités, flâneurs (les travailleurs sont suivis à part)
+    const wantPeople = Math.min(this.maxPeople, Math.floor(population / 5) + (population > 0 ? 2 : 0)) * (night > 0.6 ? 0.25 : 1);
     const pavedCount = this.pavedCountCache ?? 0;
     const wantCars = Math.min(this.maxCars, Math.floor(pavedCount / 4), Math.floor(population / 8));
     this.spawnAcc += dt;
@@ -208,24 +209,9 @@ export class Agents {
 
   write() {
     const d = this.dummy;
-    let n = 0;
-    for (const a of this.people) {
-      if (n >= this.maxPeople) break;
-      const p0 = a.pts[a.seg], p1 = a.pts[a.seg + 1];
-      const x = p0[0] + (p1[0] - p0[0]) * a.t, y = p0[1] + (p1[1] - p0[1]) * a.t, z = p0[2] + (p1[2] - p0[2]) * a.t;
-      const bob = Math.abs(Math.sin((a.seg + a.t) * Math.PI * 4)) * 0.008;
-      d.position.set(x, y + bob, z);
-      d.rotation.set(0, Math.atan2(p1[0] - p0[0], p1[2] - p0[2]), 0);
-      d.scale.setScalar(1);
-      d.updateMatrix();
-      this.bodies.setMatrixAt(n, d.matrix);
-      this.heads.setMatrixAt(n, d.matrix);
-      this.bodies.setColorAt(n, this.color.setHex(a.shirt));
-      this.heads.setColorAt(n, this.color.setHex(a.skin));
-      n++;
-    }
-    this.bodies.count = n;
-    this.heads.count = n;
+    // les promeneurs sont dessinés par les personnages articulés (People)
+    this.bodies.count = 0;
+    this.heads.count = 0;
     let c = 0;
     const counts = this.carKinds.map(() => 0);
     for (const a of this.vehicles) {
