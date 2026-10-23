@@ -12,6 +12,22 @@ import { builderPos } from '../sim/Construction.js';
 import { beam } from './Sites.js';
 import { roadPath, roadNextTo, roadPoints, makeMove, moveAt } from '../sim/paths.js';
 import { hash2 } from '../core/rng.js';
+import { HumanPoser } from './humanPose.js';
+
+/** Vrais modèles animés par métier (le premier modèle « _f » est préféré pour une femme). */
+const ROLE_MODELS = {
+  lumberjack: ['farmer_m', 'worker_m'], farmer: ['farmer_m', 'farmer_f'], gardener: ['farmer_f', 'farmer_m', 'casual_f'],
+  builder: ['worker_m', 'worker_f'], miner: ['worker_m', 'worker_f'], digger: ['worker_m', 'worker_f'], craftsman: ['worker_m', 'worker_f'],
+  smith: ['worker_m', 'bald_m'], carter: ['bald_m', 'worker_m'], cook: ['chef_m'], miller: ['chef_m', 'bald_m'],
+  doctor: ['doctor_m', 'doctor_f'], teacher: ['old_m', 'old_f', 'suit_m'], merchant: ['casual_m', 'casual_f', 'suit_m'],
+  innkeeper: ['bald_m', 'casual_f'], breeder: ['farmer_f', 'farmer_m'], fisher: ['bald_m', 'casual_m'],
+  firefighter: ['worker_m', 'worker_f'], guard: ['suit_m', 'casual_m'], worker: ['casual_m', 'casual_f', 'worker_f'],
+};
+const WALKER_MODELS = ['casual_m', 'casual_f', 'bald_m', 'old_m', 'old_f', 'suit_m', 'casual_f', 'casual_m'];
+const KID_MODELS = ['casual_m', 'casual_f'];
+const GREY_HAIR = [0xc9c4bc, 0xe2ded6, 0x9d968c];
+/** Charges portées sur l'épaule (les autres se tiennent devant soi, à deux mains). */
+const SHOULDER_LOADS = new Set(['logs', 'plank', 'plankStack', 'hay']);
 
 const MAX = 240;
 const HALF = SIZE / 2;
@@ -370,6 +386,7 @@ export class People {
     this.time = 0;
     this.scanAcc = 1;
     this.commuters = [];
+    this.lodDist2 = 10 * 10; // modèle complet jusqu'à 10 unités de la caméra
   }
 
   /* ───────── Qui est visible ───────── */
@@ -418,6 +435,7 @@ export class People {
         const f = fig();
         this.dress(f, w);
         Object.assign(f, p);
+        f.run = !!p.run;
         f.d2 = dx * dx + dz * dz;
         this.builderEffects(w, f, tNow);
       }
@@ -536,6 +554,13 @@ export class People {
     f.cartLoad = null;
     f.bob = null;
     f.toolL = null;
+    f.run = false;
+    f.seed = w.seed % 997;
+    const list = ROLE_MODELS[w.role] || ROLE_MODELS.worker;
+    const fem = list.filter((m) => m.endsWith('_f')), men = list.filter((m) => !m.endsWith('_f'));
+    const pool = w.girl ? (fem.length ? fem : list) : men.length ? men : list;
+    f.model = pool[w.seed % pool.length];
+    f.hatTint = o?.hatColor ? f.hatC : o?.hat === 'straw' ? 0xe2c25a : null;
   }
 
   dressWalker(f, a) {
@@ -557,6 +582,17 @@ export class People {
     f.cartLoad = null;
     f.bob = null;
     f.toolL = null;
+    f.run = false;
+    if (a.look.model == null) {
+      const s = (Math.random() * 1e9) | 0;
+      a.look.seed = s % 997;
+      a.look.model = a.look.kid ? KID_MODELS[s % 2] : WALKER_MODELS[s % WALKER_MODELS.length];
+      if (a.look.model.startsWith('old')) a.look.hair = GREY_HAIR[s % GREY_HAIR.length];
+    }
+    f.model = a.look.model;
+    f.seed = a.look.seed;
+    f.hairC = a.look.hair;
+    f.hatTint = null;
   }
 
   /** Position et geste d'un travailleur suivi, d'après son action en cours. */
@@ -642,6 +678,7 @@ export class People {
     if (w.mv) {
       out.phase = p.s * 9;
       out.anim = w.load ? (w.load.kind === 'plank' ? 'carryLogs' : 'carryFront') : 'walk';
+      out.run = w.mv.speed > WALK * 1.6; // ils courent entre la mairie et les chantiers
       out.y = sites.platformY(w.job, w.lvl);
     } else {
       const a = BUILDER_ACTS[w.act] || BUILDER_ACTS.idle;
@@ -909,7 +946,13 @@ export class People {
   /* ───────── Dessin ───────── */
   draw(figs, world) {
     for (const k in this.meshes) this.meshes[k].n = 0;
-    for (const f of figs) this.drawFigure(f);
+    const crowd = this.r.crowd;
+    if (crowd && !this.poser) this.poser = new HumanPoser(crowd.lib);
+    const skinned = crowd && this.poser?.ok && !this.debugBlocks;
+    for (const f of figs) {
+      if (skinned && f.model) this.drawSkinned(crowd, f);
+      else this.drawFigure(f);
+    }
     for (const k in this.meshes) {
       const e = this.meshes[k];
       e.m.count = e.n;
@@ -927,6 +970,97 @@ export class People {
     e.m.setMatrixAt(e.n, matrix);
     if (e.tint) e.m.setColorAt(e.n, this.col.setHex(color ?? 0xffffff));
     e.n++;
+  }
+
+  /* ───────── Vrais modèles animés ───────── */
+  drawSkinned(crowd, f) {
+    const P = pose(f, this.time);
+    const rig = crowd.rig('human');
+    this.poser.pose(rig, f, P, this.time);
+    const scale = (f.scale || 1.18) / 1.18;
+    const yaw = f.dir || 0, fx = f.x, fy = (f.y || 0) + (P.bob || 0), fz = f.z;
+    // niveau de détail : modèle complet près de la caméra
+    const cp = this.r.camera.position;
+    const dc2 = (cp.x - fx) ** 2 + (cp.y - fy) ** 2 + (cp.z - fz) ** 2;
+    const lod = dc2 < this.lodDist2 ? 0 : 1;
+    const slot = crowd.add(f.model, lod);
+    if (!slot) return;
+    const [e, i] = slot;
+    rig.writeSkin(e.stage, i * e.nb * 12, fx, fy, fz, yaw, scale);
+    crowd.tint(e, i, 1, f.skin);
+    crowd.tint(e, i, 2, f.hairC);
+    crowd.tint(e, i, 3, f.shirt);
+    crowd.tint(e, i, 4, f.pants);
+    if (f.hatTint != null) crowd.tint(e, i, 5, f.hatTint);
+    // outils dans les mains, charges, charrette
+    const B = this.poser.B;
+    const s = f.scale || 1.18;
+    const A = this.handFrame(rig, B.uaP, B.fistP, fx, fy, fz, yaw, scale, s, this.armM);
+    if (P.tool) {
+      this.put(P.tool, A);
+      if (P.tool === 'rod') this.fishing(f, A, P);
+    }
+    const tl = P.toolL || f.toolL;
+    if (tl) this.put(tl, this.handFrame(rig, B.uaN, B.fistN, fx, fy, fz, yaw, scale, s, this.tmp2));
+    const R = this.root;
+    this.q.setFromAxisAngle(this.up, yaw);
+    this.v.set(fx, fy, fz);
+    this.s.setScalar(s);
+    R.compose(this.v, this.q, this.s);
+    if (f.cart) {
+      this.put('cart', R);
+      if (f.cartLoad) this.put(f.cartLoad, R);
+    }
+    if (f.load) {
+      const M = this.tmp, T2 = this.torsoM;
+      if (SHOULDER_LOADS.has(f.load)) {
+        // sur l'épaule : même repère que les anciens personnages (hanches, buste penché)
+        M.makeRotationX(P.tilt).setPosition(0, 0.077, 0);
+        T2.multiplyMatrices(R, M);
+        this.put(f.load, T2);
+      } else if (f.load === 'tray') {
+        rig.worldPos(B.fistP, fx, fy, fz, yaw, scale, this.v);
+        T2.compose(this.v, this.q, this.s.setScalar(s));
+        M.makeTranslation(-0.05, -0.1, -0.05);
+        this.put('tray', this.tmp2.multiplyMatrices(T2, M));
+      } else {
+        // à deux mains, devant soi
+        const a = rig.worldPos(B.fistP, fx, fy, fz, yaw, scale, this.va || (this.va = new THREE.Vector3()));
+        const b = rig.worldPos(B.fistN, fx, fy, fz, yaw, scale, this.vb || (this.vb = new THREE.Vector3()));
+        this.v.set((a.x + b.x) / 2, (a.y + b.y) / 2 - 0.012 * s, (a.z + b.z) / 2);
+        T2.compose(this.v, this.q, this.s.setScalar(s));
+        M.makeTranslation(0, -0.012 - (P.loadDrop || 0), -0.05);
+        this.put(f.load, this.tmp2.multiplyMatrices(T2, M));
+      }
+    }
+  }
+
+  /**
+   * Repère « bras » d'une main (comme celui des anciens personnages : le bras descend selon −Y),
+   * placé pour que la main de l'outil (y ≈ −0,088) tombe dans la vraie main du modèle.
+   */
+  handFrame(rig, ua, fist, fx, fy, fz, yaw, scale, s, out) {
+    const sh = rig.worldPos(ua, fx, fy, fz, yaw, scale, this.vsh || (this.vsh = new THREE.Vector3()));
+    const h = rig.worldPos(fist, fx, fy, fz, yaw, scale, this.vh || (this.vh = new THREE.Vector3()));
+    let yx = sh.x - h.x, yy = sh.y - h.y, yz = sh.z - h.z;
+    const yl = Math.hypot(yx, yy, yz) || 1;
+    yx /= yl;
+    yy /= yl;
+    yz /= yl;
+    // x : la droite de la figure, rendue perpendiculaire au bras
+    let xx = Math.cos(yaw), xy = 0, xz = -Math.sin(yaw);
+    const d = xx * yx + xy * yy + xz * yz;
+    xx -= d * yx;
+    xy -= d * yy;
+    xz -= d * yz;
+    const xl = Math.hypot(xx, xy, xz) || 1;
+    xx /= xl;
+    xy /= xl;
+    xz /= xl;
+    const zx = xy * yz - xz * yy, zy = xz * yx - xx * yz, zz = xx * yy - xy * yx;
+    const k = 0.088 * s;
+    out.set(xx * s, yx * s, zx * s, h.x + yx * k, xy * s, yy * s, zy * s, h.y + yy * k, xz * s, yz * s, zz * s, h.z + yz * k, 0, 0, 0, 1);
+    return out;
   }
 
   /** Ligne de pêche du bout de la canne au bouchon (et le poisson qui sort de l'eau). */

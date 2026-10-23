@@ -18,8 +18,25 @@ import { SIZE, T } from '../world/constants.js';
 import { FARMS } from '../sim/jobs.js';
 import { localToWorld } from '../sim/Villagers.js';
 import { hash2 } from '../core/rng.js';
+import { Q } from './creatures.js';
 
 const HALF = SIZE / 2;
+
+/** Tourne un os autour d'un axe du modèle (rotation locale modifiée, ses enfants suivent). */
+function rotBone(r, i, ax, ay, az, ang) {
+  const p = r.skel.parent[i];
+  const pq = p >= 0 ? [r.wq[p * 4], r.wq[p * 4 + 1], r.wq[p * 4 + 2], r.wq[p * 4 + 3]] : [r.skel.rootQ[i * 4], r.skel.rootQ[i * 4 + 1], r.skel.rootQ[i * 4 + 2], r.skel.rootQ[i * 4 + 3]];
+  const s = Math.sin(ang / 2), c = Math.cos(ang / 2);
+  const t = [0, 0, 0, 1], u = [0, 0, 0, 1];
+  Q.mul(t, 0, ax * s, ay * s, az * s, c, pq[0], pq[1], pq[2], pq[3]);
+  Q.mul(u, 0, -pq[0], -pq[1], -pq[2], pq[3], t[0], t[1], t[2], t[3]);
+  const l = r.lq, o = i * 4;
+  Q.mul(t, 0, u[0], u[1], u[2], u[3], l[o], l[o + 1], l[o + 2], l[o + 3]);
+  l[o] = t[0];
+  l[o + 1] = t[1];
+  l[o + 2] = t[2];
+  l[o + 3] = t[3];
+}
 const W = 0xffffff;
 
 function sphere(g, x, y, z, r, color, sy = 1, sx = 1, lon = 8, lat = 5) {
@@ -162,6 +179,23 @@ function buildParts() {
   }, { tint: true, n: 160, double: true });
   return P;
 }
+
+/**
+ * Vrais modèles animés : modèle, animations (marche, course, repos, manger), cadence de la marche
+ * (secondes d'animation par unité de « phase »), os du cou pour brouter, couleurs (haut, bas).
+ */
+const SKIN = {
+  hen: { model: 'chicken', skel: 'chicken', walk: 'walk', run: 'walk', idle: 'idle', idle2: 'idle2', eat: 'eat', step: 0.012 },
+  cow: { model: 'cow', skel: 'cow', walk: 'walkSlow', run: 'run', idle: 'idle', step: 0.042, neck: ['Neck', 'Head'], graze: 0.75 },
+  sheep: { model: 'sheep', skel: 'sheep', walk: 'walkSlow', run: 'run', idle: 'idle', step: 0.028, neck: ['Neck', 'Head'], graze: 0.8 },
+  dog: { model: 'dog', skel: 'dog', walk: 'walk', run: 'run', idle: 'idle', step: 0.03, neck: ['Neck', 'Head'], graze: 0.55 },
+  cat: { model: 'cat', skel: 'cat', walk: 'walk', run: 'walk', idle: 'idle', step: 0.022 },
+};
+/** Couleurs des modèles animés par variété (haut, bas). */
+const COW_TINTS = [[0xf4f1ea, 0x2b2b30], [0xf4f1ea, 0x6b4426], [0xb07a52, 0xf4f1ea], [0x8a5a3a, 0x3a2e28]];
+const SHEEP_TINTS = [[0xf4f1ea, -1], [0xece4d2, -1], [0xd8d2c6, -1], [0x5a524c, -1]];
+const DOG_TINTS = [[0xe7cc9d, 0x381f18], [0xb0773f, 0x3a2e28], [0x3a2e28, 0x1e1a18], [0xf2ece0, 0x8a6a4a], [0x8a8a90, 0x3a3a40]];
+const CAT_TINTS = [[0x4b494a, 0xe7e7e7], [0xe8964a, 0xf6efe4], [0x2e2a2a, 0xf2ece0], [0xc9a070, 0xf2ece0], [0x8a8a90, 0xe7e7e7]];
 
 const HEN_COLORS = [0xf7f1e3, 0xf7f1e3, 0xb8743a, 0x8a4a22, 0xe8d8b8];
 const COW_COLORS = [0xf7f4ee, 0xf7f4ee, 0xb07a52, 0x8a5a3a];
@@ -353,11 +387,13 @@ export class Animals {
       if (!list) this.calls.set(b.id, (list = []));
       list.push(w);
     }
+    const crowd = this.r.crowd;
     for (const a of this.list) {
       const dx = a.x - tx, dz = a.z - tz;
       if (dx * dx + dz * dz > r2) continue;
       this.think(a, step, night, people);
-      this.draw(a);
+      if (crowd && SKIN[a.kind] && crowd.lib.meshes[SKIN[a.kind].model]) this.drawSkinned(crowd, a);
+      else this.draw(a);
     }
     this.ambientLife(step, dt, tx, tz, radius, night, people);
     for (const k in this.meshes) {
@@ -652,6 +688,62 @@ export class Animals {
     this.r.game.sound?.play(name);
   }
 
+  /* ───────── Vrais modèles animés ───────── */
+  drawSkinned(crowd, a) {
+    const def = SKIN[a.kind];
+    const lib = crowd.lib;
+    const rig = crowd.rig(def.skel);
+    const t = this.time + (a.seed % 100) * 0.13;
+    let clip, ct = t;
+    if (a.moving) {
+      const fast = a.state === 'run' || a.state === 'flee' || a.state === 'follow' || a.speed > 0.35;
+      clip = lib.clip(def.skel, fast ? def.run : def.walk);
+      ct = a.phase * def.step * (fast && def.run !== def.walk ? 0.55 : 1);
+    } else if ((a.state === 'peck' || a.state === 'toFeed' || a.state === 'eat') && def.eat) clip = lib.clip(def.skel, def.eat);
+    else if ((a.state === 'sleep' || a.state === 'lie') && def.idle2) clip = lib.clip(def.skel, def.idle2);
+    else clip = lib.clip(def.skel, def.idle);
+    if (!clip) return this.draw(a);
+    rig.fromClip(clip, ct);
+    // brouter, renifler : le cou s'abaisse
+    const down = def.neck ? a.head * (def.graze || 0.6) + (a.state === 'sniff' ? 0.4 : 0) : 0;
+    if (down > 0.01) {
+      const n0 = rig.skel.bone(def.neck[0]), n1 = rig.skel.bone(def.neck[1]);
+      rig.hook = (r, i) => {
+        if (i === n0) rotBone(r, i, 1, 0, 0, down * 0.6);
+        else if (i === n1) rotBone(r, i, 1, 0, 0, down * 0.4);
+      };
+    }
+    rig.forward();
+    rig.hook = null;
+    const lie = a.lie || 0;
+    const cp = this.r.camera.position;
+    const lod = (cp.x - a.x) ** 2 + (cp.y - a.y) ** 2 + (cp.z - a.z) ** 2 < 64 ? 0 : 1;
+    const slot = crowd.add(def.model, lod);
+    if (!slot) return;
+    const [e, i] = slot;
+    rig.writeSkin(e.stage, i * e.nb * 12, a.x, a.y - lie * 0.25 * rig.skel.height, a.z, a.dir, 1);
+    const pal = a.kind === 'cow' ? COW_TINTS : a.kind === 'sheep' ? SHEEP_TINTS : a.kind === 'dog' ? DOG_TINTS : a.kind === 'cat' ? CAT_TINTS : null;
+    if (pal) {
+      const c = pal[a.seed % pal.length];
+      if (c[0] >= 0) crowd.tint(e, i, 3, c[0]);
+      if (c[1] >= 0) crowd.tint(e, i, 4, c[1]);
+    }
+  }
+
+  /** Oiseau, pigeon ou papillon animé. */
+  skinFlyer(crowd, model, skel, clipName, x, y, z, dir, t) {
+    const clip = crowd.lib.clip(skel, clipName);
+    if (!clip || !crowd.lib.meshes[model]) return false;
+    const rig = crowd.rig(skel);
+    rig.fromClip(clip, t);
+    rig.forward();
+    const slot = crowd.add(model, 1);
+    if (!slot) return true;
+    const [e, i] = slot;
+    rig.writeSkin(e.stage, i * e.nb * 12, x, y, z, dir, 1);
+    return true;
+  }
+
   /* ───────── Dessin ───────── */
   put(name, matrix, color) {
     const e = this.meshes[name];
@@ -753,6 +845,7 @@ export class Animals {
   /* ───────── Faune sauvage autour de la caméra ───────── */
   ambientLife(dt, rdt, tx, tz, radius, night, people) {
     const world = this.world;
+    const crowd = this.r.crowd;
     const season = this.r.season;
     const weather = this.r.sky?.weather || 'clear';
     const t = this.time;
@@ -773,7 +866,7 @@ export class Animals {
         const bx = f.x - Math.sin(f.dir) * row * 0.22 + Math.cos(f.dir) * side * row * 0.2;
         const bz = f.z - Math.cos(f.dir) * row * 0.22 - Math.sin(f.dir) * side * row * 0.2;
         const by = f.y + Math.sin(t * 1.3 + k) * 0.08;
-        this.bird(bx, by, bz, f.dir, t * 9 + k * 0.7, f.color, 1.6);
+        if (!(crowd && this.skinFlyer(crowd, 'bird', 'bird', 'fly', bx, by, bz, f.dir, t * 0.9 + k * 0.17))) this.bird(bx, by, bz, f.dir, t * 9 + k * 0.7, f.color, 1.6);
       }
     }
     // pigeons sur les routes, papillons dans les jardins, canards sur l'eau (autour de la caméra)
@@ -833,13 +926,13 @@ export class Animals {
             w.z += Math.cos(w.dir) * 0.04;
           }
           const peck = Math.max(0, Math.sin(t * 10 + w.seed)) * 0.5;
-          this.bird(w.x, 0.016, w.z, w.dir, 0, w.color, 1.05, peck);
+          if (!(crowd && this.skinFlyer(crowd, 'pigeon', 'pigeon', 'idle', w.x, 0.012, w.z, w.dir, t + w.seed))) this.bird(w.x, 0.016, w.z, w.dir, 0, w.color, 1.05, peck);
         } else {
           w.y += rdt * 1.4;
           w.x += Math.sin(w.dir) * rdt * 1.2;
           w.z += Math.cos(w.dir) * rdt * 1.2;
           if (w.y > 4) w.life = 0;
-          this.bird(w.x, 0.016 + w.y, w.z, w.dir, t * 22 + w.seed, w.color, 1.05);
+          if (!(crowd && this.skinFlyer(crowd, 'pigeon', 'pigeon', 'fly', w.x, 0.016 + w.y, w.z, w.dir, t * 1.4 + w.seed))) this.bird(w.x, 0.016 + w.y, w.z, w.dir, t * 22 + w.seed, w.color, 1.05);
         }
       } else if (w.kind === 'fly') {
         // papillon : des boucles au-dessus des fleurs
@@ -848,6 +941,7 @@ export class Animals {
         w.z += Math.cos(a * 1.3) * 0.12 * rdt;
         const y = 0.09 + Math.abs(Math.sin(a * 2.1)) * 0.12;
         const dir = Math.atan2(Math.cos(a * 1.7) * 1.7, -Math.sin(a * 1.3) * 1.3);
+        if (crowd && this.skinFlyer(crowd, 'butterfly', 'butterfly', 'fly', w.x, y, w.z, dir, t + w.seed)) continue;
         this.root(w.x, y, w.z, dir, 1.3);
         const flap = Math.sin(t * 24 + w.seed) * 1.1;
         for (const s of [-1, 1]) {

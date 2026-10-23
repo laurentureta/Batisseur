@@ -1,0 +1,445 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Cuisson des personnages</title>
+<!--
+  Outil de préparation (pas utilisé par le jeu) : lit les modèles glTF libres de droits (CC0) des
+  personnages, animaux, bateaux et trains, et les « cuit » dans assets/creatures.bin :
+  - squelettes, animations échantillonnées à 30 images/s (rotations quantifiées),
+  - géométrie soudée en facettes (sans normales : le jeu les calcule), couleurs par sommet,
+    « emplacements » de couleur (peau, cheveux, haut, bas, chapeau) pour varier les tenues,
+  - une version simplifiée (LOD) pour les personnages lointains.
+  Lancé par tools/bake_creatures.py (Chromium sans écran) ; voir ce fichier pour les sources.
+-->
+<script type="importmap">{ "imports": { "three": "../lib/three.module.min.js" } }</script>
+</head><body>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from '../../three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from '../../three/examples/jsm/libs/meshopt_decoder.module.js';
+
+const loader = new GLTFLoader();
+loader.setMeshoptDecoder(MeshoptDecoder);
+
+const toSRGB = (c) => Math.max(0, Math.min(255, Math.round(255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055))));
+const fromSRGB = (b) => { const c = b / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+
+/* ───────── Tampon binaire de sortie ───────── */
+class Out {
+  constructor() { this.parts = []; this.len = 0; }
+  add(typed) {
+    const pad = (4 - (this.len % 4)) % 4;
+    if (pad) { this.parts.push(new Uint8Array(pad)); this.len += pad; }
+    const off = this.len;
+    const u8 = new Uint8Array(typed.buffer, typed.byteOffset, typed.byteLength);
+    this.parts.push(u8.slice());
+    this.len += u8.byteLength;
+    return off;
+  }
+  bytes() {
+    const out = new Uint8Array(this.len);
+    let o = 0;
+    for (const p of this.parts) { out.set(p, o); o += p.byteLength; }
+    return out;
+  }
+}
+
+/* ───────── Couleurs : texture (palette) éventuelle ───────── */
+const texCache = new Map();
+function texPixels(tex) {
+  if (!tex?.image) return null;
+  if (texCache.has(tex)) return texCache.get(tex);
+  const img = tex.image;
+  const w = img.width, h = img.height;
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  const data = ctx.getImageData(0, 0, w, h).data;
+  const r = { w, h, data, flipY: tex.flipY };
+  texCache.set(tex, r);
+  return r;
+}
+function sampleTex(px, u, v) {
+  u = u - Math.floor(u); v = v - Math.floor(v);
+  if (px.flipY) v = 1 - v;
+  const x = Math.min(px.w - 1, Math.floor(u * px.w)), y = Math.min(px.h - 1, Math.floor(v * px.h));
+  const i = (y * px.w + x) * 4;
+  return [px.data[i], px.data[i + 1], px.data[i + 2]]; // sRGB
+}
+
+/** Couleur sRGB (0..255) d'un sommet : couleur du matériau × couleur de sommet × texture. */
+function vertexColor(mat, geo, k) {
+  const c = mat.color ? [mat.color.r, mat.color.g, mat.color.b] : [1, 1, 1]; // linéaire
+  const vc = geo.attributes.color;
+  if (vc) { c[0] *= vc.getX(k); c[1] *= vc.getY(k); c[2] *= vc.getZ(k); }
+  let s = c.map(toSRGB);
+  const px = mat.map ? texPixels(mat.map) : null;
+  const uv = geo.attributes.uv;
+  if (px && uv) {
+    const t = sampleTex(px, uv.getX(k), uv.getY(k));
+    s = s.map((v, i) => Math.round((v / 255) * t[i]));
+  }
+  return s;
+}
+
+/* ───────── Squelette ───────── */
+function findSkinned(scene) {
+  const list = [];
+  scene.traverse((o) => { if (o.isSkinnedMesh) list.push(o); });
+  return list;
+}
+
+function readSkeleton(scene, skinned, norm) {
+  scene.updateMatrixWorld(true);
+  const bones = skinned[0].skeleton.bones.slice();
+  const inv = skinned[0].skeleton.boneInverses;
+  // les autres maillages peuvent référencer des os absents du premier squelette
+  for (const sm of skinned) for (const b of sm.skeleton.bones) if (!bones.includes(b)) bones.push(b);
+  const invOf = (b) => {
+    for (const sm of skinned) { const k = sm.skeleton.bones.indexOf(b); if (k >= 0) return sm.skeleton.boneInverses[k]; }
+    return new THREE.Matrix4().copy(b.matrixWorld).invert();
+  };
+  const out = { bones: [], ibm: new Float32Array(bones.length * 16) };
+  const normInv = new THREE.Matrix4().copy(norm).invert();
+  bones.forEach((b, i) => {
+    const p = bones.indexOf(b.parent);
+    const e = { n: b.name, p, t: b.position.toArray().map((v) => +v.toFixed(6)), r: b.quaternion.toArray().map((v) => +v.toFixed(6)), s: b.scale.toArray().map((v) => +v.toFixed(6)) };
+    if (p < 0) {
+      // repère du parent (armature) × normalisation (taille, orientation, sol)
+      const E = new THREE.Matrix4().multiplyMatrices(skinned[0].matrixWorld, skinned[0].bindMatrixInverse);
+      const m = new THREE.Matrix4().multiplyMatrices(norm, E).multiply(b.parent ? b.parent.matrixWorld : new THREE.Matrix4());
+      const pos = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+      m.decompose(pos, q, s);
+      e.rp = { t: pos.toArray().map((v) => +v.toFixed(6)), r: q.toArray().map((v) => +v.toFixed(6)), s: +((s.x + s.y + s.z) / 3).toFixed(8) };
+    }
+    out.bones.push(e);
+    // les sommets sont rangés dans le repère normalisé : inverse de liaison × inverse de la normalisation
+    new THREE.Matrix4().multiplyMatrices(invOf(b), normInv).toArray(out.ibm, i * 16);
+  });
+  out.list = bones;
+  void inv;
+  return out;
+}
+
+/** Normalisation : taille voulue, sol à y = 0, centré, tourné vers +Z. */
+function normMatrix(box, height, yaw = 0, refHeight = null) {
+  const h = refHeight || (box.max.y - box.min.y);
+  const s = height / h;
+  const cx = (box.min.x + box.max.x) / 2, cz = (box.min.z + box.max.z) / 2;
+  const m = new THREE.Matrix4().makeRotationY(yaw);
+  m.multiply(new THREE.Matrix4().makeScale(s, s, s));
+  m.multiply(new THREE.Matrix4().makeTranslation(-cx, -box.min.y, -cz));
+  return m;
+}
+
+/** Boîte englobante du modèle au repos (sommets réellement déformés par le squelette). */
+function bindBox(skinned) {
+  const box = new THREE.Box3(), v = new THREE.Vector3();
+  for (const sm of skinned) {
+    sm.updateMatrixWorld(true);
+    sm.skeleton.update();
+    const pos = sm.geometry.attributes.position;
+    for (let k = 0; k < pos.count; k++) {
+      v.fromBufferAttribute(pos, k);
+      sm.applyBoneTransform(k, v);
+      v.applyMatrix4(sm.matrixWorld);
+      box.expandByPoint(v);
+    }
+  }
+  return box;
+}
+
+/* ───────── Animations ───────── */
+function sampleClip(clip, bones, fps, loop) {
+  const B = bones.length;
+  const n = loop ? Math.max(2, Math.round(clip.duration * fps)) : Math.max(2, Math.round(clip.duration * fps) + 1);
+  const rot = new Float32Array(n * B * 4);
+  const trans = new Map();
+  const interp = new Map();
+  for (const tr of clip.tracks) {
+    const dot = tr.name.lastIndexOf('.');
+    const node = tr.name.slice(0, dot), prop = tr.name.slice(dot + 1);
+    const bi = bones.findIndex((b) => b.name === node);
+    if (bi < 0) continue;
+    interp.set(bi + ':' + prop, tr.createInterpolant());
+  }
+  const q = new THREE.Quaternion(), prev = new Array(B).fill(null);
+  for (let f = 0; f < n; f++) {
+    const t = loop ? (f / n) * clip.duration : Math.min(clip.duration, f / fps);
+    for (let b = 0; b < B; b++) {
+      const iq = interp.get(b + ':quaternion');
+      if (iq) { const r = iq.evaluate(t); q.set(r[0], r[1], r[2], r[3]).normalize(); } else q.copy(bones[b].quaternion);
+      if (prev[b] && prev[b].dot(q) < 0) q.set(-q.x, -q.y, -q.z, -q.w);
+      prev[b] = (prev[b] || new THREE.Quaternion()).copy(q);
+      rot.set([q.x, q.y, q.z, q.w], (f * B + b) * 4);
+      const ip = interp.get(b + ':position');
+      if (ip) {
+        const r = ip.evaluate(t);
+        let arr = trans.get(b);
+        if (!arr) trans.set(b, (arr = new Float32Array(n * 3)));
+        arr.set([r[0], r[1], r[2]], f * 3);
+      }
+    }
+  }
+  // on ne garde que les translations qui s'écartent du repos
+  const tb = [], tr = [];
+  for (const [b, arr] of trans) {
+    const rest = bones[b].position;
+    let dev = 0;
+    for (let f = 0; f < n; f++) dev = Math.max(dev, Math.abs(arr[f * 3] - rest.x), Math.abs(arr[f * 3 + 1] - rest.y), Math.abs(arr[f * 3 + 2] - rest.z));
+    if (dev > 1e-4) { tb.push(b); tr.push(arr); }
+  }
+  const qr = new Int16Array(rot.length);
+  for (let i = 0; i < rot.length; i++) qr[i] = Math.round(Math.max(-1, Math.min(1, rot[i])) * 32767);
+  const trf = new Float32Array(tb.length * n * 3);
+  // disposition : [image][os à translation][xyz]
+  for (let f = 0; f < n; f++) for (let k = 0; k < tb.length; k++) trf.set(tr[k].subarray(f * 3, f * 3 + 3), (f * tb.length + k) * 3);
+  return { n, rot: qr, tb, trans: trf, dur: clip.duration };
+}
+
+/* ───────── Géométrie ───────── */
+function gatherVerts(meshes, bones, slotOf, skinned) {
+  // sommets : position (repère normalisé), couleur sRGB, emplacement, os, poids
+  const V = [], T = [];
+  const v = new THREE.Vector3();
+  for (const m of meshes) {
+    const geo = m.geometry;
+    const pos = geo.attributes.position;
+    const mats = Array.isArray(m.material) ? m.material : [m.material];
+    const groups = geo.groups.length ? geo.groups : [{ start: 0, count: geo.index ? geo.index.count : pos.count, materialIndex: 0 }];
+    const base = V.length;
+    const sj = geo.attributes.skinIndex, sw = geo.attributes.skinWeight;
+    const matOfVert = new Array(pos.count).fill(0);
+    const idx = geo.index ? geo.index.array : null;
+    for (const g of groups) for (let k = g.start; k < g.start + g.count; k++) matOfVert[idx ? idx[k] : k] = g.materialIndex || 0;
+    for (let k = 0; k < pos.count; k++) {
+      v.fromBufferAttribute(pos, k);
+      v.applyMatrix4(skinned ? m.bindMatrix : m.matrixWorld);
+      const mat = mats[matOfVert[k]] || mats[0];
+      const col = vertexColor(mat, geo, k);
+      const e = { p: [v.x, v.y, v.z], c: col, slot: slotOf(mat.name || '') };
+      if (skinned && sj) {
+        const j = [], w = [];
+        for (let c = 0; c < 4; c++) {
+          const bj = sj.getComponent(k, c);
+          j.push(Math.max(0, bones.indexOf(m.skeleton.bones[bj])));
+          w.push(sw.getComponent(k, c));
+        }
+        const s = w[0] + w[1] + w[2] + w[3] || 1;
+        e.j = j; e.w = w.map((x) => x / s);
+      }
+      V.push(e);
+    }
+    const n = idx ? idx.length : pos.count;
+    for (let k = 0; k < n; k += 3) {
+      const a = base + (idx ? idx[k] : k), b = base + (idx ? idx[k + 1] : k + 1), c = base + (idx ? idx[k + 2] : k + 2);
+      T.push([a, b, c]);
+    }
+  }
+  return { V, T };
+}
+
+/** Applique la normalisation (statiques) puis soude les sommets identiques. */
+function weld(V, T, q) {
+  const map = new Map(), outV = [], remap = new Array(V.length);
+  V.forEach((e, i) => {
+    const key = `${Math.round(e.p[0] / q)},${Math.round(e.p[1] / q)},${Math.round(e.p[2] / q)}|${e.c}|${e.slot}|${e.j || ''}|${e.w ? e.w.map((x) => x.toFixed(2)) : ''}`;
+    let k = map.get(key);
+    if (k == null) { k = outV.length; map.set(key, k); outV.push(e); }
+    remap[i] = k;
+  });
+  const seen = new Set(), outT = [];
+  for (const [a, b, c] of T) {
+    const A = remap[a], B = remap[b], C = remap[c];
+    if (A === B || B === C || A === C) continue;
+    const key = [A, B, C].sort((x, y) => x - y).join(',');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    outT.push([A, B, C]);
+  }
+  return { V: outV, T: outT };
+}
+
+/** Version simplifiée : regroupement des sommets par cellules (par couleur). */
+function cluster(V, T, cell, noColor = false) {
+  const map = new Map(), groups = [], remap = new Array(V.length);
+  V.forEach((e, i) => {
+    const key = `${noColor ? '' : e.c}|${e.slot}|${Math.floor(e.p[0] / cell)},${Math.floor(e.p[1] / cell)},${Math.floor(e.p[2] / cell)}`;
+    let g = map.get(key);
+    if (g == null) { g = groups.length; map.set(key, g); groups.push([]); }
+    groups[g].push(i);
+    remap[i] = g;
+  });
+  const outV = groups.map((list) => {
+    const m = [0, 0, 0];
+    for (const i of list) { m[0] += V[i].p[0]; m[1] += V[i].p[1]; m[2] += V[i].p[2]; }
+    m[0] /= list.length; m[1] /= list.length; m[2] /= list.length;
+    let best = list[0], bd = Infinity;
+    for (const i of list) { const d = (V[i].p[0] - m[0]) ** 2 + (V[i].p[1] - m[1]) ** 2 + (V[i].p[2] - m[2]) ** 2; if (d < bd) { bd = d; best = i; } }
+    return { ...V[best], p: m };
+  });
+  const seen = new Set(), outT = [];
+  for (const [a, b, c] of T) {
+    const A = remap[a], B = remap[b], C = remap[c];
+    if (A === B || B === C || A === C) continue;
+    const key = [A, B, C].sort((x, y) => x - y).join(',');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    outT.push([A, B, C]);
+  }
+  return { V: outV, T: outT };
+}
+
+function packGeo(out, V, T, skinned) {
+  const box = new THREE.Box3();
+  for (const e of V) box.expandByPoint(new THREE.Vector3(...e.p));
+  const off = box.min.toArray(), size = box.getSize(new THREE.Vector3()).toArray().map((s) => Math.max(s, 1e-6));
+  const pq = size.map((s) => s / 65535);
+  const pos = new Uint16Array(V.length * 3), col = new Uint8Array(V.length * 4);
+  const j = skinned ? new Uint8Array(V.length * 4) : null, w = skinned ? new Uint8Array(V.length * 4) : null;
+  V.forEach((e, i) => {
+    for (let c = 0; c < 3; c++) pos[i * 3 + c] = Math.round((e.p[c] - off[c]) / pq[c]);
+    col.set([e.c[0], e.c[1], e.c[2], e.slot], i * 4);
+    if (skinned) {
+      j.set(e.j, i * 4);
+      let ws = e.w.map((x) => Math.round(x * 255));
+      const d = 255 - ws.reduce((a, b) => a + b, 0);
+      ws[ws.indexOf(Math.max(...ws))] += d;
+      w.set(ws, i * 4);
+    }
+  });
+  const big = V.length > 65535;
+  const idx = big ? new Uint32Array(T.length * 3) : new Uint16Array(T.length * 3);
+  T.forEach((t, i) => idx.set(t, i * 3));
+  const r = { vc: V.length, ic: idx.length, i32: big, pq: pq.map((v) => +v.toPrecision(8)), po: off.map((v) => +v.toPrecision(8)), pos: out.add(pos), col: out.add(col), idx: out.add(idx) };
+  if (skinned) { r.j = out.add(j); r.w = out.add(w); }
+  return r;
+}
+
+/* ───────── Programme principal ───────── */
+window.bake = async (cfg) => {
+  const out = new Out();
+  const json = { v: 1, skels: {}, clips: {}, meshes: {}, statics: {}, credits: cfg.credits };
+  const log = [];
+  for (const sk of cfg.skeletons) {
+    const ref = await loader.loadAsync(sk.ref);
+    const skinned = findSkinned(ref.scene);
+    const box = bindBox(skinned);
+    let height = sk.height;
+    if (sk.length) height = (sk.length / Math.max(box.max.x - box.min.x, box.max.z - box.min.z)) * (box.max.y - box.min.y);
+    const norm = normMatrix(box, height, sk.yaw || 0, sk.refHeight || null);
+    const S = readSkeleton(ref.scene, skinned, norm);
+    json.skels[sk.id] = { bones: S.bones, ibm: out.add(S.ibm), nb: S.bones.length, height: +height.toFixed(5) };
+    // animations
+    for (const c of sk.clips) {
+      const [name, alias, loop] = c;
+      const clip = ref.animations.find((a) => a.name === name);
+      if (!clip) { log.push(`! clip manquant ${sk.id}/${name}`); continue; }
+      const s = sampleClip(clip, S.list, cfg.fps, loop !== false);
+      json.clips[sk.id + '/' + alias] = { skel: sk.id, fps: cfg.fps, n: s.n, loop: loop !== false, dur: +s.dur.toFixed(4), rot: out.add(s.rot), tb: s.tb, tr: s.tb.length ? out.add(s.trans) : -1 };
+    }
+    // maillages de ce squelette
+    for (const m of sk.meshes) {
+      const g = m.src === sk.ref ? ref : await loader.loadAsync(m.src);
+      const sms = findSkinned(g.scene);
+      g.scene.updateMatrixWorld(true);
+      // les os du modèle chargé correspondent par leur nom à ceux du squelette de référence
+      const byName = new Map(S.list.map((b, i) => [b.name, i]));
+      const bonesHere = sms[0].skeleton.bones;
+      const mapped = bonesHere.map((b) => b);
+      const proxy = mapped.map(() => null);
+      void proxy;
+      const slots = m.slots || sk.slots || {};
+      const slotOf = (name) => {
+        for (const [slot, list] of Object.entries(slots)) if (list.includes(name)) return +slot;
+        return 0;
+      };
+      // positions dans le repère du squelette normalisé
+      const { V, T } = gatherVerts(sms, bonesHere, slotOf, true);
+      for (const e of V) {
+        const p = new THREE.Vector3(...e.p).applyMatrix4(norm);
+        e.p = [p.x, p.y, p.z];
+        e.j = e.j.map((k) => byName.get(bonesHere[k].name) ?? 0);
+        // traits du visage (clairs dans les fichiers) : brun très foncé
+        const hex = e.c.map((v) => v.toString(16).padStart(2, '0')).join('');
+        if (e.slot === 0 && (cfg.face || []).includes(hex) && sk.id === 'human') e.c = [46, 32, 28];
+      }
+      const w0 = weld(V, T, height * 1e-4);
+      const lod1 = cluster(w0.V, w0.T, height / (m.cells || sk.cells || 20), !!sk.lodNoColor);
+      json.meshes[m.id] = { skel: sk.id, lods: [packGeo(out, w0.V, w0.T, true), packGeo(out, lod1.V, lod1.T, true)] };
+      log.push(`${m.id}: ${V.length} → ${w0.V.length} sommets / ${w0.T.length} tri ; LOD ${lod1.V.length} / ${lod1.T.length}`);
+    }
+  }
+  for (const st of cfg.statics) {
+    const g = await loader.loadAsync(st.src);
+    g.scene.updateMatrixWorld(true);
+    const meshes = [];
+    g.scene.traverse((o) => { if (o.isMesh) meshes.push(o); });
+    const { V, T } = gatherVerts(meshes, [], () => 0, false);
+    const box = new THREE.Box3();
+    for (const e of V) box.expandByPoint(new THREE.Vector3(...e.p));
+    let norm;
+    if (st.length) {
+      const L = Math.max(box.max.x - box.min.x, box.max.z - box.min.z);
+      norm = normMatrix(box, (st.length / L) * (box.max.y - box.min.y), st.yaw || 0);
+    } else norm = normMatrix(box, st.height, st.yaw || 0);
+    for (const e of V) { const p = new THREE.Vector3(...e.p).applyMatrix4(norm); e.p = [p.x, p.y, p.z]; }
+    const w0 = weld(V, T, 1e-5);
+    json.statics[st.id] = packGeo(out, w0.V, w0.T, false);
+    log.push(`${st.id}: ${w0.V.length} sommets / ${w0.T.length} tri`);
+  }
+  // fichier : 'BTCR' | version | taille du JSON | JSON | binaire
+  const js = new TextEncoder().encode(JSON.stringify(json));
+  const head = new Uint8Array(12 + js.length + ((4 - (js.length % 4)) % 4));
+  head.set([66, 84, 67, 82]);
+  new DataView(head.buffer).setUint32(4, 1, true);
+  new DataView(head.buffer).setUint32(8, js.length, true);
+  head.set(js, 12);
+  const bin = out.bytes();
+  const all = new Uint8Array(head.length + bin.length);
+  all.set(head); all.set(bin, head.length);
+  let s = '';
+  for (let i = 0; i < all.length; i += 0x8000) s += String.fromCharCode.apply(null, all.subarray(i, i + 0x8000));
+  return { b64: btoa(s), log, size: all.length };
+};
+
+/* Inspection rapide d'un modèle (pour régler la configuration). */
+window.inspect = async (url) => {
+  const g = await loader.loadAsync(url);
+  const sms = findSkinned(g.scene);
+  const meshes = [];
+  g.scene.traverse((o) => { if (o.isMesh) meshes.push({ name: o.name, skinned: !!o.isSkinnedMesh, verts: o.geometry.attributes.position.count, mat: (Array.isArray(o.material) ? o.material : [o.material]).map((m) => `${m.name}:${m.color?.getHexString()}${m.map ? '+tex' : ''}`).join(' ') }); });
+  const box = sms.length ? bindBox(sms) : new THREE.Box3().setFromObject(g.scene);
+  return {
+    meshes, anims: g.animations.map((a) => `${a.name}(${a.duration.toFixed(2)})`),
+    bones: sms[0]?.skeleton.bones.map((b) => b.name), box: [box.min.toArray(), box.max.toArray()].map((a) => a.map((v) => +v.toFixed(3))),
+  };
+};
+/** Aperçu : rend un modèle glTF tel quel, à un instant d'une animation. */
+window.preview = async (url, clipName, t = 0.3, size = 320, az = 0.6) => {
+  const g = await loader.loadAsync(url);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xa9d3ee);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x667755, 1.3));
+  const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(3, 6, 4); scene.add(sun);
+  scene.add(g.scene);
+  if (clipName) {
+    const mixer = new THREE.AnimationMixer(g.scene);
+    const clip = g.animations.find((a) => a.name === clipName);
+    if (clip) { mixer.clipAction(clip).play(); mixer.setTime(t); }
+  }
+  g.scene.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(g.scene, true);
+  const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
+  const r = Math.max(s.x, s.y, s.z) * 0.62;
+  const cam = new THREE.OrthographicCamera(-r, r, r, -r, 0.01, 1000);
+  cam.position.set(c.x + Math.sin(az) * r * 4, c.y + r * 1.2, c.z + Math.cos(az) * r * 4);
+  cam.lookAt(c);
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setSize(size, size);
+  renderer.render(scene, cam);
+  const url2 = renderer.domElement.toDataURL('image/png');
+  renderer.dispose();
+  return url2;
+};
+window.__ready = true;
+</script></body></html>

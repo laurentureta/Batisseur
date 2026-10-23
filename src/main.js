@@ -1,5 +1,6 @@
 // Point d'entrée : écran de chargement, modèles 3D, puis le jeu ; installe le mode hors ligne.
 import { loadKit } from './render/kit.js';
+import { loadCreatures, setCreatureLib } from './render/creatures.js';
 import { emojify } from './ui/icons.js';
 
 const root = document.getElementById('app');
@@ -51,6 +52,11 @@ async function start() {
   const gameModule = import('./core/Game.js');
   // les polices du jeu (sans bloquer si le réseau est lent)
   const fonts = document.fonts ? Promise.race([Promise.all([document.fonts.load('20px "Lilita One"'), document.fonts.load('16px "Fredoka"')]), new Promise((r) => setTimeout(r, 2500))]) : Promise.resolve();
+  // habitants et animaux animés (en parallèle)
+  const creatures = /[?&]nocrowd/.test(location.search) ? Promise.resolve(null) : loadCreatures('assets/creatures.bin').catch((err) => {
+    console.warn('Personnages animés indisponibles', err);
+    return null;
+  });
   try {
     if (!/[?&]nokit/.test(location.search)) await loadKit('assets/models.bin', (p) => progress(0.05 + p * 0.8));
   } catch (err) {
@@ -58,6 +64,7 @@ async function start() {
     console.warn('Modèles 3D indisponibles', err);
   }
   await fonts.catch(() => {});
+  setCreatureLib(await creatures);
   progress(0.88, 'Construction du village…');
   await new Promise((r) => requestAnimationFrame(r));
   const { Game } = await gameModule;

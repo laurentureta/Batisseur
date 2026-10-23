@@ -17,6 +17,7 @@ import { Worksites } from './Worksites.js';
 import { SiteView } from './Sites.js';
 import { Animals } from './Animals.js';
 import { Cinematic } from './Cinematic.js';
+import { Crowd, creatureLib } from './creatures.js';
 import { buildRing } from '../world/landscape.js';
 import { SIZE, T } from '../world/constants.js';
 import { BUILDINGS, sizeOf } from '../data/buildings.js';
@@ -64,6 +65,9 @@ export class Renderer {
     this.thumbs = new Thumbnails(this.renderer);
     this.clouds = new Clouds();
     this.clouds.build();
+    // habitants et animaux en vrais modèles animés (si le fichier a pu être chargé)
+    this.crowd = creatureLib() ? new Crowd(creatureLib()) : null;
+    if (this.crowd) this.scene.add(this.crowd.group);
     this.scene.add(this.terrain.group, this.vegetation.group, this.roads.group, this.buildings.group, this.agents.group, this.people.group, this.worksites.group, this.sites.group, this.animals.group, this.particles.group, this.overlays.group, this.clouds.group);
     this.world = null;
     this.season = 1;
@@ -127,6 +131,10 @@ export class Renderer {
     this.renderer.shadowMap.enabled = shadows > 0;
     this.sky.setShadowQuality(shadows);
     this.particles.enabled = q !== 'low';
+    if (this.crowd) {
+      this.crowd.setShadows(q !== 'low');
+      this.people.lodDist2 = q === 'low' ? 0 : q === 'medium' ? 8 * 8 : 11 * 11;
+    }
     this.scene.traverse((o) => {
       if (o.material) o.material.needsUpdate = true;
     });
@@ -511,8 +519,10 @@ export class Renderer {
     this.roads.update(sky.night);
     this.buildings.update(dt, sky.night, st.time.speed);
     this.agents.update(dt, st.time.speed, sky.night, game.sim.d.population);
+    this.crowd?.begin();
     this.people.update(dt, st.time.speed);
     this.animals.update(dt, st.time.speed);
+    this.crowd?.end();
     this.worksites.update(dt);
     this.sites.update(dt);
     this.emitAmbient(dt);
