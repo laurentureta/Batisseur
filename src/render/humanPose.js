@@ -115,6 +115,15 @@ export class HumanPoser {
         base = 'pickup';
         bt = Math.min(1, (f.t || 0) / Math.max(0.2, f.dur || 0.8)) * (C.pickup?.dur || 1);
         break;
+      case 'row':
+      case 'rowRest':
+      case 'sitChat':
+        // assis (fin de l'animation « s'asseoir »), les bras font le geste
+        base = 'sit';
+        bt = 10;
+        arms = anim === 'sitChat' ? 0 : 1;
+        armOnlyP = anim === 'sitChat';
+        break;
       case 'idle':
         break;
       case 'chat':

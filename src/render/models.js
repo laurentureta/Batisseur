@@ -931,14 +931,6 @@ MODELS.station = (g, L, ctx, out) => {
   g.box(0, 0.03, -0.75, 3, 0.02, 0.35, P.gravel);
   for (const z of [-0.85, -0.65]) g.box(0, 0.05, z, 3, 0.02, 0.025, P.metal);
   for (let k = 0; k < 14; k++) g.box(-1.4 + k * 0.215, 0.045, -0.75, 0.05, 0.01, 0.3, P.woodDark);
-  // train
-  const tc = [P.blue, 0x2a9d8f, P.red][ctx.v % 3];
-  g.box(-0.6, 0.06, -0.75, 0.9, 0.22, 0.24, { top: P.white, side: tc });
-  g.box(0.42, 0.06, -0.75, 0.9, 0.22, 0.24, { top: P.white, side: tc });
-  g.layer('glass');
-  g.box(-0.6, 0.16, -0.62, 0.8, 0.06, 0.01, 0xbfd4e6);
-  g.box(0.42, 0.16, -0.62, 0.8, 0.06, 0.01, 0xbfd4e6);
-  g.layer('body');
   // quai et marquise
   g.box(0, 0.03, -0.38, 2.8, 0.06, 0.3, P.stoneLight);
   for (let k = 0; k < 6; k++) g.box(-1.2 + k * 0.48, 0.09, -0.38, 0.03, 0.3, 0.03, P.black);

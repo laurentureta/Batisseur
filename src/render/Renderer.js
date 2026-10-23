@@ -18,6 +18,8 @@ import { SiteView } from './Sites.js';
 import { Animals } from './Animals.js';
 import { Cinematic } from './Cinematic.js';
 import { Crowd, creatureLib } from './creatures.js';
+import { Boats } from './Boats.js';
+import { Train } from './Train.js';
 import { buildRing } from '../world/landscape.js';
 import { SIZE, T } from '../world/constants.js';
 import { BUILDINGS, sizeOf } from '../data/buildings.js';
@@ -68,6 +70,10 @@ export class Renderer {
     // habitants et animaux en vrais modèles animés (si le fichier a pu être chargé)
     this.crowd = creatureLib() ? new Crowd(creatureLib()) : null;
     if (this.crowd) this.scene.add(this.crowd.group);
+    // la vie sur l'eau et le train de la gare
+    this.boats = new Boats(this);
+    this.train = new Train(this);
+    this.scene.add(this.boats.group, this.train.group);
     this.scene.add(this.terrain.group, this.vegetation.group, this.roads.group, this.buildings.group, this.agents.group, this.people.group, this.worksites.group, this.sites.group, this.animals.group, this.particles.group, this.overlays.group, this.clouds.group);
     this.world = null;
     this.season = 1;
@@ -252,6 +258,8 @@ export class Renderer {
     this.sites.clear();
     this.sites.sync();
     this.animals.clear();
+    this.boats.clear();
+    this.train.key = null;
     this.people.resetMovers?.();
     this.agents.setWorld(world, this.game.sim);
     this.particles.clear();
@@ -522,7 +530,9 @@ export class Renderer {
     this.crowd?.begin();
     this.people.update(dt, st.time.speed);
     this.animals.update(dt, st.time.speed);
+    this.boats.update(dt, st.time.speed);
     this.crowd?.end();
+    this.train.update(dt, st.time.speed);
     this.worksites.update(dt);
     this.sites.update(dt);
     this.emitAmbient(dt);

@@ -82,7 +82,7 @@ CONFIG = {
         {'id': 'boat_row', 'src': '/lib/boat-row/model.glb', 'length': 0.62},
         {'id': 'boat_fish', 'src': '/lib/boat-fishing/model.glb', 'length': 0.95},
         {'id': 'boat_sail', 'src': '/lib/boat-sail/model.glb', 'length': 1.0},
-        {'id': 'loco', 'src': '/lib/train-locomotive/model.glb', 'length': 1.25},
+        {'id': 'loco', 'src': '/lib/train-locomotive/model.glb', 'length': 0.9},
     ],
     'face': FACE,
 }

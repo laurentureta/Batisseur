@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { GeoBuilder } from './geom.js';
 import { toGeometry } from './TerrainView.js';
 import { DAY_SECONDS, SIZE, T } from '../world/constants.js';
-import { workerPos, WALK, doorOf } from '../sim/Villagers.js';
+import { workerPos, WALK, doorOf, localToWorld } from '../sim/Villagers.js';
 import { builderPos } from '../sim/Construction.js';
 import { beam } from './Sites.js';
 import { roadPath, roadNextTo, roadPoints, makeMove, moveAt } from '../sim/paths.js';
@@ -477,6 +477,10 @@ export class People {
       const keep = [];
       for (const m of this.movers) {
         const tt = m.mv.t0 + (this.moverClock - m.start);
+        if (tt < 0) {
+          keep.push(m); // pas encore parti (voyageurs qui descendent l'un après l'autre)
+          continue;
+        }
         const p = moveAt(m.mv, tt, this.pos);
         if (p.done) {
           if (m.leaving === false) this.r.particles.emit('sparkle', p.x, 0.15, p.z, 3);
@@ -890,6 +894,40 @@ export class People {
       if (leaving) pts = pts.reverse();
       const mv = makeMove(pts, WALK * 1.1, 0);
       this.movers.push({ mv, start: this.moverClock, leaving, shirt: SHIRTS[(b.id * 7 + n) % SHIRTS.length] });
+    }
+  }
+
+  /**
+   * Le train est à quai : des voyageurs en descendent (valise à la main) et partent vers la place
+   * du village ; d'autres sortent de la gare et montent à bord. `coaches` : position locale (x) des
+   * voitures le long du quai.
+   */
+  trainTravellers(b, coaches) {
+    const world = this.r.world;
+    if (!this.movers) this.movers = [];
+    const th = world.townhall();
+    const L = (x, z) => localToWorld(b, x, z);
+    const door = doorOf(b);
+    let toTown = null;
+    if (th) {
+      const a = world.centerOf(th), c = world.centerOf(b);
+      const rb = roadNextTo(world, b, [a.cx - HALF, a.cz - HALF]);
+      const rt = roadNextTo(world, th, [c.cx - HALF, c.cz - HALF]);
+      const tiles = rb >= 0 && rt >= 0 ? roadPath(world, rb, rt) : null;
+      if (tiles) toTown = [...roadPoints(tiles), doorOf(th)];
+    }
+    const seed = Math.floor(this.moverClock || 0);
+    const n = 2 + (seed % 3), m = 1 + (seed % 2);
+    for (let k = 0; k < n + m && this.movers.length < 16; k++) {
+      const off = (k % 2 ? 0.16 : -0.16) + ((k * 0.37) % 0.1);
+      const lx = coaches[k % coaches.length] + off;
+      const end = lx < 0 ? -1.42 : 1.42;
+      let pts = [L(lx, -0.6), L(lx, -0.42), L(end, -0.42 + (k % 3) * 0.03), L(end, 0.86), door];
+      const arriving = k < n;
+      if (arriving && toTown) pts = pts.concat(toTown);
+      if (!arriving) pts = pts.reverse();
+      const mv = makeMove(pts, WALK * (1 + (k % 3) * 0.08), 0);
+      this.movers.push({ mv, start: (this.moverClock || 0) + k * 0.6, leaving: true, shirt: SHIRTS[(seed + k * 5) % SHIRTS.length] });
     }
   }
 
@@ -1543,6 +1581,21 @@ export function pose(f, time) {
       P.armL = -sw * 0.35;
       break;
     }
+    case 'row': {
+      // on tire sur les rames : bras devant, buste qui bascule
+      const k = Math.sin(t * 3.2);
+      P.armL = -1.25 + k * 0.45;
+      P.armR = -1.25 + k * 0.45;
+      P.armSpread = 0.3;
+      P.tilt = -0.05 + k * 0.2;
+      break;
+    }
+    case 'rowRest':
+      P.armL = -0.7;
+      P.armR = -0.7;
+      P.armSpread = 0.25;
+      P.look = Math.sin(time * 0.4 + (f.seed || 0)) * 0.6;
+      break;
     case 'cheer': {
       const j = Math.abs(Math.sin(t * 7));
       P.armL = -2.9 + Math.sin(t * 14) * 0.15;

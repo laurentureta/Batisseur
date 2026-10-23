@@ -316,7 +316,7 @@ export class Vegetation {
     for (let z = c.z0; z < c.z1; z++) {
       for (let x = c.x0; x < c.x1; x++) {
         const inside = x >= 0 && z >= 0 && x < SIZE && z < SIZE;
-        let t, h, v, dim = false, free = true, i = -1;
+        let t, h, v, dim = false, free = true, i = -1, rail = 0;
         if (inside) {
           i = z * SIZE + x;
           t = w.terrain[i];
@@ -324,6 +324,8 @@ export class Vegetation {
           v = w.variant[i];
           dim = !w.state.zones[Math.floor(z / ZONE) * ZONES + Math.floor(x / ZONE)];
           free = w.occ[i] < 0 && !w.road[i];
+          rail = this.r.train?.railMask[i] || 0;
+          if (rail === 1) continue; // la voie ferrée passe ici : ni arbres, ni rochers, ni fleurs
         } else {
           if (!ring?.ok) continue;
           const ri = (z + RING) * ring.W + (x + RING);
@@ -335,7 +337,9 @@ export class Vegetation {
         }
         const px = x - HALF, pz = z - HALF;
         // arbres
-        if (inside && w.trees) {
+        if (rail) {
+          // à côté de la voie : on garde l'herbe et les fleurs
+        } else if (inside && w.trees) {
           const list = w.trees.tiles.get(i);
           if (list) {
             for (const tr of list) {
@@ -358,7 +362,7 @@ export class Vegetation {
             push(kind, { x: px + 0.2 + hash2(x * 3 + k, z * 5, 77) * 0.6, y: 0, z: pz + 0.2 + hash2(x * 7, z * 3 + k, 91) * 0.6, s: 0.9 + hash2(x + k, z, 13) * 0.6, rot: (salt * 2.399) % 6.283, dim, bright: 0.95 });
           }
         }
-        if (t === T.ROCK) {
+        if (t === T.ROCK && !rail) {
           const n = 1 + (v % 2) + (v % 7 === 0 ? 1 : 0);
           for (let k = 0; k < n; k++) {
             const r = hash2(x + k, z + k, 9);

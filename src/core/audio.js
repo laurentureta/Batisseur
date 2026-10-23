@@ -210,6 +210,15 @@ export class Sound {
         [523, 659, 784, 1047].forEach((f) => this.tone(f, 0.6, { vol: 0.07, delay: 0.38, type: 'triangle' }));
         [1568, 2093, 2637].forEach((f, k) => this.tone(f, 0.3, { vol: 0.05, delay: 0.55 + k * 0.07 }));
         break;
+      case 'whistle': // sifflet de la locomotive à vapeur (deux tuyaux légèrement désaccordés)
+        for (const [at, d] of [[0, 0.55], [0.7, 0.9]]) {
+          for (const f of [740, 932]) this.tone(f, d, { vol: 0.045, type: 'triangle', delay: at, attack: 0.06 });
+          this.noise(d, { vol: 0.05, freq: 2600, q: 1.8, delay: at });
+        }
+        break;
+      case 'chuff': // coup de piston
+        this.noise(0.16, { vol: 0.07, freq: 520, q: 0.7 });
+        break;
       default:
         break;
     }
