@@ -1806,6 +1806,7 @@ kbd.tb-key { display: none; }
 }
 @keyframes introRays { to { transform: rotate(360deg); } }
 .intro-bar { position: absolute; left: 0; right: 0; height: 9vh; background: #0b0a0d; transition: transform 1.4s cubic-bezier(0.6, 0, 0.2, 1); pointer-events: none; }
+@media (orientation: portrait) { .intro-bar { height: 5.5vh; } }
 .intro-bar.top { top: 0; transform: translateY(-100%); }
 .intro-bar.bottom { bottom: 0; transform: translateY(100%); }
 .intro.play .intro-bar { transform: none; }
