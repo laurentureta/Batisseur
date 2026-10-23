@@ -7,8 +7,10 @@
 // ses habitants qu'à ce moment-là). Pendant une amélioration, le bâtiment continue de tourner à
 // son ancien niveau. Les matériaux ont été payés à la commande.
 //
-// Le joueur peut toujours terminer un chantier tout de suite (bouton « Terminer ») ou couper les
-// chantiers dans les réglages.
+// Les chantiers durent du vrai temps (des secondes au début, puis des minutes et des heures pour
+// les gros bâtiments, comme dans Township) : ils avancent même quand le jeu est fermé. Une fois
+// fini, le chantier attend qu'on vienne l'inaugurer (on touche le bâtiment). On peut aussi le
+// terminer tout de suite contre des gemmes.
 import { BUILDINGS } from '../data/buildings.js';
 import { costValue } from '../data/resources.js';
 import { DAY_SECONDS, SIZE } from '../world/constants.js';
@@ -46,6 +48,35 @@ export function siteWork(def, level = 1, kind = 'new') {
   const [w, d] = def.size || [1, 1];
   const W = (14 + 2.4 * Math.pow(Math.max(10, cv), 0.42)) * Math.sqrt(w * d) * (kind === 'up' ? 0.75 : 1);
   return Math.round(Math.min(300, W));
+}
+
+/**
+ * Durée réelle d'un chantier, en secondes : ~30 s pour une cabane, quelques minutes pour les
+ * petits bâtiments, des heures pour les grosses améliorations (au plus 12 h).
+ */
+export function realDuration(def, level = 1, kind = 'new') {
+  const cv = costValue(def.costs[Math.max(0, level - 1)] || def.costs[0]);
+  const s = 30 * Math.pow(Math.max(cv, 20) / 50, 1.1);
+  void kind;
+  return Math.round(Math.min(12 * 3600, Math.max(10, s)));
+}
+
+/** Gemmes pour finir tout de suite (1 gemme par tranche de 4 minutes restantes). */
+export function skipGems(secondsLeft) {
+  if (secondsLeft <= 0) return 0;
+  return Math.max(1, Math.ceil(secondsLeft / 240));
+}
+
+/** « 2 h 05 », « 12 min », « 40 s ». */
+export function durationText(s) {
+  s = Math.max(0, Math.ceil(s));
+  if (s < 60) return `${s} s`;
+  if (s < 3600) {
+    const m = Math.floor(s / 60), r = s % 60;
+    return m < 10 && r ? `${m} min ${String(r).padStart(2, '0')}` : `${Math.ceil(s / 60)} min`;
+  }
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return `${h} h ${String(m).padStart(2, '0')}`;
 }
 
 /** Matériaux visibles sur le chantier (d'après ce qu'on a payé). */
@@ -186,6 +217,7 @@ export class Construction {
     this.crew = [];
     this.version = 0;
     this.assignAcc = 0;
+    this.boot = true; // premier passage après le chargement : ce qui a fini pendant l'absence
   }
 
   get world() {
@@ -201,9 +233,9 @@ export class Construction {
     const d = this.st.time.day;
     return (d - Math.floor(d)) * 24;
   }
-  /** Les chantiers sont-ils animés ? (sinon, construction immédiate comme avant) */
+  /** Les chantiers existent toujours : ils durent du vrai temps. */
   enabled() {
-    return this.game.settings?.sites !== false;
+    return true;
   }
 
   sites() {
@@ -212,6 +244,89 @@ export class Construction {
     for (const b of this.world.buildings.values()) if (b.cons) out.push(b);
     out.sort((a, c) => (a.cons.t0 - c.cons.t0) || (a.id - c.id));
     return out;
+  }
+
+  /** Chantiers où l'on travaille encore (pas ceux qui attendent l'inauguration). */
+  workSites() {
+    return this.sites().filter((b) => !b.cons.ready);
+  }
+
+  /** Chantiers finis qui attendent qu'on vienne les inaugurer. */
+  readySites() {
+    return this.sites().filter((b) => b.cons.ready);
+  }
+
+  /** Avancement réel (0 à 1) d'après l'heure. */
+  realProgress(c, now = Date.now()) {
+    if (c.rs == null) return Math.min(1, c.w / Math.max(1, c.W));
+    if (c.ready) return 1;
+    return Math.min(1, Math.max(0, (now - c.rs) / Math.max(1, c.rd)));
+  }
+
+  /** Secondes réelles avant la fin. */
+  secondsLeft(b, now = Date.now()) {
+    const c = b?.cons;
+    if (!c || c.ready) return 0;
+    if (c.rs == null) return Math.max(0, c.W - c.w);
+    return Math.max(0, (c.rs + c.rd - now) / 1000);
+  }
+
+  /** Ancien chantier (progression au travail) → chantier en temps réel, au même avancement. */
+  toReal(b) {
+    const c = b.cons;
+    const p = Math.min(1, c.w / Math.max(1, c.W));
+    c.rd = (this.st.mode === 'libre' ? 6 : realDuration(BUILDINGS[b.type], c.to, c.k)) * 1000;
+    c.rs = Date.now() - p * c.rd;
+  }
+
+  /**
+   * Le temps réel passe (même jeu en pause ou fermé) : appelé à chaque image. Les chantiers dont
+   * l'heure est venue sont prêts ; les bâtisseurs fêtent la fin et rentrent.
+   */
+  realTick() {
+    if (!this.world || this.game.isDemo || !this.st) return;
+    const t = performance.now();
+    if (t - (this.lastReal || 0) < 250) return;
+    this.lastReal = t;
+    const now = Date.now();
+    let fresh = 0;
+    for (const b of this.world.buildings.values()) {
+      const c = b.cons;
+      if (!c || c.ready) continue;
+      if (c.rs == null) this.toReal(b);
+      const p = this.realProgress(c, now);
+      c.w = Math.max(c.w, p * c.W);
+      if (p >= 1) {
+        this.ready(b, this.boot);
+        fresh++;
+      }
+    }
+    if (this.boot && fresh) this.game.bus.emit('site:readyOffline', fresh);
+    this.boot = false;
+  }
+
+  /** Chantier fini : il attend l'inauguration (en mode libre, il s'inaugure tout seul). */
+  ready(b, quiet = false) {
+    const c = b.cons;
+    c.ready = true;
+    c.w = c.W;
+    this.version++;
+    for (const w of this.crew) {
+      if (w.job !== b.id) continue;
+      w.job = -1;
+      w.load = null;
+      w.target = null;
+      w.lvl = 0;
+      if (w.state === 'site') {
+        this.setAct(w, 'cheer', 1.6);
+        w.state = 'done';
+      }
+    }
+    if (this.st.mode === 'libre') {
+      this.finish(b);
+      return;
+    }
+    this.game.bus.emit('site:ready', b, { quiet });
   }
 
   /** Demi-largeurs du bâtiment en chantier (fournies par l'affichage, sinon l'emprise). */
@@ -233,14 +348,15 @@ export class Construction {
   progress(b) {
     const c = b?.cons;
     if (!c) return 1;
-    return Math.min(1, c.w / Math.max(1, c.W));
+    return this.realProgress(c);
   }
 
   /** Lance un chantier : nouveau bâtiment ('new') ou amélioration ('up'). */
   start(b, kind = 'new') {
     const def = BUILDINGS[b.type];
     const to = kind === 'up' ? b.level + 1 : b.level;
-    b.cons = { k: kind, w: 0, W: siteWork(def, to, kind), to, del: 0, t0: this.st.time.day };
+    const secs = this.st.mode === 'libre' ? 6 : realDuration(def, to, kind);
+    b.cons = { k: kind, w: 0, W: siteWork(def, to, kind), to, del: 0, t0: this.st.time.day, rs: Date.now(), rd: secs * 1000 };
     this.version++;
     this.game.bus.emit('site:started', b);
   }
@@ -456,7 +572,7 @@ export class Construction {
   /* ───────── Pas de simulation ───────── */
   step(dt) {
     if (!this.world) return;
-    const sites = this.sites();
+    const sites = this.workSites();
     if (!sites.length && !this.crew.some((w) => w.state !== 'base')) return;
     this.ensureCrew();
     this.assignAcc += dt;
@@ -465,15 +581,15 @@ export class Construction {
       this.assign(sites);
     }
     const now = this.now();
-    // le travail des bâtisseurs présents fait avancer les chantiers
+    // le village du menu : les chantiers avancent avec le travail des bâtisseurs (pas d'horloge)
     for (const w of this.crew) {
       if (w.state !== 'site' || w.job < 0) continue;
       const b = this.world.buildings.get(w.job);
-      if (!b?.cons) continue;
+      if (!b?.cons || b.cons.rs != null) continue;
       if (w.act === 'idle' || w.act === 'cheer') continue;
       b.cons.w += dt;
     }
-    for (const b of sites) if (b.cons && b.cons.w >= b.cons.W) this.finish(b);
+    for (const b of sites) if (b.cons && b.cons.rs == null && b.cons.w >= b.cons.W) this.finish(b);
     for (const w of this.crew) {
       if (now < w.until) continue;
       this.next(w, now);
@@ -491,7 +607,7 @@ export class Construction {
       w.mv = null;
     }
     const b = w.job >= 0 ? world.buildings.get(w.job) : null;
-    if (w.job >= 0 && !b?.cons) this.release(w);
+    if (w.job >= 0 && (!b?.cons || b.cons.ready)) this.release(w);
     // arrivé là où il allait : le geste prévu commence
     if (w.target?.then) {
       const fn = w.target.then;
@@ -513,7 +629,7 @@ export class Construction {
         return;
       case 'done': {
         // plus de chantier pour lui : il rentre à la mairie (ou prendra le prochain)
-        const sites = this.sites();
+        const sites = this.workSites();
         if (sites.length) {
           this.assign(sites);
           if (w.job >= 0) return;

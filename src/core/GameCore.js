@@ -6,6 +6,7 @@ import { RandomEvents } from '../sim/RandomEvents.js';
 import { Actions } from './Actions.js';
 import { Villagers } from '../sim/Villagers.js';
 import { Construction } from '../sim/Construction.js';
+import { Requests } from '../sim/Requests.js';
 import { World } from '../world/World.js';
 import { generateMap, embedLegacy } from '../world/mapgen.js';
 import { N, LEGACY_SIZE } from '../world/constants.js';
@@ -29,6 +30,7 @@ export class GameCore {
     this.construction = new Construction(this); // chantiers et bâtisseurs
     this.bus.on('building:removed', (b) => this.construction.onRemoved(b));
     this.bus.on('building:moved', (b) => this.construction.onMoved(b));
+    this.requests = new Requests(this); // demandes des habitants
     this.tool = { kind: 'select' };
     this.selection = null;
     this.isDemo = false;

@@ -241,6 +241,15 @@ export class Renderer {
     });
     bus.on('level:up', () => this.refreshZoneLabels());
     bus.on('fire:start', (b) => this.refreshStatusLabels());
+    for (const ev of ['request:new', 'request:ready', 'request:claimed', 'request:expired', 'request:changed']) bus.on(ev, () => this.refreshStatusLabels());
+    bus.on('request:claimed', (r, b) => {
+      if (!b) return;
+      this.puff(b, 'sparkle', 26);
+      const parts = [];
+      if (r.reward.coins) parts.push(`+${r.reward.coins} 🪙`);
+      if (r.reward.gems) parts.push(`+${r.reward.gems} 💎`);
+      this.floatText(b, parts.join(' '));
+    });
     bus.on('xp', () => {});
   }
 
@@ -381,8 +390,26 @@ export class Renderer {
         }
       }
     }
+    // demandes des habitants : une bulle au-dessus de la maison
+    if (game.playing && !game.isDemo) {
+      for (const r of game.requests.list()) {
+        const b = this.world.buildings.get(r.house);
+        if (!b) continue;
+        const box = this.buildings.boxes.get(b.id);
+        const c = buildingCenter(b);
+        const key = 'rq' + r.id;
+        keep.add(key);
+        this.labels.set(key, {
+          x: c.cx, y: (box ? box.max.y : 0.6) + (keep.has('st' + b.id) || keep.has('up' + b.id) ? 0.55 : 0.2), z: c.cz,
+          html: r.ready ? '<div class="req ready"><span class="rq-face">😄</span><span class="rq-ico">🎁</span></div>' : `<div class="req"><span class="rq-face">🙂</span><span class="rq-ico">${game.requests.icon(r)}</span></div>`,
+          cls: 'status', maxDist: 60,
+          onTap: () => game.ui?.openRequest(r.id),
+        });
+      }
+    }
     this.labels.removePrefix('st', keep);
     this.labels.removePrefix('up', keep);
+    this.labels.removePrefix('rq', keep);
   }
 
   /* ───────── Effets ───────── */

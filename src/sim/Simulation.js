@@ -34,7 +34,7 @@ export const STATUS_TEXT = {
   noResource: 'Ressource naturelle absente autour',
   noWorkers: 'Manque de main-d\'œuvre',
   noInput: 'En attente de matières premières',
-  full: 'Stock plein : construis un entrepôt',
+  full: 'Stock plein : améliore le Grand Entrepôt',
   fire: 'En feu !',
   unpaid: 'Caisses vides : service à l\'arrêt',
   empty: 'Personne n\'habite ici pour l\'instant',
@@ -84,6 +84,7 @@ export class Simulation {
   update(realDt) {
     const st = this.state;
     if (!st) return;
+    this.game.construction?.realTick(); // les chantiers suivent l'heure réelle (même en pause)
     const speed = st.time.speed;
     if (!speed) {
       if (this.dirty) {
@@ -138,6 +139,7 @@ export class Simulation {
     this.money(days);
     this.game.events.tick(days);
     this.game.prog.tick(days);
+    this.game.requests?.tick(days);
   }
 
   onNewDay(day) {
@@ -292,9 +294,11 @@ export class Simulation {
     let pop = 0, cap = 0, jobs = 0, upkeep = 0, storage = BASE_STORAGE;
     const jobsTier = [0, 0, 0, 0];
     const bonus = { taxes: 0, happiness: 0, tourism: 0, fishers: 0 };
+    let hasDepot = false;
     for (const b of world.buildings.values()) {
       const def = BUILDINGS[b.type];
       const inf = this.infoFor(b);
+      if (b.type === 'depot' && inf.connected && !b.cons) hasDepot = true;
       if (b.cons?.k === 'new') continue; // en chantier : pas encore de logements, d'emplois, de stockage
       if (def.residents) {
         pop += b.residents || 0;
@@ -309,6 +313,11 @@ export class Simulation {
       if (b.type === 'townhall') storage += TOWNHALL_STORAGE * b.level;
       if (def.storage && inf.connected) storage += def.storage[b.level - 1];
       if (def.bonus && inf.connected && !b.fire) for (const k in def.bonus) bonus[k] += def.bonus[k];
+    }
+    // anciens entrepôts : leur capacité reste jusqu'à ce que le Grand Entrepôt soit posé et relié
+    if (st.legacyStorage) {
+      if (!hasDepot) storage += st.legacyStorage;
+      else delete st.legacyStorage;
     }
     d.population = pop;
     d.capacity = cap;
@@ -437,6 +446,7 @@ export class Simulation {
     if (needs.education) h += 0.06;
     if (needs.health) h += 0.06;
     if (needs.security) h += 0.05;
+    if (b.joy > this.state.time.day) h += 0.06; // une demande exaucée : la maison est ravie
     h += beauty - poll - d.unemployment * 0.15 - (d.broke ? 0.08 : 0) + bonus.happiness + ev.happiness + (this.boost?.happy || 0);
     inf.happiness = clamp(h, 0, 1);
     inf.needs = needs;
@@ -512,7 +522,7 @@ export class Simulation {
       for (const r in def.produces) {
         const add = def.produces[r] * mult * days * frac;
         const before = res[r];
-        res[r] = libre ? res[r] + add : Math.min(cap, res[r] + add);
+        res[r] = libre ? res[r] + add : Math.max(before, Math.min(cap, res[r] + add)); // jamais de perte au-dessus du plafond
         const gained = Math.max(0, res[r] - before);
         stats.produced[r] = (stats.produced[r] || 0) + gained;
         if (daily) daily.produced[r] = (daily.produced[r] || 0) + gained;

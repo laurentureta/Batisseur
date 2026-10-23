@@ -6,7 +6,7 @@ import { MAIRIE_FOR_LEVEL, RANKS } from '../data/progression.js';
 import { RESOURCES } from '../data/resources.js';
 import { T } from '../world/constants.js';
 import { addCosts, scaleCost } from './util.js';
-import { needsSite } from '../sim/Construction.js';
+import { needsSite, skipGems } from '../sim/Construction.js';
 
 const fail = (reason, extra = {}) => ({ ok: false, reason, ...extra });
 
@@ -156,7 +156,8 @@ export class Actions {
       const count = world.countTerrainAround(x, z, w, d, def.near.types, def.near.radius);
       if (count === 0) return fail(`Il faut ${nearLabel(def.near.label)} à proximité`);
     }
-    const cost = ignoreId >= 0 ? extra : addCosts(def.costs[0], extra);
+    const gift = type === 'depot' && this.st.flags?.depotGift;
+    const cost = ignoreId >= 0 || gift ? extra : addCosts(def.costs[0], extra);
     if (!this.canAfford(cost)) return fail(this.missingText(cost) || 'Pas assez de ressources', { cost });
     return { ok: true, cost, clear, gain, w, d };
   }
@@ -184,9 +185,16 @@ export class Actions {
     this.grant(chk.gain);
     const b = { id: st.nextId++, type, x, z, rot, level: 1, born: st.time.day };
     if (def.residents) b.residents = 0;
+    const gift = type === 'depot' && st.flags?.depotGift;
+    const legacy = st.legacyStorage || 0;
+    if (gift) {
+      // le Grand Entrepôt offert (anciens entrepôts regroupés) : posé tout de suite, au bon niveau
+      b.level = Math.min(def.maxLevel, gift);
+      delete st.flags.depotGift; // l'ancienne capacité reste jusqu'à ce qu'il soit relié à la route
+    }
     // un vrai chantier : les bâtisseurs viennent le construire
     const cons = this.game.construction;
-    if (cons?.enabled() && needsSite(def)) cons.start(b, 'new');
+    if (!gift && cons?.enabled() && needsSite(def)) cons.start(b, 'new');
     world.addBuilding(b);
     const stats = st.stats;
     stats.totalBuilt++;
@@ -198,7 +206,7 @@ export class Actions {
     if (def.cat === 'monuments') stats.monuments++;
     const xp = buildXP(def);
     this.game.prog.addXP(xp, 'build');
-    this.pushUndo({ kind: 'place', id: b.id, cost: chk.cost, gain: chk.gain, clear: chk.clear, xp });
+    this.pushUndo({ kind: 'place', id: b.id, cost: chk.cost, gain: chk.gain, clear: chk.clear, xp, gift: gift ? { level: b.level, legacy } : null });
     this.game.prog.recount();
     this.game.sim.markDirty();
     if (chk.clear.length) this.game.bus.emit('terrain:changed', chk.clear.map((c) => c.i));
@@ -329,11 +337,28 @@ export class Actions {
     return scaleCost(cost, 0.5);
   }
 
-  /** Termine un chantier tout de suite (bouton « Terminer »). */
+  /** Termine un chantier tout de suite, contre des gemmes (bouton « Terminer maintenant »). */
   finishSite(id) {
     const b = this.world.buildings.get(id);
     if (!b?.cons) return fail('Pas de chantier ici');
-    this.game.construction.finish(b, { skipped: true });
+    const C = this.game.construction;
+    if (b.cons.ready) return this.inaugurate(id);
+    const gems = this.libre ? 0 : skipGems(C.secondsLeft(b));
+    const meta = this.game.meta;
+    if (gems > 0) {
+      if (!meta) return fail('Gemmes indisponibles');
+      if (!meta.canPay(gems)) return fail(`Il faut ${gems} 💎`, { gems });
+      meta.spendGems(gems);
+    }
+    C.finish(b, { skipped: true });
+    return { ok: true, building: b, gems };
+  }
+
+  /** On vient inaugurer un chantier fini (on touche le bâtiment). */
+  inaugurate(id) {
+    const b = this.world.buildings.get(id);
+    if (!b?.cons?.ready) return fail('Le chantier n\'est pas terminé');
+    this.game.construction.finish(b);
     return { ok: true, building: b };
   }
 
@@ -557,8 +582,13 @@ export class Actions {
     switch (e.kind) {
       case 'place': {
         const b = world.buildings.get(e.id);
-        if (!b || b.level !== 1) return fail('Impossible d\'annuler');
+        if (!b || (b.level !== 1 && !(e.gift && b.level === e.gift.level))) return fail('Impossible d\'annuler');
         world.removeBuilding(e.id);
+        if (e.gift) {
+          // le Grand Entrepôt offert reste à poser
+          this.st.flags.depotGift = e.gift.level;
+          if (e.gift.legacy && !this.st.legacyStorage) this.st.legacyStorage = e.gift.legacy;
+        }
         this.grant(e.cost);
         this.pay(e.gain);
         for (const c of e.clear) world.setTerrain(c.i, c.t);

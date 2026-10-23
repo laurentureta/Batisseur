@@ -83,7 +83,7 @@ export function populateDemo(world) {
   for (let x = 6 + O; x <= 14 + O; x++) road(x, 26 + O, 1);
   place('pasture', 9 + O, 27 + O, 2, 3);
   place('coop', 11 + O, 27 + O, 2, 2);
-  place('warehouse', 12 + O, 27 + O, 2, 2);
+  place('depot', 12 + O, 27 + O, 2, 4);
   place('quarry', 6 + O, 27 + O, 2, 2);
   place('sawmill', 13 + O, 25 + O, 0, 2);
   place('coop', 8 + O, 25 + O, 0, 1);

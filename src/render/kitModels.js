@@ -542,15 +542,105 @@ KM.well = (g, L, ctx) => {
   if (L >= 2) bush(g, ctx, -0.32, 0.3, 0.6);
 };
 
-KM.warehouse = (g, L, ctx) => {
-  pad(g, ctx, 0.92, 0.92, 0xb8a888, { h: 0.008 });
-  if (L >= 2) KF(g, ctx, 'home_A', 0.66, 0.66, { z: -0.14, team: 0x8a5a3a });
-  else K(g, ctx, 'tent', { s: 0.95, z: -0.12 });
-  K(g, ctx, 'crate_A_big', { s: 0.7, x: -0.36, z: 0.34 });
-  K(g, ctx, 'crate_A_small', { s: 0.7, x: -0.36, z: 0.34, y: 0.15 });
-  barrels(g, ctx, 0.3, 0.36, 2, 0.5);
-  if (L >= 3) K(g, ctx, 'pallet', { s: 0.8, x: -0.05, z: 0.38 });
-  if (L >= 4) K(g, ctx, 'crate_long_empty', { s: 0.5, x: 0.36, z: -0.38, rot: Math.PI / 2 });
+/**
+ * Le Grand Entrepôt (2 × 2) : une remise en bois au début, puis une grange à provisions, un
+ * entrepôt sur soubassement de pierre, une halle en pierre, des docks en brique avec leur grue,
+ * et enfin l'entrepôt royal et sa tour de l'horloge. Les marchandises s'empilent dans la cour.
+ */
+function depotHall(g, ctx, { x = 0, z = 0, w, d, h, wall, base = null, roof, doors = 1, win = true, trim = 0xf3ead8 }) {
+  g.push(0, x, 0, z);
+  if (base) g.box(0, 0, 0, w + 0.04, 0.08, d + 0.04, { top: shade(base, 1.05), side: base });
+  const y0 = base ? 0.08 : 0;
+  g.box(0, y0, 0, w, h - y0, d, { top: wall, side: wall, front: shade(wall, 1.04), back: shade(wall, 0.84), left: shade(wall, 0.92) });
+  // poutres d'angle
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.box(sx * (w / 2 - 0.008), y0, sz * (d / 2 - 0.008), 0.03, h - y0, 0.03, trim);
+  g.roof(0, h, 0, w + 0.1, d + 0.12, Math.min(0.32, d * 0.42), w + 0.1, ctx.roof(roof), shade(wall, 0.9));
+  // grandes portes coulissantes
+  const dw = Math.min(0.34, w / (doors + 1.2));
+  for (let k = 0; k < doors; k++) {
+    const dx = doors === 1 ? 0 : -w / 2 + (w / doors) * (k + 0.5);
+    const dh = Math.min(h * 0.72, 0.36);
+    g.box(dx, y0, d / 2 + 0.004, dw, dh, 0.012, 0x6e4a2f);
+    g.box(dx, y0 + dh * 0.48, d / 2 + 0.011, dw, 0.018, 0.006, 0xf3ead8);
+    g.box(dx, y0, d / 2 + 0.011, 0.016, dh, 0.006, 0xf3ead8);
+    g.box(dx, y0 + dh, d / 2 + 0.008, dw + 0.06, 0.02, 0.014, 0x3a2a20); // rail
+  }
+  if (win) {
+    g.layer('glass');
+    const n = Math.max(2, Math.round(w / 0.3));
+    for (let k = 0; k < n; k++) {
+      const wx = -w / 2 + (w / n) * (k + 0.5);
+      g.box(wx, h - 0.11, d / 2 + 0.003, 0.08, 0.06, 0.006, 0xcfe0ea);
+      g.box(wx, h - 0.11, -d / 2 - 0.003, 0.08, 0.06, 0.006, 0xcfe0ea);
+    }
+    g.layer('body');
+  }
+  g.pop();
+}
+
+function depotGoods(g, ctx, L) {
+  // la cour : caisses, sacs, tonneaux, bois et pierre (de plus en plus avec les niveaux)
+  K(g, ctx, 'crate_A_big', { s: 0.7, x: -0.78, z: 0.62 });
+  K(g, ctx, 'crate_A_small', { s: 0.7, x: -0.78, z: 0.62, y: 0.15 });
+  K(g, ctx, 'sack', { s: 1, x: -0.58, z: 0.78 });
+  barrels(g, ctx, 0.62, 0.72, 2, 0.55);
+  if (L >= 2) K(g, ctx, 'resource_lumber', { s: 0.5, x: 0.78, z: 0.35, rot: Math.PI / 2 });
+  if (L >= 3) K(g, ctx, 'resource_stone', { s: 0.5, x: -0.82, z: 0.25 });
+  if (L >= 3) K(g, ctx, 'pallet', { s: 0.85, x: 0.35, z: 0.8 });
+  if (L >= 4) K(g, ctx, 'crate_long_A', { s: 0.45, x: 0.36, z: 0.8, y: 0.03 });
+  if (L >= 5) K(g, ctx, 'crate_B_big', { s: 0.65, x: -0.32, z: 0.82 });
+  if (L >= 6) K(g, ctx, 'crate_long_B', { s: 0.45, x: 0.8, z: -0.1, rot: Math.PI / 2 });
+  if (L >= 7) K(g, ctx, 'sack', { s: 1, x: -0.48, z: 0.66, rot: 1 });
+}
+
+function depotCrane(g, ctx, x, z, h) {
+  const wood = 0x7a5234;
+  g.box(x, 0, z, 0.07, h, 0.07, wood);
+  g.box(x, h, z, 0.5, 0.05, 0.05, wood);
+  g.box(x - 0.12, h, z, 0.2, 0.14, 0.04, shade(wood, 0.85));
+  // câble et caisse suspendue
+  g.box(x + 0.21, h * 0.55, z, 0.006, h * 0.45, 0.006, 0x3a2a20);
+  g.box(x + 0.21, h * 0.42, z, 0.1, 0.1, 0.1, 0xb08250);
+}
+
+KM.depot = (g, L, ctx) => {
+  pad(g, ctx, 1.96, 1.96, L >= 5 ? COBBLE : 0xb8a888, { h: 0.01 });
+  if (L <= 2) {
+    // la remise / grange à provisions
+    depotHall(g, ctx, { z: -0.3, w: L === 1 ? 1.0 : 1.25, d: 0.78, h: 0.42, wall: 0xa8754a, roof: ctx.pick([0x8f6440, 0x7a5234]), doors: 1, win: L >= 2 });
+    if (L === 1) K(g, ctx, 'tent', { s: 0.9, x: 0.72, z: -0.45 });
+    else K(g, ctx, 'tent', { s: 0.85, x: -0.78, z: 0.2 });
+    K(g, ctx, 'wheelbarrow', { s: 0.7, x: 0.15, z: 0.45, rot: 1.2 });
+  } else if (L <= 4) {
+    depotHall(g, ctx, { z: -0.28, w: 1.5, d: 0.86, h: 0.52, wall: 0xb07a4a, base: 0x9a948a, roof: ctx.pick([0xa8432f, 0x8a5a3a]), doors: 2 });
+    // quai de chargement en planches
+    g.box(0, 0, 0.26, 1.3, 0.08, 0.2, { top: 0x9a6b42, side: 0x6e4a2f });
+    if (L >= 4) K(g, ctx, 'wheelbarrow', { s: 0.7, x: 0.0, z: 0.5, rot: 1.2 });
+  } else if (L <= 6) {
+    depotHall(g, ctx, { z: -0.25, w: 1.6, d: 0.95, h: 0.66, wall: 0xc9c1ae, base: 0x8f8a80, roof: 0x5b6475, doors: 2 });
+    g.box(0, 0, 0.31, 1.4, 0.1, 0.2, { top: 0xb7b2a8, side: 0x9a948a });
+    if (L >= 6) depotHall(g, ctx, { x: 0.78, z: 0.35, w: 0.36, d: 0.42, h: 0.38, wall: 0xc9c1ae, roof: 0x5b6475, doors: 1, win: false });
+    lampPost(g, ctx, -0.55, 0.5, 0.55);
+  } else {
+    // les docks en brique (puis l'entrepôt royal)
+    const brick = 0xb5523b;
+    depotHall(g, ctx, { x: -0.18, z: -0.3, w: 1.36, d: 0.9, h: 0.74, wall: brick, base: 0x8f8a80, roof: 0x4a5262, doors: 2, trim: 0xe8dcc6 });
+    depotHall(g, ctx, { x: 0.68, z: -0.12, w: 0.52, d: 1.2, h: 0.6, wall: shade(brick, 0.92), base: 0x8f8a80, roof: 0x4a5262, doors: 1, trim: 0xe8dcc6 });
+    g.box(-0.18, 0, 0.26, 1.2, 0.1, 0.2, { top: 0xb7b2a8, side: 0x9a948a });
+    if (L >= 8) depotCrane(g, ctx, -0.9, 0.05, 0.95);
+    if (L >= 9) {
+      // tour de l'horloge au-dessus de l'entrée
+      const tw = 0xe8dcc6;
+      g.box(-0.18, 0.74, -0.3 + 0.32, 0.26, 0.42, 0.26, { top: tw, side: tw, back: shade(tw, 0.86) });
+      g.discZ(-0.18, 1.0, -0.3 + 0.452, 0.08, 14, 0xffffff);
+      g.box(-0.18, 1.0, -0.3 + 0.455, 0.008, 0.06, 0.004, 0x222222);
+      g.roof(-0.18, 1.16, -0.3 + 0.32, 0.32, 0.32, 0.22, 0, ctx.roof(L >= 10 ? 0xd9a82a : 0x4a5262));
+      flag(g, ctx, 0.45, 0.62, 1.6, 0);
+    }
+    lampPost(g, ctx, -0.95, 0.75, 0.55);
+    lampPost(g, ctx, 0.55, 0.75, 0.55);
+  }
+  depotGoods(g, ctx, L);
 };
 
 KM.school = (g, L, ctx) => {

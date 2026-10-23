@@ -66,7 +66,7 @@ export function rewardChips(reward) {
   const wrap = h('span.cost.reward');
   for (const k of Object.keys(reward)) {
     if (!reward[k]) continue;
-    const icon = k === 'xp' ? '⭐' : RESOURCES[k]?.icon || '';
+    const icon = k === 'xp' ? '⭐' : k === 'gems' ? '💎' : RESOURCES[k]?.icon || '';
     wrap.appendChild(h('span.chip', `${icon} +${fmt(reward[k])}`));
   }
   return wrap;

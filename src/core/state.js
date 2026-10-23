@@ -77,6 +77,26 @@ function migrateLegacyMap(st) {
   if (st.map) st.map.legacy = 50;
 }
 
+/**
+ * v3.6 : les entrepôts sont remplacés par un bâtiment unique, le Grand Entrepôt. Les anciens
+ * entrepôts disparaissent ; leur capacité est gardée telle quelle jusqu'à ce que le joueur pose
+ * son Grand Entrepôt, offert, directement au niveau qui stocke au moins autant.
+ */
+const OLD_WAREHOUSE = [300, 600, 1000, 1500, 2200];
+const DEPOT_STORAGE = [400, 800, 1300, 1900, 2700, 3700, 5000, 6600, 8600, 11000];
+function migrateWarehouses(st) {
+  const olds = (st.buildings || []).filter((b) => b.type === 'warehouse');
+  if (!olds.length) return;
+  let cap = 0;
+  for (const b of olds) cap += OLD_WAREHOUSE[Math.max(0, Math.min(4, (b.level || 1) - 1))];
+  st.buildings = st.buildings.filter((b) => b.type !== 'warehouse');
+  let lvl = 1;
+  while (lvl < 10 && DEPOT_STORAGE[lvl - 1] < cap) lvl++;
+  st.legacyStorage = (st.legacyStorage || 0) + cap;
+  st.flags.depotGift = Math.max(st.flags.depotGift || 0, lvl);
+  st.flags.depotNotice = true;
+}
+
 /** Complète une sauvegarde ancienne avec les champs manquants. */
 export function migrateState(st) {
   if (!(st.version >= 2)) migrateLegacyMap(st);
@@ -88,6 +108,7 @@ export function migrateState(st) {
   if (!st.orders.nextId) st.orders.nextId = 1;
   if (!Array.isArray(st.boosts)) st.boosts = [];
   if (!st.cosmetics) st.cosmetics = { roof: 'mix' };
+  migrateWarehouses(st);
   st.version = SAVE_VERSION;
   return st;
 }

@@ -361,6 +361,11 @@ export class Input {
     if (tool.kind === 'select') {
       const id = this.r.pickBuilding(cx, cy);
       if (id != null) {
+        // chantier fini : on l'inaugure d'un geste (comme dans Township)
+        if (game.world.buildings.get(id)?.cons?.ready) {
+          ui.inaugurate(id);
+          return;
+        }
         game.select(id);
         game.sound.play('tap');
         return;

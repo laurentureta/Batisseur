@@ -202,7 +202,7 @@ export class Boats {
       if (bd.size > 400) want.push({ key: `sail${bd.id}b`, kind: 'boat_sail', body: bd.id, speed: 0.26, inland: true });
     });
     // péniches sur la rivière quand le village fait du commerce
-    if (has('market') || has('warehouse') || has('storehouse')) bigs.filter((b) => b.river && b.size >= 30).slice(0, 1).forEach((bd) => want.push({ key: `barge${bd.id}`, kind: 'barge', body: bd.id, speed: 0.16, ends: true }));
+    if (has('market') || has('depot')) bigs.filter((b) => b.river && b.size >= 30).slice(0, 1).forEach((bd) => want.push({ key: `barge${bd.id}`, kind: 'barge', body: bd.id, speed: 0.16, ends: true }));
     // bateaux de pêche : un par cabane de pêcheur au bord d'un plan d'eau
     for (const b of w.buildings.values()) {
       if (b.type !== 'fisher' || b.cons?.k === 'new') continue;

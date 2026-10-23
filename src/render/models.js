@@ -670,18 +670,17 @@ MODELS.well = (g, L, ctx, out) => {
   if (L >= 3) for (const s of [-1, 1]) bush(g, ctx, s * 0.3, 0.3, 0.06, P.hedge);
 };
 
-MODELS.warehouse = (g, L, ctx, out) => {
-  plot(g, 0.96, 0.96, ctx.ground(P.gravel));
-  const wall = L >= 3 ? P.brick : P.wood;
-  const h = 0.3 + L * 0.05;
-  g.box(0, 0.03, -0.08, 0.76, h, 0.62, { top: wall, side: wall, back: shade(wall, 0.85), left: shade(wall, 0.92) });
-  g.roof(0, 0.03 + h, -0.08, 0.84, 0.7, 0.22, 0.84, ctx.roof(L >= 3 ? P.roofSlate : P.roofRed), shade(wall, 0.9));
-  g.box(0, 0.03, 0.235, 0.32, h * 0.75, 0.012, P.woodDark);
-  g.box(0, 0.03 + h * 0.37, 0.24, 0.32, 0.015, 0.012, P.wood);
-  crate(g, 0.33, 0.03, 0.36);
-  crate(g, 0.23, 0.03, 0.38, 0.08, P.woodLight);
-  if (L >= 2) barrel(g, -0.34, 0.03, 0.35);
-  if (L >= 4) crate(g, 0.33, 0.12, 0.36, 0.07);
+MODELS.depot = (g, L, ctx, out) => {
+  plot(g, 1.96, 1.96, ctx.ground(P.gravel));
+  const wall = L >= 7 ? P.brick : L >= 5 ? P.stoneLight : P.wood;
+  const h = 0.4 + Math.min(L, 8) * 0.04;
+  g.box(0, 0.03, -0.28, 1.5, h, 0.9, { top: wall, side: wall, back: shade(wall, 0.85), left: shade(wall, 0.92) });
+  g.roof(0, 0.03 + h, -0.28, 1.6, 1.0, 0.3, 1.6, ctx.roof(L >= 5 ? P.roofSlate : P.roofRed), shade(wall, 0.9));
+  for (const x of [-0.35, 0.35]) g.box(x, 0.03, 0.175, 0.3, h * 0.7, 0.012, P.woodDark);
+  crate(g, -0.7, 0.03, 0.6);
+  crate(g, -0.55, 0.03, 0.7, 0.08, P.woodLight);
+  barrel(g, 0.6, 0.03, 0.65);
+  if (L >= 3) crate(g, 0.75, 0.03, 0.4, 0.1);
 };
 
 MODELS.school = (g, L, ctx, out) => {

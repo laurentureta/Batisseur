@@ -328,19 +328,28 @@ export class UI {
     this.refreshEventChip();
     // pastilles
     const c = game.prog.claimables();
-    this.badge(e.sQuests, c.quests);
+    const rq = game.requests.readyCount();
+    this.badge(e.sQuests, c.quests + rq);
     this.badge(e.sOrders, c.orders);
     this.badge(e.sAch, c.achievements);
-    this.badge(e.level, c.quests);
+    this.badge(e.level, c.quests + rq);
     e.sOrders.classList.toggle('hidden', libre || !game.prog.featureUnlocked('orders'));
-    e.sQuests.classList.toggle('hidden', libre);
+    e.sQuests.classList.toggle('hidden', libre && !game.requests.list().length);
     e.sAch.classList.toggle('hidden', libre);
     // alertes
     const alerts = [];
     if (!libre) {
       if (d.starving) alerts.push(['🍞', 'Famine ! Produis de la nourriture', 'bad', () => this.openStock()]);
       if (d.broke) alerts.push(['💸', 'Caisses vides : services à l\'arrêt', 'bad', () => this.openStock()]);
-      if (d.fullGoods.length) alerts.push(['📦', 'Stock plein : construis un entrepôt', 'warn', () => this.openStock()]);
+      if (d.fullGoods.length) {
+        const dep = [...game.world.buildings.values()].find((b) => b.type === 'depot');
+        alerts.push(['📦', dep ? 'Stock plein : améliore le Grand Entrepôt' : 'Stock plein : construis le Grand Entrepôt', 'warn', () => {
+          if (dep) {
+            game.renderer.focusBuilding(dep);
+            game.select(dep.id);
+          } else this.openStock();
+        }]);
+      }
       if (d.jobs > 0 && d.staffing < 0.6) alerts.push(['👷', 'Manque de main-d\'œuvre : construis des maisons', 'warn', () => this.openStock()]);
       if (st.events.merchant) alerts.push(['🛒', 'Un marchand ambulant est là !', 'info', () => this.openMerchant()]);
       for (const ev of st.events.active) {
@@ -351,6 +360,13 @@ export class UI {
       if (fires.length) alerts.push(['🔥', `Incendie : ${BUILDINGS[fires[0].type].name}`, 'bad', () => {
         game.select(fires[0].id);
         game.renderer.focusBuilding(fires[0]);
+      }]);
+    }
+    // chantiers finis qui attendent l'inauguration
+    const ready = game.construction.readySites();
+    if (ready.length) {
+      alerts.unshift(['✅', ready.length > 1 ? `${ready.length} chantiers à inaugurer` : `${BUILDINGS[ready[0].type].name} à inaugurer`, 'good', () => {
+        game.renderer.focusBuilding(ready[0], Math.min(game.renderer.cam.distance, 14));
       }]);
     }
     const key = alerts.map((a) => a[1]).join('|');
@@ -709,6 +725,73 @@ export class UI {
     });
   }
 
+  /** Inaugure un chantier fini (on a touché le bâtiment ou sa bulle). */
+  inaugurate(id) {
+    const r = this.game.actions.inaugurate(id);
+    if (!r.ok) {
+      this.game.select(id);
+      return;
+    }
+    if (this.sheet?.kind === 'info') this.sheet.refresh(true);
+  }
+
+  /** Les anciens entrepôts sont remplacés par le Grand Entrepôt (offert). */
+  depotNotice() {
+    const st = this.st, d = this.game.sim.d;
+    const lvl = st.flags.depotGift;
+    if (!lvl) return;
+    this.modal({
+      title: '📦 Nouveau : le Grand Entrepôt',
+      body: h('div',
+        h('p', 'Tous les stocks du village sont maintenant rangés dans un seul bâtiment : le Grand Entrepôt. Plus tu l\'améliores, plus tu as de place pour toutes les marchandises.'),
+        h('p', `Tes anciens entrepôts ont été regroupés : ton Grand Entrepôt est offert, directement au niveau ${lvl}. En attendant que tu le poses (relié à la mairie par une route), ta capacité reste la même : ${fmt(d.storage)}.`),
+      ),
+      actions: [
+        { label: 'Plus tard' },
+        { label: '📦 Le poser', cls: 'primary', onclick: () => this.setTool({ kind: 'build', type: 'depot', rot: null }) },
+      ],
+    });
+  }
+
+  /** Une demande d'habitant : ce qu'il veut, où, et la récompense. */
+  openRequest(id) {
+    const game = this.game, R = game.requests;
+    const r = R.list().find((x) => x.id === id);
+    if (!r) return;
+    const b = game.world.buildings.get(r.house);
+    if (b) game.renderer.focusBuilding(b, Math.min(game.renderer.cam.distance, 14));
+    const left = Math.max(0, r.until - game.state.time.day);
+    const sugg = R.suggestion(r);
+    const def = sugg ? BUILDINGS[sugg] : null;
+    const body = h('div.req-card',
+      h('div.req-head', h('span.req-avatar', r.ready ? '😄' : '🙂'), h('p.req-text', r.ready ? `${r.name} est ravi${r.fem ? 'e' : ''} : merci, maire !` : R.text(r) + '.')),
+      r.ready ? null : h('p.hint', R.hint(r)),
+      h('div.req-foot', h('small', r.ready ? 'Récompense' : `Attend encore ${left >= 1 ? Math.ceil(left) + ' j' : Math.max(1, Math.ceil(left * 24)) + ' h'} (temps du jeu)`), rewardChips(r.reward)),
+      h('p.hint', '😊 Bonus de bonheur pour toute la maison pendant 3 jours.'),
+    );
+    const actions = [];
+    if (r.ready) {
+      actions.push({ label: 'Plus tard' });
+      actions.push({ label: '🎁 Récupérer', cls: 'primary', onclick: () => R.claim(r.id) });
+    } else {
+      actions.push({ label: 'Plus tard' });
+      if (def && game.prog.isUnlocked(sugg)) {
+        actions.push({ label: `${def.icon} Construire`, cls: 'primary', onclick: () => {
+          this.closeSheet(true);
+          this.setTool({ kind: 'build', type: sugg, rot: null });
+        } });
+      } else if (r.kind === 'up' && b) {
+        actions.push({ label: '⬆️ Voir la maison', cls: 'primary', onclick: () => game.select(b.id) });
+      } else if (r.key === 'paved') {
+        actions.push({ label: '🛣️ Route pavée', cls: 'primary', onclick: () => {
+          this.lastRoadType = 2;
+          this.setTool({ kind: 'road', roadType: 2 });
+        } });
+      }
+    }
+    this.modal({ title: `💬 Demande de ${r.name}`, body, actions, cls: 'req-modal' });
+  }
+
   openQuests() {
     if (this.libre) return this.toast('Pas de quêtes en mode libre : construis à volonté !', 'mini');
     this.openSheet('quests', '🎯 Quêtes', (body) => Panels.renderQuests(this, body), { live: true });
@@ -929,6 +1012,30 @@ export class UI {
           game.select(b.id);
         },
       });
+    });
+    bus.on('site:ready', (b, opts = {}) => {
+      if (opts.quiet) return;
+      game.sound.play('pop');
+      const def = BUILDINGS[b.type];
+      this.toast(`🏗️ ${def.name} : ${b.cons?.k === 'up' ? 'amélioration terminée' : 'chantier terminé'} ! Touche-le pour l'inaugurer`, 'good', {
+        label: 'Voir',
+        onclick: () => game.renderer.focusBuilding(b),
+      });
+    });
+    bus.on('site:readyOffline', (n) => {
+      setTimeout(() => this.toast(`🏗️ Pendant ton absence, ${n > 1 ? `${n} chantiers se sont terminés` : 'un chantier s\'est terminé'} : touche-les pour les inaugurer !`, 'good'), 1500);
+    });
+    bus.on('request:new', (r) => {
+      game.sound.play('pop');
+      this.toast(`💬 ${game.requests.text(r)}`, 'info', { label: 'Voir', onclick: () => this.openRequest(r.id) });
+    });
+    bus.on('request:ready', (r) => {
+      game.sound.play('quest');
+      this.toast(`😄 Demande exaucée : ${r.name} a une récompense pour toi !`, 'good', { label: 'Récupérer', onclick: () => this.openRequest(r.id) });
+    });
+    bus.on('request:claimed', () => {
+      game.sound.play('coin');
+      this.refreshHud();
     });
     bus.on('fire:out', (b, paid) => paid || this.toast(`🚒 Les pompiers ont éteint le feu (${BUILDINGS[b.type].name})`, 'good'));
     bus.on('fire:burnt', (b) => this.toast(`🔥 ${BUILDINGS[b.type].name} a brûlé… Construis une caserne de pompiers !`, 'bad'));

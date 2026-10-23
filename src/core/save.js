@@ -28,8 +28,13 @@ export function serialize(game) {
     if (b.residents != null) o.residents = Math.round(b.residents * 100) / 100;
     if (b.fire) o.fire = b.fire;
     if (b.born != null) o.born = Math.round(b.born * 100) / 100;
+    if (b.joy > game.state.time.day) o.joy = Math.round(b.joy * 100) / 100;
     if (b.work) o.work = saveWork(b.work);
-    if (b.cons) o.cons = { k: b.cons.k, w: Math.round(b.cons.w * 10) / 10, W: b.cons.W, to: b.cons.to, del: b.cons.del | 0, t0: Math.round(b.cons.t0 * 1000) / 1000 };
+    if (b.cons) {
+      o.cons = { k: b.cons.k, w: Math.round(b.cons.w * 10) / 10, W: b.cons.W, to: b.cons.to, del: b.cons.del | 0, t0: Math.round(b.cons.t0 * 1000) / 1000 };
+      if (b.cons.rs != null) Object.assign(o.cons, { rs: Math.round(b.cons.rs), rd: Math.round(b.cons.rd) });
+      if (b.cons.ready) o.cons.ready = true;
+    }
     return o;
   });
   st.savedAt = Date.now();
@@ -113,6 +118,8 @@ const DEFAULT_SETTINGS = {
   autoRotate: true,
   sites: true, // chantiers animés (bâtisseurs)
   intro: true, // cinématique d'introduction au lancement
+  music: true, // musique d'ambiance
+  musicVol: 0.5,
 };
 
 export function loadSettings() {

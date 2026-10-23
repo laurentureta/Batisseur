@@ -49,7 +49,7 @@ export const ACTIVITIES = {
   shop: { role: 'merchant', kind: 'shop', detail: 1 },
   mall: { role: 'merchant', kind: 'shop', detail: 2 },
   tavern: { role: 'innkeeper', kind: 'shop', detail: 2 },
-  warehouse: { role: 'carter', kind: 'carter', detail: 1 },
+  depot: { role: 'carter', kind: 'carter', detail: 1 },
 };
 
 /** Métier affiché selon le bâtiment (les autres travaillent à l'intérieur). */
@@ -98,7 +98,7 @@ export const ACT_TEXT = {
   fetchIn: 'va chercher des matières premières', work: 'travaille à l\'établi', saw: 'scie des planches', smith: 'forge des outils',
   mold: 'moule des briques', knead: 'pétrit la pâte', carrySacks: 'porte des sacs', stack: 'range sa production', waitIn: 'attend des matières premières',
   serve: 'sert un client', arrange: 'range l\'étal', call: 'appelle les passants', tray: 'apporte une commande',
-  toPile: 'part chercher une récolte', loadCart: 'charge la charrette', back: 'rentre à l\'entrepôt', unloadCart: 'décharge à l\'entrepôt', rest: 'se repose',
+  toPile: 'part chercher une récolte', loadCart: 'charge la charrette', back: 'rentre au Grand Entrepôt', unloadCart: 'décharge au Grand Entrepôt', rest: 'se repose',
 };
 
 /** Point local d'un bâtiment (emprise centrée, façade vers +z) → scène. */
@@ -134,7 +134,7 @@ export function siteLayout(b) {
   if (W) return { drop: W.outAt, pile: W.outAt, rest: W.stand };
   const S = SHOPS[type];
   if (S) return { drop: S.stand, rest: S.stand };
-  if (type === 'warehouse') return { drop: [0.0, 0.4], pile: [-0.3, 0.36], rest: [0.12, 0.44] };
+  if (type === 'depot') return { drop: [0.15, 0.82], pile: [-0.55, 0.8], rest: [0.62, 0.86] };
   return { drop: [0, 0.3], rest: [0, 0.2] };
 }
 

@@ -57,7 +57,8 @@ export function renderBuildMenu(ui, body, sheet) {
       icon: def.icon,
       name: def.name,
       desc: def.desc,
-      cost: def.costs[0],
+      cost: def.id === 'depot' && st.flags?.depotGift ? {} : def.costs[0],
+      gift: def.id === 'depot' && st.flags?.depotGift ? `🎁 Offert · niv. ${st.flags.depotGift}` : '',
       res: st.res,
       libre,
       unlocked,
@@ -75,7 +76,7 @@ export function renderBuildMenu(ui, body, sheet) {
   }
 }
 
-function card({ img, icon, name, desc, cost, res, libre, unlocked, unlockLevel, owned, size, onclick, exclusive }) {
+function card({ img, icon, name, desc, cost, res, libre, unlocked, unlockLevel, owned, size, onclick, exclusive, gift }) {
   const el = h('button.card' + (unlocked ? '' : '.locked') + (owned ? '.owned' : '') + (exclusive ? '.exclusive' : ''), { onclick, title: desc });
   const pic = h('div.card-pic');
   if (img) pic.appendChild(h('img', { src: img, alt: '', loading: 'lazy' }));
@@ -83,6 +84,7 @@ function card({ img, icon, name, desc, cost, res, libre, unlocked, unlockLevel, 
   if (!unlocked) pic.appendChild(h('span.lock-badge', exclusive ? '⭐ Exclusif' : `🔒 Niv. ${unlockLevel}`));
   if (owned) pic.appendChild(h('span.lock-badge.ok', '✓ Construit'));
   if (size) pic.appendChild(h('span.size-badge', size));
+  if (gift) pic.appendChild(h('span.lock-badge.ok', gift));
   el.append(pic, h('div.card-name', name), unlocked ? costChips(cost, res, { compact: true, libre }) : h('div.card-desc', desc));
   return el;
 }

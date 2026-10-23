@@ -226,9 +226,22 @@ def({
   desc: 'Donne de l\'eau aux maisons proches. Nécessaire pour les améliorer.',
 });
 def({
-  id: 'warehouse', name: 'Entrepôt', icon: '📦', cat: 'services', unlock: 3, maxLevel: 5,
-  cost: { coins: 150, wood: 60 }, workers: 1, storage: [300, 600, 1000, 1500, 2200], upkeep: 3,
-  desc: 'Augmente la capacité de stockage de toutes les marchandises.',
+  id: 'depot', name: 'Grand Entrepôt', icon: '📦', cat: 'services', unlock: 2, maxLevel: 10, size: [2, 2], unique: true,
+  levelNames: ['Remise', 'Grange à provisions', 'Entrepôt', 'Entrepôt en pierre', 'Grand entrepôt', 'Halle aux marchandises', 'Docks du village', 'Grands docks', 'Entrepôt royal', 'Cité des réserves'],
+  costs: [
+    { coins: 120, wood: 40 },
+    { coins: 300, wood: 90, stone: 30 },
+    { coins: 650, wood: 140, stone: 90 },
+    { coins: 1200, stone: 160, planks: 60 },
+    { coins: 2200, stone: 200, planks: 140, bricks: 40 },
+    { coins: 3600, planks: 220, bricks: 150 },
+    { coins: 5500, planks: 260, bricks: 260, tools: 30 },
+    { coins: 8500, bricks: 400, tools: 70 },
+    { coins: 12500, bricks: 560, tools: 120 },
+    { coins: 18000, bricks: 760, tools: 180 },
+  ],
+  workers: 1, storage: [400, 800, 1300, 1900, 2700, 3700, 5000, 6600, 8600, 11000], upkeep: 3,
+  desc: 'Le seul bâtiment de stockage du village : toutes les marchandises y sont rangées. Chaque amélioration agrandit le stock de tout.',
 });
 def({
   id: 'school', name: 'École', icon: '🎓', cat: 'services', unlock: 5, maxLevel: 5,

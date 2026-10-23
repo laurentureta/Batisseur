@@ -8,7 +8,7 @@ import { GeoBuilder, shade } from './geom.js';
 import { mergeLayers, buildingCenter } from './BuildingView.js';
 import { kit, kitReady, kitHas } from './kit.js';
 import { BUILDINGS } from '../data/buildings.js';
-import { siteMaterials, phaseOf, lowSite } from '../sim/Construction.js';
+import { siteMaterials, phaseOf, lowSite, durationText } from '../sim/Construction.js';
 
 const WOOD = 0xb98a5a, WOOD_D = 0x8a5f3a, WOOD_L = 0xd4ad7a, ROPE = 0xf2efe6;
 const smooth = (a, b, x) => {
@@ -344,11 +344,18 @@ export class SiteView {
       this.r.labels.remove(key);
       return;
     }
-    const pct = Math.floor(p * 100);
-    const crew = game.construction.crewOf(b.id).length;
-    const phase = !crew && p < 0.01 ? 'En attente des bâtisseurs' : b.cons.k === 'up' ? 'Amélioration' : phaseOf(p).name;
-    const html = `<div class="site-tag${crew ? '' : ' wait'}"><span class="st-ico">🔨</span><span class="st-txt"><b>${phase}</b><span class="st-bar"><i style="width:${pct}%"></i></span></span><span class="st-pct">${pct}%</span></div>`;
+    const C = game.construction;
     const y = Math.max(s.lv[2] + 0.35, s.H + 0.12);
+    if (b.cons.ready) {
+      // fini : on vient l'inaugurer
+      const html = `<div class="site-tag ready"><span class="st-ico">✅</span><span class="st-txt"><b>${b.cons.k === 'up' ? 'Amélioration terminée' : 'Terminé !'}</b><small>Touche pour inaugurer</small></span></div>`;
+      this.r.labels.set(key, { x: c.cx, y, z: c.cz, html, cls: 'site', maxDist: 80, onTap: () => game.ui?.inaugurate(b.id) });
+      return;
+    }
+    const pct = Math.floor(C.progress(b) * 100);
+    const left = durationText(C.secondsLeft(b));
+    const phase = b.cons.k === 'up' ? 'Amélioration' : phaseOf(p).name;
+    const html = `<div class="site-tag"><span class="st-ico">🔨</span><span class="st-txt"><b>${phase}</b><span class="st-bar"><i style="width:${pct}%"></i></span></span><span class="st-pct">⏱️ ${left}</span></div>`;
     this.r.labels.set(key, { x: c.cx, y, z: c.cz, html, cls: 'site', maxDist: 46, onTap: () => game.select(b.id) });
   }
 }

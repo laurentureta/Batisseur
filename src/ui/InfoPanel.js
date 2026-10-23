@@ -10,7 +10,7 @@ import { fmt, fmtDec } from '../core/util.js';
 import { moodIcon } from './UI.js';
 import { nearLabel } from '../core/Actions.js';
 import { WORKSITES, ACT_TEXT, ROLE_NAMES } from '../sim/Villagers.js';
-import { PHASES, phaseOf, BUILDER_TEXT } from '../sim/Construction.js';
+import { PHASES, phaseOf, BUILDER_TEXT, durationText, skipGems } from '../sim/Construction.js';
 
 export function renderInfo(ui, body, sheet, id) {
   const game = ui.game;
@@ -212,6 +212,14 @@ function renderSite(ui, game, b, body, sheet) {
   const pct = Math.floor(p * 100);
   const box = h('div.site-box');
   const up = c.k === 'up';
+  body.appendChild(h('div.section-title', up ? '🏗️ Amélioration en cours' : '🏗️ Chantier'));
+  if (c.ready) {
+    box.appendChild(h('div.site-phase-name', up ? `Les travaux sont finis : niveau ${c.to} prêt !` : 'Le bâtiment est terminé !'));
+    box.appendChild(h('p.hint', 'Inaugure-le pour qu\'il entre en service (et fête ça avec les bâtisseurs).'));
+    body.appendChild(box);
+    body.appendChild(h('button.btn.primary.inaugurate.wide', { onclick: () => ui.inaugurate(b.id) }, '🎉 Inaugurer'));
+    return;
+  }
   box.appendChild(h('div.site-phase-name', `${up ? `Travaux vers le niveau ${c.to}` : phaseOf(p).name} · ${pct} %`));
   // les étapes du chantier
   const bar = h('div.site-phases');
@@ -222,29 +230,28 @@ function renderSite(ui, game, b, body, sheet) {
     bar.appendChild(h('span', { title: list[k].name || '' }, h('i', { style: { width: `${Math.round(f * 100)}%` } })));
   }
   box.appendChild(bar);
-  const crew = C.crewOf(b.id);
-  const left = Math.max(0, c.W - c.w);
-  const speed = game.state.time.speed || 1;
-  const secs = Math.ceil(left / Math.max(1, crew.length || 1) / speed);
-  if (crew.length) box.appendChild(siteRow('⏱️', 'Fin estimée', secs > 90 ? `≈ ${Math.ceil(secs / 60)} min` : `≈ ${secs} s`));
-  else {
-    const before = C.sites().findIndex((o) => o.id === b.id);
-    box.appendChild(h('p.hint', before > 0 ? `Les bâtisseurs finissent ${before > 1 ? `${before} autres chantiers` : 'un autre chantier'} avant celui-ci.` : 'Les bâtisseurs arrivent de la mairie…'));
-  }
-  body.appendChild(h('div.section-title', up ? '🏗️ Amélioration en cours' : '🏗️ Chantier'));
+  const left = C.secondsLeft(b);
+  box.appendChild(h('div.site-timer', h('span', '⏱️ Temps restant (réel)'), h('b', durationText(left))));
+  box.appendChild(h('p.hint', 'Le chantier avance en temps réel, même quand le jeu est fermé. Reviens l\'inaugurer quand il est fini !'));
   body.appendChild(box);
+  const crew = C.crewOf(b.id);
   if (crew.length) {
     const team = h('div.team');
     for (const w of crew) team.appendChild(h('div.mate', h('span.mi', w.girl ? '👷‍♀️' : '👷'), h('div.mt', h('b', `${w.name} · Bâtisseur`), h('small', BUILDER_TEXT[w.act] || BUILDER_TEXT[w.state] || 'au travail'))));
     body.appendChild(team);
   }
-  body.appendChild(h('button.btn.primary.finish-site.wide', {
+  const libre = game.state.mode === 'libre';
+  const gems = libre ? 0 : skipGems(left);
+  body.appendChild(h('button.btn.primary.gem-skip.wide', {
     onclick: () => {
       const r = game.actions.finishSite(b.id);
-      if (!r.ok) ui.toast(r.reason, 'error');
+      if (!r.ok) {
+        ui.toast(r.reason, 'error');
+        if (r.gems) ui.openShop?.('gems');
+      }
       sheet.refresh(true);
     },
-  }, '⏩ Terminer maintenant'));
+  }, gems ? `⏩ Terminer maintenant · ${gems} 💎` : '⏩ Terminer maintenant'));
 }
 
 /* ───────── Équipe au travail ───────── */

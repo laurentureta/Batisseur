@@ -1859,3 +1859,57 @@ kbd.tb-key { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .it-tap-txt, .intro-sun::after, .it-rays { animation: none !important; }
 }
+
+/* ───────── Demandes des habitants ───────── */
+.req {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 7px 3px 4px;
+  border-radius: 16px;
+  background: #fff;
+  border: 2.5px solid var(--o);
+  box-shadow: 0 3px 0 var(--o), 0 4px 8px rgba(0, 0, 0, 0.3);
+  animation: bob 1.6s ease-in-out infinite;
+  font-size: 15px;
+}
+.req::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  bottom: -9px;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-right: 2.5px solid var(--o);
+  border-bottom: 2.5px solid var(--o);
+  transform: rotate(45deg) skew(8deg, 8deg);
+}
+.req .ico { width: 22px; height: 22px; vertical-align: 0; }
+.req .rq-face .ico { width: 24px; height: 24px; }
+.req.ready { background: #e9f9df; border-color: var(--o); animation: bob 0.9s ease-in-out infinite; }
+.req.ready::after { background: #e9f9df; }
+.req-card { display: flex; flex-direction: column; gap: 8px; }
+.req-head { display: flex; align-items: center; gap: 10px; }
+.req-avatar { flex: none; width: 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; background: #fff3d6; border: 2.5px solid var(--o); font-size: 28px; }
+.req-avatar .ico { width: 36px; height: 36px; }
+.req-text { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.3; }
+.req-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.req-row { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.req-row .mm b { font-weight: 600; }
+input.range { -webkit-appearance: none; appearance: none; width: 150px; height: 8px; border-radius: 8px; background: linear-gradient(90deg, #f2b632, #e0d4bf); border: 1.5px solid var(--o); outline: none; }
+input.range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 2.5px solid var(--o); box-shadow: 0 2px 0 var(--o); cursor: pointer; }
+input.range::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 2.5px solid var(--o); cursor: pointer; }
+
+/* ───────── v3.6 : chantiers en temps réel ───────── */
+.site-tag .st-pct .ico { width: 15px; height: 15px; vertical-align: -3px; }
+.site-tag.ready { background: linear-gradient(#e9ffd9, #b9eb8f); animation: readyPulse 1.1s ease-in-out infinite; padding-right: 11px; }
+.site-tag.ready .st-ico { background: linear-gradient(#ffffff, #d9f7c4); animation: none; }
+.site-tag.ready small { font-weight: 700; font-size: 10.5px; opacity: 0.85; }
+@keyframes readyPulse { 50% { transform: scale(1.08) translateY(-3px); } }
+.site-timer { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 6px; }
+.site-timer b { font-family: var(--display); font-weight: 400; font-size: 22px; }
+.btn.gem-skip { background: linear-gradient(#c9a6ff, #8e5cf0); color: #fff; }
+.btn.inaugurate { background: linear-gradient(#8fe36a, #43a047); color: #fff; }
+.alert.good { background: linear-gradient(180deg, #8fe36a, #3f9e3a); }

@@ -1,11 +1,11 @@
 // Panneaux : quêtes, commandes, succès, stock, calques, menu, réglages, zones, marchand, niveaux.
 import { h, costChips, rewardChips, progressBar, clear } from './dom.js';
-import { BUILDINGS, COVER_NAMES } from '../data/buildings.js';
+import { BUILDINGS, COVER_NAMES, levelName } from '../data/buildings.js';
 import { RESOURCES, GOODS } from '../data/resources.js';
 import { MAIN_QUESTS } from '../data/quests.js';
 import { mayorTitle, xpToNext, FEATURES } from '../data/progression.js';
 import { fmt, fmtDec, calendar, SEASONS } from '../core/util.js';
-import { TERRAIN_ICONS } from '../world/constants.js';
+import { TERRAIN_ICONS, BASE_STORAGE, TOWNHALL_STORAGE } from '../world/constants.js';
 import { serialize, parseImport, saveSettings } from '../core/save.js';
 import { VERSION } from '../version.js';
 import { moodIcon, rewardText } from './UI.js';
@@ -36,6 +36,18 @@ export function renderQuests(ui, body) {
       st.quests.mainReady ? h('button.btn.primary.wide', { onclick: () => (prog.claimMain(), ui.sheet?.refresh(true)) }, '🎁 Récupérer la récompense') : null,
     ));
   } else body.appendChild(h('div.quest-card.ready', h('div.qc-title', '🏆 Toutes les quêtes sont terminées !'), h('p.qc-desc', 'Tu es un bâtisseur de légende. Continue d\'embellir ta ville !')));
+
+  // demandes des habitants
+  const reqs = game.requests.list();
+  body.appendChild(h('div.section-title', '💬 Demandes des habitants'));
+  if (!reqs.length) body.appendChild(h('p.hint', 'Tes habitants te demanderont bientôt des choses : une bulle apparaîtra au-dessus de leur maison.'));
+  for (const r of reqs) {
+    body.appendChild(h('button.mission.req-row' + (r.ready ? '.done' : ''), { onclick: () => (ui.closeSheet(true), ui.openRequest(r.id)) },
+      h('span.mi', r.ready ? '😄' : game.requests.icon(r)),
+      h('div.mm', h('b', game.requests.text(r)), h('small', r.ready ? 'Exaucée ! Touche pour la récompense' : game.requests.hint(r))),
+      r.ready ? h('span.btn.primary.small', 'Récupérer') : rewardChips(r.reward),
+    ));
+  }
 
   const missions = prog.dailyMissions();
   body.appendChild(h('div.section-title', '📅 Missions du jour'));
@@ -141,6 +153,27 @@ export function renderStock(ui, body) {
   body.appendChild(pop);
   if (d.unemployment > 0.3) body.appendChild(h('p.hint', 'Beaucoup de chômeurs : construis des bâtiments de production ou des commerces.'));
   if (d.jobs > 0 && d.staffing < 0.7) body.appendChild(h('p.hint', 'Pas assez de travailleurs : construis ou améliore des maisons. Les postes sont pourvus dans l\'ordre : nourriture, production, commerces, puis services.'));
+  // le Grand Entrepôt : d'où vient la place
+  if (!libre) {
+    const dep = [...game.world.buildings.values()].find((b) => b.type === 'depot');
+    const ddef = BUILDINGS.depot;
+    const th = game.world.townhall();
+    body.appendChild(h('div.section-title', '📦 Grand Entrepôt'));
+    const box = h('div.info-rows');
+    row(box, 'Réserve du village', fmt(BASE_STORAGE));
+    if (th) row(box, `Mairie (niveau ${th.level})`, `+${fmt(TOWNHALL_STORAGE * th.level)}`);
+    if (dep) row(box, `${levelName(ddef, dep.level)} (niveau ${dep.level})`, dep.cons?.k === 'new' ? 'en chantier' : `+${fmt(ddef.storage[dep.level - 1])}`);
+    else if (st.legacyStorage) row(box, 'Anciens entrepôts (en attendant le Grand Entrepôt)', `+${fmt(st.legacyStorage)}`);
+    row(box, 'Capacité pour chaque marchandise', fmt(d.storage), 'pos');
+    body.appendChild(box);
+    if (dep && dep.level < ddef.maxLevel) {
+      body.appendChild(h('div.info-actions', h('button.btn.primary', { onclick: () => (ui.closeSheet(true), game.renderer.focusBuilding(dep), game.select(dep.id)) }, `⬆️ Niveau ${dep.level + 1} : +${fmt(ddef.storage[dep.level] - ddef.storage[dep.level - 1])} de place`)));
+    } else if (!dep) {
+      const gift = st.flags?.depotGift;
+      body.appendChild(h('p.hint', gift ? `Ton Grand Entrepôt est offert (niveau ${gift}) : pose-le où tu veux.` : 'Construis le Grand Entrepôt pour agrandir le stock de toutes les marchandises.'));
+      if (game.prog.isUnlocked('depot')) body.appendChild(h('div.info-actions', h('button.btn.primary', { onclick: () => (ui.closeSheet(true), ui.setTool({ kind: 'build', type: 'depot', rot: null })) }, gift ? '🎁 Poser le Grand Entrepôt' : '📦 Construire le Grand Entrepôt')));
+    }
+  }
   // marchandises
   body.appendChild(h('div.section-title', `📦 Marchandises (capacité ${libre ? '∞' : fmt(d.storage)})`));
   const grid = h('div.stock-grid');
@@ -287,6 +320,17 @@ export function renderSettings(ui, body) {
   body.appendChild(h('div.section-title', 'Son'));
   toggle('Effets sonores', 'sound');
   toggle('Ambiance (oiseaux, grillons)', 'ambience');
+  toggle('Musique (jour, nuit, jours de fête)', 'music');
+  const vol = h('input.range', { type: 'range', min: '0', max: '100', step: '1', value: String(Math.round((s.musicVol ?? 0.5) * 100)) });
+  vol.addEventListener('input', () => {
+    s.musicVol = Number(vol.value) / 100;
+    if (!s.music && s.musicVol > 0) {
+      s.music = true;
+      body.querySelectorAll('.toggle')[3]?.classList.add('on');
+    }
+  });
+  vol.addEventListener('change', save);
+  body.appendChild(h('div.setting', h('span', 'Volume de la musique'), vol));
   body.appendChild(h('div.section-title', 'Jeu'));
   toggle('Incendies', 'fires');
   toggle('Cinématique d\'introduction au lancement', 'intro', () => {
@@ -294,10 +338,6 @@ export function renderSettings(ui, body) {
     save();
   });
   body.appendChild(h('div.setting', h('span', 'Revoir l\'introduction'), h('button.btn.small', { onclick: () => game.replayIntro() }, '▶ Lancer')));
-  toggle('Chantiers animés (les bâtisseurs construisent)', 'sites', () => {
-    // sans chantier : tout ce qui est en cours se termine tout de suite
-    if (!s.sites && game.world) for (const b of game.construction.sites()) game.construction.finish(b, { skipped: true });
-  });
   if (!game.isDemo) {
     body.appendChild(h('div.section-title', 'Sauvegarde'));
     body.appendChild(h('p.hint', 'Ta partie est enregistrée automatiquement sur ce téléphone. Exporte-la de temps en temps pour la garder en lieu sûr.'));

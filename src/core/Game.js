@@ -4,6 +4,7 @@ import { Renderer } from '../render/Renderer.js';
 import { UI } from '../ui/UI.js';
 import { Input } from '../input/Input.js';
 import { Sound } from './audio.js';
+import { Music, pickMood } from './music.js';
 import { loadSettings, readSlot, writeSlot, serialize } from './save.js';
 import { createNewState } from './state.js';
 import { populateDemo } from './demo.js';
@@ -20,6 +21,7 @@ export class Game extends GameCore {
     super(loadSettings());
     this.meta = new Meta(this);
     this.sound = new Sound(this.settings);
+    this.music = new Music(this.sound, this.settings); // musique d'ambiance (jour, nuit, fêtes)
     this.playing = false;
     this.autosaveAcc = 0;
     this.lastT = 0;
@@ -105,6 +107,11 @@ export class Game extends GameCore {
     this.renderer.frame(dt);
     this.ui.update(dt);
     this.sound.ambience(dt, this.renderer.night, this.renderer.cam.distance < 24);
+    try {
+      this.music.update(dt, pickMood(this));
+    } catch (err) {
+      console.warn('musique', err);
+    }
   }
 
   toMainMenu() {
@@ -165,6 +172,11 @@ export class Game extends GameCore {
     if (!st.flags.welcome) {
       st.flags.welcome = true;
       showWelcome(this.ui);
+    }
+    // les anciens entrepôts ont été regroupés dans le Grand Entrepôt
+    if (st.flags.depotNotice) {
+      delete st.flags.depotNotice;
+      setTimeout(() => this.playing && this.ui.depotNotice(), 1600);
     }
     // jour de fête : petite annonce (une fois par événement)
     if (st.mode !== 'libre') setTimeout(() => this.playing && this.ui.eventIntro(), 1500);
