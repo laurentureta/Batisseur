@@ -5,6 +5,8 @@ import { UI } from '../ui/UI.js';
 import { Input } from '../input/Input.js';
 import { Sound } from './audio.js';
 import { Music, pickMood } from './music.js';
+import { Online } from '../net/online.js';
+import { stateFromSnapshot } from '../net/snapshot.js';
 import { loadSettings, readSlot, writeSlot, serialize } from './save.js';
 import { createNewState } from './state.js';
 import { populateDemo } from './demo.js';
@@ -22,6 +24,9 @@ export class Game extends GameCore {
     this.meta = new Meta(this);
     this.sound = new Sound(this.settings);
     this.music = new Music(this.sound, this.settings); // musique d'ambiance (jour, nuit, fêtes)
+    this.online = new Online(this); // amis, visites, cadeaux
+    this.visit = null;
+    this.onlineAcc = 0;
     this.playing = false;
     this.autosaveAcc = 0;
     this.lastT = 0;
@@ -112,9 +117,70 @@ export class Game extends GameCore {
     } catch (err) {
       console.warn('musique', err);
     }
+    this.onlineAcc += dt;
+    if (this.onlineAcc > 1) {
+      this.onlineAcc = 0;
+      this.online.tick();
+    }
+  }
+
+  /**
+   * Visite du village d'un ami : on enregistre sa partie, puis on affiche son village tel qu'il l'a
+   * partagé (rien n'y est modifiable, rien n'est enregistré). « Rentrer » ramène chez soi.
+   */
+  async visitFriend(f) {
+    let data;
+    try {
+      data = await this.online.village(f.id);
+    } catch (err) {
+      this.ui.toast(err.message, 'error');
+      return;
+    }
+    if (!data?.snapshot) {
+      this.ui.toast(`${f.name} n'a pas encore partagé son village`, 'error');
+      return;
+    }
+    let st;
+    try {
+      st = stateFromSnapshot(data.snapshot);
+    } catch (err) {
+      console.warn(err);
+      this.ui.toast('Ce village ne peut pas être affiché', 'error');
+      return;
+    }
+    const home = this.visit ? this.visit.home : this.playing && !this.isDemo ? this.state.slot : null;
+    if (this.playing) this.save();
+    this.playing = false;
+    this.ui.closeScreen();
+    this.ui.closeSheet(true);
+    for (const m of [...this.ui.modalStack]) m._close();
+    this.setTool({ kind: 'select' });
+    this.ui.setLayer(null);
+    this.loadState(st, { demo: true });
+    this.visit = { friend: { ...f, name: data.name || f.name, village: data.village || f.village, level: data.level, pop: data.pop, avatar: data.avatar }, home, at: data.snapshot_at };
+    this.renderer.buildings.setTheme(st.cosmetics?.roof || 'mix');
+    this.renderer.setWorld(this.world);
+    this.renderer.cam.autoOrbit = 0;
+    this.ui.setPlayingUI(false);
+    this.ui.start.hide();
+    this.ui.showVisit(this.visit);
+    this.sound.play('whoosh');
+  }
+
+  endVisit() {
+    const v = this.visit;
+    if (!v) return;
+    this.visit = null;
+    this.ui.hideVisit();
+    if (v.home != null) this.continueGame(v.home);
+    else this.toMainMenu();
   }
 
   toMainMenu() {
+    if (this.visit) {
+      this.visit = null;
+      this.ui.hideVisit();
+    }
     this.playing = false;
     this.ui.closeSheet(true);
     this.setTool({ kind: 'select' });
@@ -148,6 +214,10 @@ export class Game extends GameCore {
   }
 
   startState(st) {
+    if (this.visit) {
+      this.visit = null;
+      this.ui.hideVisit();
+    }
     this.loadState(st);
     this.renderer.buildings.setTheme(st.cosmetics?.roof || 'mix');
     this.renderer.setWorld(this.world);
@@ -161,6 +231,7 @@ export class Game extends GameCore {
     this.renderer.refreshZoneLabels();
     this.renderer.refreshStatusLabels();
     this.save();
+    if (this.online.me?.id) setTimeout(() => this.online.publish(true), 4000); // la photo du village pour les amis
     this.renderer.thumbs.warmup(BUILDING_LIST.filter((d) => !d.notBuildable && this.prog.isUnlocked(d.id)).map((d) => d.id));
     // ressources gagnées depuis le menu (coffres, passe, boutique)
     const given = this.meta.deliverBank();

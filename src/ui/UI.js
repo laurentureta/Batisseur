@@ -12,6 +12,7 @@ import { openShop } from './shop.js';
 import { openPass } from './pass.js';
 import { openEvent, refreshEventChip, EventDrops, eventIntro } from './event.js';
 import { openProfile } from './profile.js';
+import { openFriends, giftDialog } from './friends.js';
 import { showRewards, showLogin } from './rewards.js';
 import { closeScreen } from './screens.js';
 import { BOOSTS } from '../data/shop.js';
@@ -146,6 +147,7 @@ export class UI {
       side('scroll', 'Commandes', () => this.openOrders(), 'sOrders'),
       side('trophy', 'Succès', () => this.openAchievements(), 'sAch'),
       side('crate', 'Stock', () => this.openStock(), 'sStock'),
+      side('people', 'Amis', () => this.openFriends(), 'sFriends'),
       side('map', 'Calques', () => this.openLayers(), 'sLayers'),
     );
     this.root.append(this.hud, this.side);
@@ -240,6 +242,38 @@ export class UI {
     refreshEventChip(this, e.event);
   }
 
+  openFriends(tab) {
+    this.closeSheet(true);
+    return openFriends(this, tab);
+  }
+
+  /** Bandeau de visite chez un ami : qui, son village, cadeau, retour. */
+  showVisit(v) {
+    this.hideVisit();
+    const f = v.friend;
+    const giftBtn = h('button.btn.primary.small', {
+      onclick: () => giftDialog(this, f, () => {
+        giftBtn.disabled = true;
+        giftBtn.textContent = '✓ Cadeau envoyé';
+      }),
+      disabled: !!f.gift_sent,
+    }, f.gift_sent ? '✓ Cadeau envoyé' : '🎁 Cadeau');
+    const when = v.at ? Date.parse(v.at) : 0;
+    const old = when ? Math.round((Date.now() - when) / 3600000) : 0;
+    this.visitEl = h('div.visit-bar',
+      h('div.vb-who', h('span.vb-avatar', f.avatar || '🙂'), h('div.vb-text', h('b', `Chez ${f.name}`), h('small', `${f.village} · niv. ${fmt(f.level || 1)} · ${fmt(f.pop || 0)} hab.${old >= 2 ? ` · photo d'il y a ${old >= 48 ? Math.round(old / 24) + ' j' : old + ' h'}` : ''}`))),
+      h('div.vb-btns', giftBtn, h('button.btn.small.vb-home', { onclick: () => this.game.endVisit() }, '🏠 Rentrer')),
+    );
+    this.root.appendChild(this.visitEl);
+    this.root.classList.add('visiting');
+  }
+
+  hideVisit() {
+    this.visitEl?.remove();
+    this.visitEl = null;
+    this.root.classList.remove('visiting');
+  }
+
   openProfile() {
     openProfile(this);
   }
@@ -332,6 +366,7 @@ export class UI {
     this.badge(e.sQuests, c.quests + rq);
     this.badge(e.sOrders, c.orders);
     this.badge(e.sAch, c.achievements);
+    this.badge(e.sFriends, game.online.inbox.length);
     this.badge(e.level, c.quests + rq);
     e.sOrders.classList.toggle('hidden', libre || !game.prog.featureUnlocked('orders'));
     e.sQuests.classList.toggle('hidden', libre && !game.requests.list().length);
@@ -439,6 +474,10 @@ export class UI {
     }
     if (this.game.selection != null) {
       this.game.select(null);
+      return true;
+    }
+    if (this.game.visit) {
+      this.game.endVisit();
       return true;
     }
     return false;
@@ -1012,6 +1051,10 @@ export class UI {
           game.select(b.id);
         },
       });
+    });
+    bus.on('online:gift', (n, from) => {
+      game.sound.play('gift');
+      this.toast(`🎁 ${n > 1 ? `${n} cadeaux de tes amis` : `${from} t'a envoyé un cadeau`} !`, 'good', { label: 'Ouvrir', onclick: () => this.openFriends('gifts') });
     });
     bus.on('site:ready', (b, opts = {}) => {
       if (opts.quiet) return;

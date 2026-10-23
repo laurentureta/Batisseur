@@ -112,6 +112,7 @@ export class StartScreen {
     const icons = h('div.start-icons',
       icon('🛒', 'Boutique', () => this.ui.openShop()),
       icon('🎖️', 'Passe', () => this.ui.openPass()),
+      icon('👥', 'Amis', () => this.ui.openFriends()),
       chest,
       icon('⚙️', 'Réglages', () => this.ui.openSettings()),
     );

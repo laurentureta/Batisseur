@@ -1,5 +1,5 @@
 // Gestes tactiles et souris : déplacer, zoomer, pivoter, construire, tracer des routes, détruire.
-import { BUILDINGS, sizeOf } from '../data/buildings.js';
+import { BUILDINGS, sizeOf, levelName } from '../data/buildings.js';
 import { SIZE } from '../world/constants.js';
 
 const TAP_MOVE = 9; // px avant de considérer qu'on fait glisser
@@ -34,7 +34,7 @@ export class Input {
     return this.game.renderer;
   }
   get enabled() {
-    return !!this.game.world && this.game.playing;
+    return !!this.game.world && (this.game.playing || !!this.game.visit);
   }
 
   /* ───────── Événements bruts ───────── */
@@ -208,6 +208,7 @@ export class Input {
     if (!this.enabled) return;
     // une fenêtre est ouverte : le clavier lui appartient
     if (ui.modalStack.length || ui.screen) return;
+    if (this.game.visit) return; // chez un ami : rien à construire
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     if ((e.ctrlKey || e.metaKey) && k === 'z') {
       e.preventDefault();
@@ -358,6 +359,16 @@ export class Input {
     const game = this.game;
     const tool = game.tool;
     const ui = game.ui;
+    if (game.visit) {
+      // chez un ami : on regarde, on ne touche à rien
+      const id = this.r.pickBuilding(cx, cy);
+      const b = id != null ? game.world.buildings.get(id) : null;
+      if (b) {
+        const def = BUILDINGS[b.type];
+        ui.toast(`${def.icon} ${levelName(def, b.level)}${def.maxLevel > 1 ? ` · niveau ${b.level}` : ''}`, 'mini');
+      }
+      return;
+    }
     if (tool.kind === 'select') {
       const id = this.r.pickBuilding(cx, cy);
       if (id != null) {
