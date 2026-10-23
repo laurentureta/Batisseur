@@ -241,6 +241,7 @@ def({
     { coins: 18000, bricks: 760, tools: 180 },
   ],
   workers: 1, storage: [400, 800, 1300, 1900, 2700, 3700, 5000, 6600, 8600, 11000], upkeep: 3,
+  levelReq: [2, 4, 7, 10, 15, 22, 30, 42, 55, 70], // niveau du village pour chaque niveau d'entrepôt
   desc: 'Le seul bâtiment de stockage du village : toutes les marchandises y sont rangées. Chaque amélioration agrandit le stock de tout.',
 });
 def({
@@ -350,6 +351,71 @@ def({
   desc: 'Un monument légendaire : +10 % d\'impôts.',
 });
 
+/* ───────────── Prestige : décorations et monuments des hauts niveaux (45 → 100) ───────────── */
+def({
+  id: 'ferris', name: 'Grande roue', icon: '🎡', cat: 'decor', unlock: 45, size: [2, 2],
+  cost: { coins: 14000, planks: 300, tools: 80 }, beauty: { v: 0.16, r: 6 }, coverage: { need: 'leisure', radius: [9] }, xp: 400,
+  desc: 'Elle tourne pour de vrai ! Les habitants viennent admirer la ville d\'en haut : beauté et loisirs.',
+});
+def({
+  id: 'equestrian', name: 'Statue équestre', icon: '🐎', cat: 'decor', unlock: 50,
+  cost: { coins: 12000, stone: 400, tools: 60 }, beauty: { v: 0.15, r: 5 }, xp: 350,
+  desc: 'Le fondateur du village à cheval, en bronze, sur son grand socle de pierre.',
+});
+def({
+  id: 'frgarden', name: 'Jardin à la française', icon: '🌹', cat: 'decor', unlock: 55, size: [2, 2],
+  cost: { coins: 18000, stone: 400, planks: 250 }, beauty: { v: 0.2, r: 7 }, coverage: { need: 'leisure', radius: [8] }, xp: 450,
+  desc: 'Allées de gravier, buis taillés, roses et bassin : le plus beau jardin de la région.',
+});
+def({
+  id: 'opera', name: 'Opéra', icon: '🎭', cat: 'monuments', unlock: 60, unique: true, size: [3, 2],
+  cost: { coins: 90000, stone: 3000, bricks: 2000, tools: 600 }, beauty: { v: 0.3, r: 12 }, coverage: { need: 'leisure', radius: [18] },
+  bonus: { happiness: 0.06, tourism: 600 }, xp: 1500,
+  desc: 'Colonnes, dôme doré et grands soirs : +6 % de bonheur, loisirs pour tout un quartier et des touristes.',
+});
+def({
+  id: 'goldkiosk', name: 'Kiosque doré', icon: '✨', cat: 'decor', unlock: 65,
+  cost: { coins: 22000, bricks: 300, tools: 120 }, beauty: { v: 0.18, r: 6 }, coverage: { need: 'leisure', radius: [6] }, xp: 500,
+  desc: 'Un kiosque octogonal à colonnes, coiffé d\'or. Il s\'illumine la nuit.',
+});
+def({
+  id: 'grandfountain', name: 'Fontaine monumentale', icon: '⛲', cat: 'decor', unlock: 70, size: [2, 2],
+  cost: { coins: 30000, stone: 1200, tools: 150 }, beauty: { v: 0.24, r: 8 }, coverage: { need: 'water', radius: [8] }, xp: 650,
+  desc: 'Trois vasques, des jets d\'eau et une statue d\'or : la place devient magnifique (et donne de l\'eau).',
+});
+def({
+  id: 'planetarium', name: 'Planétarium', icon: '🔭', cat: 'monuments', unlock: 75, unique: true, size: [2, 2],
+  cost: { coins: 140000, bricks: 3500, tools: 1200 }, beauty: { v: 0.26, r: 10 }, coverage: { need: 'education', radius: [16] },
+  bonus: { tourism: 900, happiness: 0.04 }, xp: 2200,
+  desc: 'Son grand dôme montre les étoiles : éducation pour toute la ville, +4 % de bonheur, touristes.',
+});
+def({
+  id: 'citygate', name: 'Porte de la ville', icon: '🏯', cat: 'decor', unlock: 80, size: [2, 1],
+  cost: { coins: 40000, stone: 1800, tools: 200 }, beauty: { v: 0.24, r: 8 }, xp: 800,
+  desc: 'Deux tours crénelées et une grande arche : l\'entrée majestueuse de ta cité.',
+});
+def({
+  id: 'goldtower', name: 'Tour dorée', icon: '🗼', cat: 'decor', unlock: 85,
+  cost: { coins: 50000, bricks: 1500, tools: 300 }, beauty: { v: 0.22, r: 8 }, xp: 900,
+  desc: 'Une flèche élancée, quatre horloges et une pointe en or qui brille au soleil.',
+});
+def({
+  id: 'colosseum', name: 'Colisée', icon: '🏟️', cat: 'monuments', unlock: 90, unique: true, size: [3, 3],
+  cost: { coins: 220000, stone: 6000, bricks: 4000, tools: 1800 }, beauty: { v: 0.35, r: 14 }, coverage: { need: 'leisure', radius: [24] },
+  bonus: { tourism: 1400, happiness: 0.05 }, xp: 3500,
+  desc: 'Une arène antique de trois étages d\'arches : loisirs pour toute la ville et des foules de touristes.',
+});
+def({
+  id: 'mayorstatue', name: 'Statue géante du maire', icon: '🗽', cat: 'decor', unlock: 95, size: [2, 2],
+  cost: { coins: 80000, stone: 2500, tools: 500 }, beauty: { v: 0.3, r: 10 }, xp: 1200,
+  desc: 'Toi, en or, marteau levé, sur un socle de marbre : le village ne t\'oubliera jamais.',
+});
+def({
+  id: 'palace', name: 'Palais du Bâtisseur', icon: '👑', cat: 'monuments', unlock: 100, unique: true, size: [3, 3],
+  cost: { coins: 400000, bricks: 8000, tools: 3000 }, beauty: { v: 0.4, r: 16 }, bonus: { taxes: 0.15, happiness: 0.1, tourism: 2000 }, xp: 6000,
+  desc: 'Le sommet de ta carrière : un palais aux toits d\'or. +15 % d\'impôts, +10 % de bonheur, des touristes du monde entier.',
+});
+
 /* ───────────── Décorations exclusives (boutique, coffres, passe de combat) ───────────── */
 function excl(id, name, icon, beauty, r, extra = {}) {
   def({ id, name, icon, cat: 'decor', tab: 'exclusive', exclusive: true, unlock: 1, cost: { coins: extra.price ?? 40 }, beauty: { v: beauty, r }, xp: 2, ...extra });
@@ -433,7 +499,7 @@ evdec('e_giant_tree', 'Chêne millénaire', '🌳', 0.17, 6, { size: [2, 2], pri
 
 /* ───────────── Mairie ───────────── */
 def({
-  id: 'townhall', name: 'Mairie', icon: '🏛️', cat: 'special', unlock: 1, maxLevel: 8, size: [2, 2],
+  id: 'townhall', name: 'Mairie', icon: '🏛️', cat: 'special', unlock: 1, maxLevel: RANKS.length, size: [2, 2],
   unique: true, notBuildable: true, produces: { wood: 10, stone: 5, food: 8 },
   levelNames: RANKS.map((r) => `Mairie · ${r.name}`),
   costs: [{}, ...RANKS.slice(1).map((r) => r.cost)],

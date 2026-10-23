@@ -3,7 +3,7 @@ import { h, costChips, rewardChips, progressBar, clear } from './dom.js';
 import { BUILDINGS, COVER_NAMES, levelName } from '../data/buildings.js';
 import { RESOURCES, GOODS } from '../data/resources.js';
 import { MAIN_QUESTS } from '../data/quests.js';
-import { mayorTitle, xpToNext, FEATURES } from '../data/progression.js';
+import { mayorTitle, xpToNext, FEATURES, MAX_LEVEL } from '../data/progression.js';
 import { fmt, fmtDec, calendar, SEASONS } from '../core/util.js';
 import { TERRAIN_ICONS, BASE_STORAGE, TOWNHALL_STORAGE } from '../world/constants.js';
 import { serialize, parseImport, saveSettings } from '../core/save.js';
@@ -19,7 +19,7 @@ export function renderQuests(ui, body) {
     h('div.level-big', `⭐ ${lp.level}`),
     h('div.level-info',
       h('b', mayorTitle(lp.level)),
-      h('small', lp.level >= 50 ? 'Niveau maximum !' : `${fmt(lp.xp)} / ${fmt(lp.need)} XP vers le niveau ${lp.level + 1}`),
+      h('small', lp.level >= MAX_LEVEL ? 'Niveau maximum !' : `${fmt(lp.xp)} / ${fmt(lp.need)} XP vers le niveau ${lp.level + 1}`),
       progressBar(lp.pct, 'xp'),
     ),
   ));

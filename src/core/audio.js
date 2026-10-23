@@ -214,6 +214,16 @@ export class Sound {
         [784, 988, 1175, 1568].forEach((f, k) => this.tone(f, 0.18, { vol: 0.12, delay: k * 0.07, type: 'triangle' }));
         this.noise(0.12, { vol: 0.08, freq: 3200, q: 1.2, delay: 0.3 });
         break;
+      case 'thud': // un bloc de briques s'écrase
+        this.noise(0.5, { vol: 0.42, freq: 160, q: 0.6 });
+        this.noise(0.25, { vol: 0.18, freq: 900, q: 0.8, delay: 0.02 });
+        this.tone(70, 0.45, { vol: 0.28, type: 'sine', slide: 0.5 });
+        for (let k = 0; k < 4; k++) this.noise(0.05, { vol: 0.08, freq: 2200 + k * 400, q: 2, delay: 0.12 + k * 0.07 });
+        break;
+      case 'clack': // des briques qui se posent
+        this.noise(0.04, { vol: 0.1, freq: 1900, q: 2.2 });
+        this.tone(420 + Math.random() * 80, 0.05, { vol: 0.05, type: 'triangle', slide: 0.7 });
+        break;
       case 'whistle': // sifflet de la locomotive à vapeur (deux tuyaux légèrement désaccordés)
         for (const [at, d] of [[0, 0.55], [0.7, 0.9]]) {
           for (const f of [740, 932]) this.tone(f, d, { vol: 0.045, type: 'triangle', delay: at, attack: 0.06 });
@@ -320,36 +330,36 @@ export class Sound {
     const wf = c.createBiquadFilter();
     wf.type = 'lowpass';
     wf.frequency.setValueAtTime(500, t0);
-    wf.frequency.linearRampToValueAtTime(900, t0 + 9);
-    wf.frequency.linearRampToValueAtTime(2200, t0 + 12.5);
-    wf.frequency.linearRampToValueAtTime(600, t0 + 17);
+    wf.frequency.linearRampToValueAtTime(900, t0 + 7.2);
+    wf.frequency.linearRampToValueAtTime(2200, t0 + 9.6);
+    wf.frequency.linearRampToValueAtTime(600, t0 + 12.8);
     const wg = c.createGain();
     wg.gain.setValueAtTime(0.0001, t0);
     wg.gain.exponentialRampToValueAtTime(0.09, t0 + 2);
-    wg.gain.linearRampToValueAtTime(0.1, t0 + 8.5);
-    wg.gain.linearRampToValueAtTime(0.32, t0 + 12.3);
-    wg.gain.linearRampToValueAtTime(0.06, t0 + 16);
-    wg.gain.linearRampToValueAtTime(0.015, t0 + 23);
-    wg.gain.exponentialRampToValueAtTime(0.0001, t0 + 30);
+    wg.gain.linearRampToValueAtTime(0.1, t0 + 7);
+    wg.gain.linearRampToValueAtTime(0.34, t0 + 9.4);
+    wg.gain.linearRampToValueAtTime(0.06, t0 + 12.6);
+    wg.gain.linearRampToValueAtTime(0.015, t0 + 18);
+    wg.gain.exponentialRampToValueAtTime(0.0001, t0 + 24);
     wind.connect(wf).connect(wg).connect(out);
     wind.start(t0);
-    wind.stop(t0 + 31);
+    wind.stop(t0 + 25);
     // accords
-    pad([174.6, 220, 261.6, 329.6], 0, 9.6);
-    pad([164.8, 196, 261.6, 293.7], 9.2, 6.8);
-    pad([110, 164.8, 196, 261.6], 15.6, 6.4);
-    pad([123.5, 146.8, 196, 329.6], 21.6, 6.6);
-    pad([130.8, 196, 261.6, 329.6, 587.3], 27.6, 9, 0.06);
+    pad([174.6, 220, 261.6, 329.6], 0, 7.8);
+    pad([164.8, 196, 261.6, 293.7], 7.4, 5.6);
+    pad([110, 164.8, 196, 261.6], 12.6, 4.6);
+    pad([123.5, 146.8, 196, 329.6], 16.8, 4.4);
+    pad([130.8, 196, 261.6, 329.6, 587.3], 20.9, 7, 0.06);
     // notes égrenées pendant le survol
     const arps = [[523.3, 659.3, 784, 880], [440, 523.3, 659.3, 784], [493.9, 587.3, 784, 987.8]];
     for (let k = 0; k < 20; k++) {
-      const at = 12.5 + k * 0.75;
-      const chord = arps[Math.min(2, Math.floor((at - 12.5) / 5))];
+      const at = 12.8 + k * 0.42;
+      const chord = arps[Math.min(2, Math.floor((at - 12.8) / 2.8))];
       pluck(chord[k % 4] * (k % 8 >= 4 ? 1 : 0.5), at, 0.035);
     }
     // les oiseaux au-dessus du village
     for (let k = 0; k < 7; k++) {
-      const at = 19.5 + k * 1.15 + (k % 3) * 0.2;
+      const at = 13.6 + k * 0.9 + (k % 3) * 0.2;
       const base = 2400 + (k % 3) * 500;
       for (let j = 0; j < 3; j++) {
         const o = c.createOscillator();
@@ -370,17 +380,17 @@ export class Sound {
     const sf = c.createBiquadFilter();
     sf.type = 'bandpass';
     sf.Q.value = 0.7;
-    sf.frequency.setValueAtTime(400, t0 + 27.9);
-    sf.frequency.exponentialRampToValueAtTime(3500, t0 + 28.9);
+    sf.frequency.setValueAtTime(400, t0 + 17);
+    sf.frequency.exponentialRampToValueAtTime(3500, t0 + 18.2);
     const sg = c.createGain();
-    sg.gain.setValueAtTime(0.0001, t0 + 27.9);
-    sg.gain.exponentialRampToValueAtTime(0.25, t0 + 28.4);
-    sg.gain.exponentialRampToValueAtTime(0.0001, t0 + 29.3);
+    sg.gain.setValueAtTime(0.0001, t0 + 17);
+    sg.gain.exponentialRampToValueAtTime(0.22, t0 + 17.6);
+    sg.gain.exponentialRampToValueAtTime(0.0001, t0 + 18.8);
     swoosh.connect(sf).connect(sg).connect(out);
-    swoosh.start(t0 + 27.9);
-    swoosh.stop(t0 + 29.5);
-    [523.3, 659.3, 784, 1046.5, 1318.5].forEach((f, k) => bell(f, 28.25 + k * 0.13, 0.05));
-    bell(2093, 29.1, 0.03);
+    swoosh.start(t0 + 17);
+    swoosh.stop(t0 + 19);
+    [523.3, 659.3, 784, 1046.5, 1318.5].forEach((f, k) => bell(f, 21 + k * 0.13, 0.05));
+    bell(2093, 21.85, 0.03);
     return {
       stop: (fade = 0.6) => {
         const now = c.currentTime;

@@ -2,6 +2,7 @@
 // Repère local : emprise centrée sur (0, 0), façade avant vers +z, sol à y = 0.
 import { kit, kitBox, kitTop, kitHas, kitExtent } from './kit.js';
 import { shade, mix } from './geom.js';
+import { addPrestigeModels } from './prestigeModels.js';
 
 export const KM = {};
 
@@ -225,6 +226,12 @@ KM.townhall = (g, L, ctx) => {
       KF(g, ctx, 'tower_A', 0.42, 0.48, { x: -0.74, z: 0.1, ...gold });
       KF(g, ctx, 'tower_A', 0.42, 0.48, { x: 0.74, z: 0.1, ...gold });
     }
+    if (L >= 9) {
+      // Capitale : tours d'angle à l'arrière ; Mégapole : bannières dorées
+      KF(g, ctx, 'tower_B', 0.4, 0.44, { x: -0.76, z: -0.76, ...gold });
+      KF(g, ctx, 'tower_B', 0.4, 0.44, { x: 0.76, z: -0.76, ...gold });
+    }
+    if (L >= 10) for (const s of [-1, 1]) flag(g, ctx, s * 0.5, -0.92, 3.4, 3);
   }
   // place : fontaine, lampadaires, drapeaux
   if (L >= 4) {
@@ -1083,6 +1090,8 @@ KM.x_catapult = (g, L, ctx) => {
 
 /* outils partagés avec les décorations d'événements (eventModels.js) */
 export const KH = { K, KF, pad, path, glowBox, giftBox, flag, bush, lantern, barrels, smokeAt, hw, COBBLE, SAND, SOIL };
+
+addPrestigeModels(KM);
 
 /* ───────── Repli : les modèles faits main restent disponibles ───────── */
 export function hasKitModel(type) {

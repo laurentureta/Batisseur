@@ -425,6 +425,13 @@ export class Actions {
       if (!okL) out.reasons.push(`Niveau ${rank.level} requis`);
       if (!okP) out.reasons.push(`${rank.pop} habitants requis`);
     } else {
+      // certains niveaux demandent un niveau de village
+      const lvReq = def.levelReq?.[to - 1];
+      if (lvReq) {
+        const okLv = this.libre || this.st.level >= lvReq;
+        out.reqs.push({ label: `Niveau du village ${lvReq}`, ok: okLv });
+        if (!okLv) out.reasons.push(`Niveau ${lvReq} requis`);
+      }
       const thLevel = this.game.townhallLevel();
       const need = MAIRIE_FOR_LEVEL[Math.min(to, 5)];
       const okM = this.libre || thLevel >= need;

@@ -8,7 +8,7 @@ import { DAY_SECONDS } from '../world/constants.js';
 /** Faut-il jouer la cinématique au lancement ? (pas si elle a déjà été vue, ou si on l'a coupée) */
 export function introWanted(game) {
   const s = game.settings;
-  if (s.intro === false || s.introSeen) return false;
+  if (s.intro === false) return false; // à chaque lancement, sauf si on l'a coupée dans les réglages
   if (/[?&]nointro/.test(location.search)) return false;
   return true;
 }
@@ -60,11 +60,8 @@ export function playIntro(game, { onDone } = {}) {
   const sun = h('div.intro-sun');
   const barT = h('div.intro-bar.top'), barB = h('div.intro-bar.bottom');
   const skip = h('button.intro-skip', { onclick: (e) => { e.stopPropagation(); finish(true); } }, 'Passer l\'intro ', h('b', '›'));
-  const title = h('div.intro-title',
-    h('div.it-rays'),
-    h('div.it-logo-wrap', h('img.it-logo', { src: 'icons/logo.svg', alt: 'Bâtisseur' }), h('div.it-shine')),
-    h('div.it-sub', 'Ton village t\'attend…'),
-  );
+  // le titre est formé par les briques, dans la scène ; ici seulement la phrase dessous
+  const title = h('div.intro-title.bricks', h('div.it-sub', 'Construis ta ville !'));
   const tap = h('div.intro-tap', h('div.it-tap-txt', matchMedia('(hover: hover)').matches ? 'Clique pour commencer' : 'Touche l\'écran pour commencer'), h('div.it-tap-hint', 'Monte le son pour l\'ambiance 🎶'));
   const root = h('div.intro', white, sun, barT, barB, title, tap, skip);
   ui.root.appendChild(root);
@@ -121,9 +118,9 @@ export function playIntro(game, { onDone } = {}) {
         sun.style.opacity = (s.sun.strength * 0.95).toFixed(3);
         sun.style.transform = `translate(${((s.sun.x * 0.5 + 0.5) * rect.width).toFixed(1)}px, ${((-s.sun.y * 0.5 + 0.5) * rect.height).toFixed(1)}px)`;
       } else sun.style.opacity = '0';
+      if (s.t > 23.2) root.classList.add('rising');
       if (s.done) {
-        // le titre reste un instant sur la vue d'accueil, puis l'accueil apparaît
-        setTimeout(() => finish(false), 1200);
+        setTimeout(() => finish(false), 250);
         return;
       }
     }

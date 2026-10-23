@@ -31,9 +31,9 @@
 
 html, body {
   margin: 0;
-  height: 100%;
+  height: var(--app-h, 100%);
   overflow: hidden;
-  background: #8fc6ef;
+  background: #3d5a2a;
   overscroll-behavior: none;
   -webkit-user-select: none;
   user-select: none;
@@ -56,7 +56,10 @@ input, textarea { font: inherit; -webkit-user-select: text; user-select: text; }
 
 #app {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--app-h, 100%);
   overflow: hidden;
   background: linear-gradient(180deg, #4aa3f0 0%, #d2ecff 100%);
 }
@@ -1981,4 +1984,29 @@ input.range::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; b
   .visit-bar { flex-wrap: wrap; }
   .vb-btns { width: 100%; }
   .vb-btns .btn { flex: 1; }
+}
+.sheet.over { z-index: 34; }
+.fr-card.bot { background: linear-gradient(135deg, #fffaf0, #ffeec2); border: 2px solid #f2c14e; }
+.fr-tag { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 9px; background: linear-gradient(180deg, #ffd65a, #f2a91b); color: #4a2a10; font-family: 'Fredoka', sans-serif; font-size: 11px; font-weight: 700; vertical-align: 2px; }
+/* v3.8 : titre en briques (la phrase sous les lettres) */
+.intro-title.bricks { justify-content: flex-end; padding-bottom: calc(14vh + var(--safe-bottom)); }
+.intro-title.bricks.show .it-sub { animation: subIn 0.9s ease-out 0.25s forwards; font-size: clamp(22px, 5.4vw, 34px); }
+.intro.rising .intro-title.bricks .it-sub { transition: opacity 0.8s; opacity: 0 !important; animation: none; }
+/* v3.8 : boutons latéraux sur les petits écrans (iPhone SE, mini) */
+@media (max-height: 790px) {
+  .side { gap: 15px; top: calc(var(--safe-top) + 108px); }
+  .side-btn { width: 44px; height: 44px; border-radius: 14px; }
+  .side-btn > .ico { width: 31px; height: 31px; }
+  .side-btn.shop-btn { height: 44px; }
+  .side-btn.shop-btn > .ico { width: 28px; height: 28px; margin-top: -8px; }
+  .side-btn .sl { font-size: 10px; bottom: -14px; }
+}
+@media (max-height: 700px) {
+  .side { gap: 13px; top: calc(var(--safe-top) + 104px); }
+  .side-btn { width: 39px; height: 39px; border-radius: 13px; }
+  .side-btn > .ico { width: 27px; height: 27px; }
+  .side-btn.shop-btn { height: 39px; }
+  .side-btn.shop-btn > .ico { width: 24px; height: 24px; margin-top: -7px; }
+  .shop-btn .gem-count { font-size: 9.5px; height: 14px; }
+  .side-btn .sl { font-size: 9.5px; bottom: -13px; }
 }

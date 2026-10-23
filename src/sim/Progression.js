@@ -75,12 +75,20 @@ export class Progression {
 
   onLevelUp(level) {
     const reward = levelReward(level);
-    this.game.actions.grant(reward);
+    const { gems, ...res } = reward;
+    this.game.actions.grant(res);
+    if (gems) this.game.meta?.addGems(gems, 'level');
     const unlocks = BUILDING_LIST.filter((d) => d.unlock === level && !d.notBuildable).map((d) => d.id);
     const roads = Object.values(ROAD_TYPES).filter((r) => r.unlock === level);
     const features = Object.values(FEATURES).filter((f) => f.level === level).map((f) => `${f.icon} ${f.name}`);
     if (BRIDGE_UNLOCK === level) features.push('🌉 Ponts : trace une route sur une rivière');
     for (const r of roads) features.push(`${r.icon} ${r.name}`);
+    // niveaux de bâtiments débloqués par le niveau du village (Grand Entrepôt…)
+    for (const d of BUILDING_LIST) {
+      const k = d.levelReq ? d.levelReq.indexOf(level) : -1;
+      if (k > 0) features.push(`${d.icon} ${d.name} : niveau ${k + 1} disponible`);
+    }
+    if (RANKS.some((r, i) => i > 0 && r.level === level)) features.push(`🏛️ Mairie : rang « ${RANKS.find((r) => r.level === level).name} » accessible`);
     if (level === FEATURES.missions.level) this.ensureDaily(true);
     this.game.bus.emit('level:up', { level, unlocks, reward, features });
   }
@@ -92,7 +100,7 @@ export class Progression {
     for (const b of this.game.world?.buildings.values() || []) {
       if (b.cons?.k === 'new') continue; // un chantier ne compte qu'une fois terminé
       counts[b.type] = (counts[b.type] || 0) + 1;
-      const l = (levels[b.type] ||= [0, 0, 0, 0, 0, 0, 0, 0, 0]);
+      const l = (levels[b.type] ||= new Array(12).fill(0));
       for (let k = 1; k <= b.level; k++) l[k]++;
     }
     this.counts = counts;

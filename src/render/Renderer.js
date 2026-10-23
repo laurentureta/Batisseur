@@ -83,6 +83,7 @@ export class Renderer {
     this.resize();
     window.addEventListener('resize', () => this.resize());
     window.visualViewport?.addEventListener('resize', () => this.resize());
+    window.addEventListener('app-resize', () => requestAnimationFrame(() => this.resize()));
     this.bindEvents();
     this.frameSkip = 0;
     this.perf = { acc: 0, n: 0, slow: 0 };

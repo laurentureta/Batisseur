@@ -1,10 +1,12 @@
 // Progression : niveaux du village, rangs de la mairie, zones, récompenses.
 
-export const MAX_LEVEL = 50;
+export const MAX_LEVEL = 100;
 
-/** XP nécessaire pour passer du niveau `level` au suivant. */
+/** XP nécessaire pour passer du niveau `level` au suivant (au-delà de 50, la courbe s'adoucit). */
 export function xpToNext(level) {
-  return Math.round(30 * Math.pow(level, 1.6) + 40);
+  if (level <= 50) return Math.round(30 * Math.pow(level, 1.6) + 40);
+  const at50 = 30 * Math.pow(50, 1.6) + 40;
+  return Math.round((at50 * Math.pow(1.024, level - 50)) / 10) * 10;
 }
 
 // Rangs de la mairie (niveau 1 à 8) : conditions et coûts pour y accéder.
@@ -17,6 +19,8 @@ export const RANKS = [
   { name: 'Grande ville', level: 24, pop: 900, cost: { coins: 18000, planks: 500, bricks: 600, tools: 150 } },
   { name: 'Cité', level: 30, pop: 1500, cost: { coins: 35000, stone: 1000, bricks: 1000, tools: 300 } },
   { name: 'Métropole', level: 38, pop: 2500, cost: { coins: 70000, planks: 1500, bricks: 1800, tools: 600 } },
+  { name: 'Capitale', level: 55, pop: 3500, cost: { coins: 140000, planks: 2500, bricks: 3000, tools: 1200 } },
+  { name: 'Mégapole', level: 75, pop: 5000, cost: { coins: 260000, planks: 4000, bricks: 5000, tools: 2200 } },
 ];
 
 /** Niveau de mairie requis pour qu'un bâtiment atteigne un niveau donné (index = niveau). */
@@ -29,7 +33,7 @@ export function zoneCost(n) {
 
 /** Niveau de village requis pour acheter la n-ième zone. */
 export function zoneLevelReq(n) {
-  return Math.min(48, 2 + Math.floor(n * 0.8));
+  return Math.min(95, 2 + Math.floor(n * 0.8));
 }
 
 // Fonctionnalités débloquées avec le niveau du village
@@ -44,9 +48,10 @@ export const FEATURES = {
 export function levelReward(level) {
   const r = { coins: 40 * level };
   if (level % 5 === 0) {
-    r.wood = 20 * level;
-    r.stone = 10 * level;
+    r.wood = Math.min(1000, 20 * level);
+    r.stone = Math.min(800, 10 * level);
   }
+  if (level % 10 === 0) r.gems = level >= 50 ? 20 : 10; // gemmes tous les 10 niveaux
   return r;
 }
 
@@ -59,6 +64,11 @@ export const MAYOR_TITLES = [
   { level: 30, title: 'Urbaniste de génie' },
   { level: 40, title: 'Bâtisseur de légende' },
   { level: 50, title: 'Légende vivante' },
+  { level: 60, title: 'Visionnaire' },
+  { level: 70, title: 'Architecte du siècle' },
+  { level: 80, title: 'Seigneur des cités' },
+  { level: 90, title: 'Empereur bâtisseur' },
+  { level: 100, title: 'Bâtisseur éternel' },
 ];
 
 export function mayorTitle(level) {

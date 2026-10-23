@@ -26,6 +26,8 @@ void main() {
 const PRESETS = {
   smoke: { color: [0.78, 0.78, 0.8], alpha: [0.5, 0], size: [0.1, 0.38], life: 2.4, vel: [0.04, 0.28, 0.04], spread: 0.05, gravity: 0, drag: 0.6, wind: 0.1 },
   dust: { color: [0.86, 0.78, 0.62], alpha: [0.75, 0], size: [0.12, 0.34], life: 0.9, vel: [0.9, 0.35, 0.9], spread: 0.25, gravity: -0.6, drag: 2.2 },
+  impact: { color: [0.82, 0.72, 0.6], alpha: [0.85, 0], size: [0.5, 1.7], life: 2.2, vel: [2.6, 1.3, 2.6], spread: 0.5, gravity: -0.25, drag: 1.5, wind: 0.15 },
+  debris: { color: [0.66, 0.3, 0.2], alpha: [1, 0.8], size: [0.09, 0.06], life: 1.1, vel: [2.2, 3.4, 2.2], spread: 0.25, gravity: -7, drag: 0.4 },
   sparkle: { color: [1, 0.86, 0.35], alpha: [1, 0], size: [0.12, 0.02], life: 1.0, vel: [0.7, 1.4, 0.7], spread: 0.2, gravity: -1.4, drag: 0.8, additive: true },
   fire: { color: [1, 0.55, 0.15], alpha: [0.95, 0], size: [0.24, 0.05], life: 0.7, vel: [0.12, 0.7, 0.12], spread: 0.18, gravity: 0, drag: 0.4, additive: true },
   water: { color: [0.72, 0.88, 1.0], alpha: [0.85, 0.2], size: [0.05, 0.03], life: 0.55, vel: [0.25, 0.7, 0.25], spread: 0.01, gravity: -2.4, drag: 0.2 },

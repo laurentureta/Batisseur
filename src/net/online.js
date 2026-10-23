@@ -4,6 +4,8 @@
 // avec elle ; tout passe par des fonctions qui vérifient le secret du joueur (gardé sur ce
 // téléphone, jamais affiché) et qui fixent elles-mêmes le contenu des cadeaux.
 import { makeSnapshot } from './snapshot.js';
+import { BOT } from './bot.js';
+import { todayKey } from '../core/util.js';
 
 const API = 'https://kuiyozeeqzjaqzifnfok.supabase.co/rest/v1/rpc/';
 const KEY = 'sb_publishable_jNAE7KWQgEkhVheifZ1BPA_DnpZq8P2';
@@ -54,6 +56,50 @@ export class Online {
 
   get bus() {
     return this.game.bus;
+  }
+
+  /* ───────── Capucine, l'amie automatique (toujours là, même sans connexion) ───────── */
+  botData() {
+    let d = null;
+    try {
+      d = JSON.parse(localStorage.getItem(STORE + '.bot') || 'null');
+    } catch {
+      d = null;
+    }
+    return d || { sent: '', claimed: '' };
+  }
+
+  saveBot(d) {
+    try {
+      localStorage.setItem(STORE + '.bot', JSON.stringify(d));
+    } catch {
+      /* ignoré */
+    }
+  }
+
+  botEntry() {
+    const d = this.botData();
+    return { ...BOT, gift_sent: d.sent === todayKey(), last_seen: new Date().toISOString() };
+  }
+
+  /** Le cadeau du jour de Capucine (un par jour). */
+  botGift() {
+    const d = this.botData();
+    if (d.claimed === todayKey()) return null;
+    const day = new Date().getDate();
+    const kinds = ['coins', 'wood', 'stone', 'food'];
+    const kind = kinds[day % kinds.length];
+    return { id: 'bot-' + todayKey(), kind, amount: GIFTS[kind].amount, from: BOT.name, from_village: BOT.village, bot: true };
+  }
+
+  /** Amis à afficher : Capucine d'abord, puis les vrais amis. */
+  allFriends() {
+    return [this.botEntry(), ...this.friends];
+  }
+
+  allInbox() {
+    const g = this.botGift();
+    return g ? [g, ...this.inbox] : this.inbox;
   }
 
   saveMe() {
@@ -145,6 +191,14 @@ export class Online {
   }
 
   async sendGift(id, kind) {
+    if (id === BOT.id) {
+      const d = this.botData();
+      if (d.sent === todayKey()) throw new Error("Tu lui as déjà envoyé un cadeau aujourd'hui.");
+      d.sent = todayKey();
+      this.saveBot(d);
+      this.bus.emit('online:changed');
+      return { ok: true, kind, amount: GIFTS[kind]?.amount || 0 };
+    }
     const r = await this.rpc('bat_send_gift', { ...this.auth(), p_friend: id, p_kind: kind });
     const f = this.friends.find((x) => x.id === id);
     if (f) f.gift_sent = true;
@@ -154,15 +208,33 @@ export class Online {
 
   /** Récupère les cadeaux reçus : ils vont au village en cours (ou à la réserve du menu). */
   async claim() {
-    const list = await this.rpc('bat_claim', this.auth());
+    const all = [];
+    const bot = this.botGift();
+    if (bot) {
+      const d = this.botData();
+      d.claimed = todayKey();
+      this.saveBot(d);
+      all.push(bot);
+    }
+    let err = null;
+    if (this.me?.id && this.inbox.length) {
+      try {
+        all.push(...((await this.rpc('bat_claim', this.auth())) || []));
+      } catch (e) {
+        err = e;
+      }
+    }
     const total = {};
-    for (const g of list || []) if (GIFTS[g.kind]) total[g.kind] = (total[g.kind] || 0) + g.amount;
+    for (const g of all) if (GIFTS[g.kind]) total[g.kind] = (total[g.kind] || 0) + g.amount;
     const shown = Object.keys(total).length ? this.game.meta.grant(total, 'gift') : [];
-    await this.refresh();
-    return { list: list || [], shown };
+    if (this.me?.id) await this.refresh().catch(() => {});
+    if (err && !all.length) throw err;
+    this.bus.emit('online:changed');
+    return { list: all, shown };
   }
 
   async village(id) {
+    if (id === BOT.id) return { ...this.botEntry(), bot: true };
     return this.rpc('bat_village', { ...this.auth(), p_friend: id });
   }
 

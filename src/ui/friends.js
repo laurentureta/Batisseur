@@ -41,7 +41,7 @@ export function openFriends(ui, tab = 'friends') {
     tab,
     tabs: [
       { id: 'friends', label: '👥 Mes amis' },
-      { id: 'gifts', label: '🎁 Cadeaux reçus', badge: () => on.inbox.length },
+      { id: 'gifts', label: '🎁 Cadeaux reçus', badge: () => on.allInbox().length },
     ],
     render: (body, sc) => renderFriends(ui, body, sc, state, load),
   });
@@ -61,22 +61,15 @@ function renderFriends(ui, body, screen, state, load) {
     ),
   ));
   body.appendChild(h('button.btn.wide.fr-add', { onclick: () => addFriendDialog(ui, screen) }, '➕ Ajouter un ami avec son code'));
-  if (state.loading && !on.loaded) {
-    body.appendChild(h('p.hint.fr-wait', '⏳ Connexion…'));
-    return;
-  }
-  if (state.error) {
-    body.appendChild(h('div.fr-error', h('p', `⚠️ ${state.error}`), h('button.btn.small', { onclick: load }, '🔄 Réessayer')));
-    if (!on.loaded) return;
-  }
+  if (state.loading && !on.loaded) body.appendChild(h('p.hint.fr-wait', '⏳ Connexion…'));
+  if (state.error) body.appendChild(h('div.fr-error', h('p', `⚠️ ${state.error}`), h('button.btn.small', { onclick: load }, '🔄 Réessayer')));
   if (screen.tab === 'gifts') {
-    if (!on.inbox.length) {
+    const inbox = on.allInbox();
+    if (!inbox.length) {
       body.appendChild(h('p.hint', 'Pas de cadeau pour l\'instant. Tes amis peuvent t\'en envoyer un par jour.'));
       return;
     }
-    const sum = {};
-    for (const g of on.inbox) sum[g.kind] = (sum[g.kind] || 0) + g.amount;
-    for (const g of on.inbox) {
+    for (const g of inbox) {
       const G = GIFTS[g.kind] || { icon: '🎁', name: g.kind };
       body.appendChild(h('div.fr-gift', h('span.frg-ico', G.icon), h('div.frg-text', h('b', `${G.name} · +${fmt(g.amount)}`), h('small', `de ${g.from} (${g.from_village})`))));
     }
@@ -93,25 +86,18 @@ function renderFriends(ui, body, screen, state, load) {
         screen.refresh(true);
         ui.refreshMeta?.();
       },
-    }, `🎁 Tout récupérer`));
+    }, '🎁 Tout récupérer'));
     body.appendChild(h('p.hint', game.playing && !game.isDemo ? 'Les cadeaux vont dans le village en cours.' : 'Les cadeaux iront dans le prochain village que tu ouvriras.'));
     return;
   }
-  // la liste d'amis
-  if (!on.friends.length) {
-    body.appendChild(h('div.fr-empty',
-      h('span', '🏘️'),
-      h('p', 'Pas encore d\'amis. Partage ton code, ou ajoute celui d\'un ami : vous pourrez visiter vos villages et vous envoyer un cadeau chaque jour.'),
-    ));
-    return;
-  }
-  for (const f of on.friends) {
-    const card = h('div.fr-card',
+  // la liste d'amis : Capucine d'abord
+  for (const f of on.allFriends()) {
+    const card = h('div.fr-card' + (f.bot ? '.bot' : ''),
       h('span.fr-avatar', f.avatar || '🙂'),
       h('div.fr-info',
-        h('b', f.name),
-        h('small', `${f.village} · niv. ${fmt(f.level)} · ${fmt(f.pop)} hab.`),
-        h('small.fr-seen', ago(f.last_seen)),
+        h('b', f.name, f.bot ? h('span.fr-tag', 'Niv. max') : null),
+        h('small', `${f.village} · niv. ${fmt(f.level)}${f.pop ? ` · ${fmt(f.pop)} hab.` : ''}`),
+        h('small.fr-seen', f.bot ? 'Ta première amie : viens voir une ville au niveau maximum !' : ago(f.last_seen)),
       ),
       h('div.fr-btns',
         h('button.btn.small', { disabled: !f.has_village, title: f.has_village ? '' : 'Son village n\'est pas encore partagé', onclick: () => game.visitFriend(f) }, '🏘️ Visiter'),
@@ -122,6 +108,11 @@ function renderFriends(ui, body, screen, state, load) {
     );
     card.addEventListener('contextmenu', (e) => e.preventDefault());
     body.appendChild(card);
+  }
+  if (!on.friends.length && on.loaded) {
+    body.appendChild(h('div.fr-empty',
+      h('p', 'Ajoute tes vrais amis avec leur code : vous pourrez visiter vos villages et vous envoyer un cadeau chaque jour.'),
+    ));
   }
   body.appendChild(h('p.hint', 'Un cadeau par ami et par jour (nouveau jour à minuit). Tes amis voient ton village tel qu\'il était à ta dernière partie.'));
 }

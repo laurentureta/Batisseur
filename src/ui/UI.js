@@ -366,7 +366,7 @@ export class UI {
     this.badge(e.sQuests, c.quests + rq);
     this.badge(e.sOrders, c.orders);
     this.badge(e.sAch, c.achievements);
-    this.badge(e.sFriends, game.online.inbox.length);
+    this.badge(e.sFriends, game.online.allInbox().length);
     this.badge(e.level, c.quests + rq);
     e.sOrders.classList.toggle('hidden', libre || !game.prog.featureUnlocked('orders'));
     e.sQuests.classList.toggle('hidden', libre && !game.requests.list().length);
@@ -395,6 +395,20 @@ export class UI {
       if (fires.length) alerts.push(['🔥', `Incendie : ${BUILDINGS[fires[0].type].name}`, 'bad', () => {
         game.select(fires[0].id);
         game.renderer.focusBuilding(fires[0]);
+      }]);
+    }
+    // bâtiments pas reliés à la mairie (personne n'y emménage, rien n'y travaille)
+    const cut = [];
+    for (const b of game.world.buildings.values()) {
+      const def = BUILDINGS[b.type];
+      if (def.cat === 'decor' && !def.coverage) continue;
+      if (game.sim.info.get(b.id)?.status === 'noRoad') cut.push(b);
+    }
+    if (cut.length) {
+      alerts.push(['🚧', cut.length > 1 ? `${cut.length} bâtiments sans route vers la mairie` : `${BUILDINGS[cut[0].type].name} : pas de route vers la mairie`, 'warn', () => {
+        const b = cut[(this.cutIdx = ((this.cutIdx || 0) + 1) % cut.length)];
+        game.renderer.focusBuilding(b, Math.min(game.renderer.cam.distance, 14));
+        this.toast('🚧 Trace une route qui relie ce bâtiment à la mairie', 'mini');
       }]);
     }
     // chantiers finis qui attendent l'inauguration
@@ -700,7 +714,9 @@ export class UI {
     this.closeSheet(true);
     const body = h('div.sheet-body');
     const titleEl = h('div.sheet-title', title);
-    const el = h('div.sheet' + (cls ? '.' + cls : ''),
+    // ouverte depuis l'écran d'accueil : elle doit passer devant lui
+    const over = this.start && !this.start.el.classList.contains('hidden');
+    const el = h('div.sheet' + (cls ? '.' + cls : '') + (over ? '.over' : ''),
       h('div.sheet-head', h('div.grip'), titleEl, h('button.sheet-close', { onclick: () => this.closeSheet(), 'aria-label': 'Fermer' }, '✕')),
       body,
     );

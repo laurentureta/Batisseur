@@ -7,6 +7,7 @@ import { Sound } from './audio.js';
 import { Music, pickMood } from './music.js';
 import { Online } from '../net/online.js';
 import { stateFromSnapshot } from '../net/snapshot.js';
+import { BOT, botState, populateBot } from '../net/bot.js';
 import { loadSettings, readSlot, writeSlot, serialize } from './save.js';
 import { createNewState } from './state.js';
 import { populateDemo } from './demo.js';
@@ -136,13 +137,13 @@ export class Game extends GameCore {
       this.ui.toast(err.message, 'error');
       return;
     }
-    if (!data?.snapshot) {
+    if (!data?.snapshot && !data?.bot) {
       this.ui.toast(`${f.name} n'a pas encore partagé son village`, 'error');
       return;
     }
     let st;
     try {
-      st = stateFromSnapshot(data.snapshot);
+      st = data.bot ? botState() : stateFromSnapshot(data.snapshot);
     } catch (err) {
       console.warn(err);
       this.ui.toast('Ce village ne peut pas être affiché', 'error');
@@ -157,6 +158,12 @@ export class Game extends GameCore {
     this.setTool({ kind: 'select' });
     this.ui.setLayer(null);
     this.loadState(st, { demo: true });
+    if (data.bot) {
+      // la ville de Capucine se construit ici (pas besoin de connexion)
+      BOT.pop = populateBot(this.world);
+      this.sim.recalc();
+      data.pop = BOT.pop;
+    }
     this.visit = { friend: { ...f, name: data.name || f.name, village: data.village || f.village, level: data.level, pop: data.pop, avatar: data.avatar }, home, at: data.snapshot_at };
     this.renderer.buildings.setTheme(st.cosmetics?.roof || 'mix');
     this.renderer.setWorld(this.world);
@@ -232,6 +239,7 @@ export class Game extends GameCore {
     this.renderer.refreshStatusLabels();
     this.save();
     if (this.online.me?.id) setTimeout(() => this.online.publish(true), 4000); // la photo du village pour les amis
+    if (this.online.botGift()) setTimeout(() => this.playing && this.bus.emit('online:gift', 1, BOT.name), 6000); // le cadeau du jour de Capucine
     this.renderer.thumbs.warmup(BUILDING_LIST.filter((d) => !d.notBuildable && this.prog.isUnlocked(d.id)).map((d) => d.id));
     // ressources gagnées depuis le menu (coffres, passe, boutique)
     const given = this.meta.deliverBank();

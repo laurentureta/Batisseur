@@ -4,6 +4,40 @@ import { loadCreatures, setCreatureLib } from './render/creatures.js';
 import { emojify } from './ui/icons.js';
 
 const root = document.getElementById('app');
+
+/**
+ * Cadrage plein écran. Sur iPhone, en appli posée sur l'écran d'accueil (barre d'état
+ * transparente), Safari annonce parfois une hauteur trop petite (sans la barre d'état) : le jeu
+ * ne descendait pas jusqu'en bas. On prend la vraie hauteur de l'écran dans ce cas.
+ */
+function fitApp() {
+  const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
+  let w = window.innerWidth, h = window.innerHeight;
+  const vv = window.visualViewport;
+  if (!standalone && vv && vv.height > 0 && Math.abs(vv.height - h) < 200) h = Math.max(h, Math.round(vv.height));
+  if (standalone) {
+    const portrait = w <= h;
+    const sw = Math.min(screen.width, screen.height), sh = Math.max(screen.width, screen.height);
+    const full = portrait ? sh : sw;
+    const fullW = portrait ? sw : sh;
+    // l'écran fait la taille de l'appli : on comble l'écart (barre d'état oubliée)
+    if (full > h && full - h < 140 && Math.abs(fullW - w) < 4) h = full;
+  }
+  const el = document.documentElement;
+  if (el.style.getPropertyValue('--app-h') !== h + 'px') {
+    el.style.setProperty('--app-h', h + 'px');
+    window.dispatchEvent(new Event('app-resize'));
+  }
+}
+fitApp();
+for (const ev of ['resize', 'orientationchange', 'pageshow', 'focus']) window.addEventListener(ev, () => {
+  fitApp();
+  setTimeout(fitApp, 350);
+});
+window.visualViewport?.addEventListener('resize', fitApp);
+document.addEventListener('visibilitychange', () => !document.hidden && setTimeout(fitApp, 200));
+setTimeout(fitApp, 600);
+setTimeout(fitApp, 2000);
 // les emoji de l'interface deviennent les icônes dessinées du jeu
 emojify(root);
 const loading = document.getElementById('loading');
