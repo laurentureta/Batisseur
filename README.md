@@ -128,6 +128,10 @@ Tout se règle dans `src/data/` :
 
 Après une modification, change la valeur `VERSION` en haut de `sw.js` (et dans `src/version.js`) pour que les joueurs reçoivent la nouvelle version. Le jeu propose alors « Mettre à jour ».
 
+Ajoute aussi la version et ses nouveautés en tête de `src/data/releases.js` : le carnet s’affiche automatiquement après la mise à jour, avant les cadeaux, et reste accessible depuis l’accueil et le menu. Toute nouvelle ressource nécessaire au jeu doit figurer dans `FILES` dans `sw.js` pour rester disponible hors ligne.
+
+Les tests de régression se lancent avec `node --test tests/*.test.js`.
+
 ## 🛣️ Feuille de route
 
 - [x] Chantiers qui avancent hors ligne (temps réel)

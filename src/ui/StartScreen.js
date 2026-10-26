@@ -124,7 +124,7 @@ export class StartScreen {
       panel,
       icons,
       h('div.start-foot',
-        h('span', `v${VERSION}`),
+        h('button.link', { onclick: () => this.ui.openNews() }, `Nouveautés · v${VERSION}`),
         h('button.link', { onclick: () => this.showCredits() }, 'Crédits'),
         installed ? null : h('span', 'Partager → « Sur l\'écran d\'accueil » pour l\'installer'),
       ),

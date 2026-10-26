@@ -122,18 +122,22 @@ start().catch((err) => {
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').then((reg) => {
+      const offerUpdate = (worker) => {
+        if (!worker || !navigator.serviceWorker.controller) return;
+        window.batisseur?.ui?.toast('✨ Nouvelle version disponible', 'info', {
+          label: 'Mettre à jour',
+          onclick: () => {
+            window.batisseur?.save();
+            worker.postMessage('skipWaiting');
+          },
+        });
+      };
+      // Une mise à jour peut déjà attendre depuis la visite précédente.
+      offerUpdate(reg.waiting);
       reg.addEventListener('updatefound', () => {
         const nw = reg.installing;
         nw?.addEventListener('statechange', () => {
-          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-            window.batisseur?.ui?.toast('✨ Nouvelle version disponible', 'info', {
-              label: 'Mettre à jour',
-              onclick: () => {
-                window.batisseur?.save();
-                nw.postMessage('skipWaiting');
-              },
-            });
-          }
+          if (nw.state === 'installed') offerUpdate(nw);
         });
       });
     }).catch(() => {});

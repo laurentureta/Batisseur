@@ -277,6 +277,7 @@ export function renderMenu(ui, body) {
   });
   item('📦', 'Stock et statistiques', () => ui.openStock());
   item('🗺️', 'Calques', () => ui.openLayers());
+  item('📜', 'Nouveautés', () => ui.openNews());
   item('❓', 'Aide et commandes', () => showHelp(ui));
   if (ui.desk) item('⌨️', 'Raccourcis clavier', () => ui.showShortcuts());
   item('⚙️', 'Réglages', () => ui.openSettings());

@@ -15,6 +15,7 @@ import { openProfile } from './profile.js';
 import { openFriends, giftDialog } from './friends.js';
 import { showRewards, showLogin } from './rewards.js';
 import { closeScreen } from './screens.js';
+import { showNews } from './news.js';
 import { BOOSTS } from '../data/shop.js';
 import { COVER_COLORS } from '../render/Renderer.js';
 import { SIZE } from '../world/constants.js';
@@ -110,6 +111,11 @@ export class UI {
       h('span.lv-ring', { html: ring }), h('span.lv-disc', h('b.num', '1')), h('i.badge.hidden'));
     const stat = (name, cls, fn) => h('button.chip-stat.' + cls, { onclick: fn }, icon(name, 'ic'), h('span.v', h('b', '0'), h('small', '')));
     e.coins = stat('coins', 'st-coins', () => this.openStock());
+    e.coins.setAttribute('aria-label', 'Pièces et stock');
+    e.gems = stat('gem', 'st-gems', () => this.openShop('gems'));
+    e.gems.setAttribute('aria-label', 'Gemmes et boutique');
+    e.gems.querySelector('small').textContent = 'gemmes';
+    e.gems.appendChild(h('span.stat-plus', '+'));
     e.pop = stat('people', 'st-pop', () => this.openStock());
     e.happy = stat('smile', 'st-happy', () => this.openLayers('happiness'));
     e.happyIco = e.happy.querySelector('.ic');
@@ -126,8 +132,9 @@ export class UI {
     e.boosts = h('div.boost-chips');
     e.event = h('button.event-chip.hidden', { onclick: () => this.openEvent(), 'aria-label': 'Événement de la semaine' });
     this.hud = h('div.hud',
-      h('div.hud-top', e.level, h('div.stats', e.coins, e.pop, e.happy), e.menu),
-      h('div.hud-sub', e.quest, h('div.time', e.date, e.speed)),
+      h('div.hud-top', e.level, h('div.stats', e.coins, e.gems), e.menu),
+      h('div.hud-details', e.pop, e.happy, h('div.time', e.date, e.speed)),
+      h('div.hud-sub', e.quest),
       e.event,
       e.boosts,
       e.alerts,
@@ -174,7 +181,7 @@ export class UI {
       probe.remove();
     }
     const safeTop = this.safeTop;
-    this.game.renderer.labels.setMargins(on ? 130 + safeTop : 0, on ? 110 : 0);
+    this.game.renderer.labels.setMargins(on ? 170 + safeTop : 0, on ? 110 : 0);
   }
 
   /* ───────── Mise à jour régulière ───────── */
@@ -203,6 +210,10 @@ export class UI {
     e.sShop.querySelector('.gem-count span').textContent = fmtCompact(meta.p.gems);
     this.badge(e.sShop, meta.freeChestIn() <= 0 ? 1 : 0);
     this.badge(e.sPass, meta.passClaimables() + meta.weeklyClaimables());
+  }
+
+  openNews(options) {
+    return showNews(this, options);
   }
 
   openShop(tab) {
@@ -308,6 +319,7 @@ export class UI {
     const libre = this.libre;
     // niveau
     const lp = game.prog.levelProgress();
+    e.gems.querySelector('b').textContent = fmtCompact(game.meta.p.gems);
     e.level.querySelector('.num').textContent = libre ? '∞' : lp.level;
     e.level.querySelector('.fg').setAttribute('stroke-dashoffset', String(141.4 * (1 - (libre ? 1 : lp.pct))));
     // pièces

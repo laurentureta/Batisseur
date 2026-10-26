@@ -17,6 +17,7 @@ import { BUILDING_LIST } from '../data/buildings.js';
 import { Meta } from './meta.js';
 import { RESOURCES } from '../data/resources.js';
 import { fmt } from './util.js';
+import { VERSION } from '../version.js';
 import { introWanted, playIntro } from '../ui/intro.js';
 
 export class Game extends GameCore {
@@ -62,6 +63,11 @@ export class Game extends GameCore {
 
   boot() {
     this.toMainMenu();
+    // Après une mise à jour, le récapitulatif précède la cinématique et les cadeaux.
+    if (this.settings.newsVersion !== VERSION) {
+      setTimeout(() => this.greet(), 250);
+      return;
+    }
     // la première fois : la cinématique d'introduction, puis l'accueil
     if (introWanted(this)) {
       playIntro(this, { onDone: () => setTimeout(() => this.greet(), 700) });
@@ -80,6 +86,10 @@ export class Game extends GameCore {
   }
 
   greet() {
+    if (this.settings.newsVersion !== VERSION) {
+      this.ui.openNews({ automatic: true, onClose: () => setTimeout(() => this.greet(), 250) });
+      return;
+    }
     const meta = this.meta;
     const login = () => {
       if (!this.ui.showLogin({ onDone: () => this.ui.eventIntro() })) this.ui.eventIntro();
