@@ -15,6 +15,9 @@ import { openProfile } from './profile.js';
 import { openFriends, giftDialog } from './friends.js';
 import { showRewards, showLogin } from './rewards.js';
 import { closeScreen } from './screens.js';
+import { openCity, customizeBuilding } from './city.js';
+import { openCooperative } from './cooperative.js';
+import { openPhoto } from './photo.js';
 import { hudIcon, hudIconURL } from './hudIcons.js';
 import { showNews } from './news.js';
 import { BOOSTS } from '../data/shop.js';
@@ -241,7 +244,7 @@ export class UI {
 
   /** Lance fn quand aucune fenêtre ni écran n'est ouvert (réessaie pendant une minute). */
   whenIdle(fn, tries = 75) {
-    if (!this.modalStack.length && !this.screen) return fn();
+    if (!this.modalStack.length && !this.screen && !this.photoActive) return fn();
     if (tries > 0) setTimeout(() => this.whenIdle(fn, tries - 1), 800);
   }
 
@@ -383,7 +386,9 @@ export class UI {
     this.badge(e.sOrders, c.orders);
     this.badge(e.sAch, c.achievements);
     this.badge(e.sFriends, game.online.allInbox().length);
-    e.tbVillage.classList.toggle('has-notice', c.quests + rq + c.orders + c.achievements + game.online.allInbox().length > 0);
+    const familyReady=game.city.data.families.some((f)=>{const p=game.city.familyProgress(f);return p.done&&!p.finished;});
+    const projectReady=Object.values(game.city.data.projects).some((p)=>p.readyAt&&p.readyAt<=Date.now());
+    e.tbVillage.classList.toggle('has-notice', familyReady || projectReady || c.quests + rq + c.orders + c.achievements + game.online.allInbox().length > 0);
     this.badge(e.level, c.quests + rq);
     e.sOrders.classList.toggle('hidden', libre || !game.prog.featureUnlocked('orders'));
     e.sQuests.classList.toggle('hidden', libre && !game.requests.list().length);
@@ -486,6 +491,8 @@ export class UI {
    * (fenêtre, écran, panneau, outil, sélection). Renvoie true si quelque chose a été fermé.
    */
   escape() {
+    if (this.photoActive) { this.exitPhoto(); return true; }
+    if (this.game.renderer.showDistricts) { this.game.renderer.showDistricts=false;this.game.renderer.cityView.districtBorders(false); }
     const top = this.modalStack[this.modalStack.length - 1];
     if (top) {
       if (top.dataset.dismissable !== '0') top._close?.();
@@ -882,6 +889,7 @@ export class UI {
   }
 
   openLayers(preset) {
+    this.game.renderer.showDistricts=false;this.game.renderer.cityView.districtBorders(false);
     if (preset) {
       this.setLayer(preset);
       this.toast('Calque : bonheur des maisons (vert = heureux)', 'mini');
@@ -889,6 +897,11 @@ export class UI {
     }
     this.openSheet('layers', '🗺️ Calques', (body) => Panels.renderLayers(this, body), { live: false });
   }
+
+  openCooperative() { return openCooperative(this); }
+  openCity(tab) { return openCity(this,tab); }
+  customizeBuilding(id) { return customizeBuilding(this,id); }
+  openPhoto() { return openPhoto(this); }
 
   openVillage() {
     this.openSheet('village', 'Village', (body) => {
@@ -904,6 +917,9 @@ export class UI {
         }, hudIcon(source.dataset.icon), h('span', label), count ? h('i.village-count', count) : null));
       }
       grid.appendChild(h('button.village-action', { onclick: () => this.openEvent(), 'aria-label': 'Événements' }, hudIcon('event'), h('span', 'Événements')));
+      grid.appendChild(h('button.village-action',{onclick:()=>this.openCity(),'aria-label':'Développer'},hudIcon('village'),h('span','Développer')));
+      grid.appendChild(h('button.village-action',{onclick:()=>this.openPhoto(),'aria-label':'Mode photo'},hudIcon('sun'),h('span','Mode photo')));
+      grid.appendChild(h('button.village-action',{onclick:()=>this.openCooperative(),'aria-label':'Coopératives'},hudIcon('people'),h('span','Coopératives')));
       body.appendChild(grid);
     }, { live: true, cls: 'village-sheet' });
   }
@@ -1046,6 +1062,7 @@ export class UI {
   /* ───────── Événements du jeu ───────── */
   bindBus() {
     const bus = this.game.bus;
+    bus.on('regional:arrived',(s)=>this.toast(`📦 ${s.qty} ${RESOURCES[s.res]?.name||''} livrées à ${this.game.city.book.settlements[s.to]?.name||'destination'}`,'good',{label:'Région',onclick:()=>this.openCity('regions')}));
     const game = this.game;
     bus.on('tool:changed', (t) => this.onToolChanged(t));
     bus.on('selection', (id) => {

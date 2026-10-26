@@ -118,10 +118,11 @@ export class BuildingView {
 
   model(b) {
     const v = variantOf(b.id) & 15;
-    const key = `${b.type}|${b.level}|${v}|${this.season}|${this.theme}`;
+    const theme=b.appearance?.roof || this.theme;
+    const key = `${b.type}|${b.level}|${v}|${this.season}|${theme}|${b.appearance?.facade}|${b.appearance?.garden}`;
     let m = this.models.get(key);
     if (!m) {
-      m = buildModel(b.type, b.level, v, this.season, this.theme, { live: true });
+      m = buildModel(b.type, b.level, v, this.season, theme, { live: true, appearance: b.appearance });
       // boîte englobante locale
       const p = m.body.pos;
       let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;

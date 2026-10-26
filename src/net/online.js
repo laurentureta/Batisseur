@@ -138,7 +138,8 @@ export class Online {
     }
     if (!res.ok) {
       const msg = (data && (data.message || data.error)) || `Erreur du serveur (${res.status})`;
-      throw new Error(ERRORS[msg] || msg);
+      const error = new Error(ERRORS[msg] || msg);
+      error.status=res.status;error.code=data?.code;error.serverMessage=msg;throw error;
     }
     return data;
   }

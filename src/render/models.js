@@ -1,5 +1,8 @@
 // Modèles 3D low-poly de tous les bâtiments, générés en code (aucune image à charger).
 // Repère local : emprise centrée sur (0, 0), façade avant tournée vers +z, sol à y = 0.
+import { buildCivicModel, gardenDetails } from './civicModels.js';
+import { FACADES } from '../data/city.js';
+import { hexToLin } from './geom.js';
 import { GeoBuilder, shade, mix } from './geom.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { ROOF_THEMES } from '../data/cosmetics.js';
@@ -1017,15 +1020,24 @@ MODELS.fallback = (g, L, ctx, out) => {
  * Construit le modèle d'un bâtiment.
  * @returns {{body, glass, parts, emitters}}
  */
-export function buildModel(type, level = 1, variant = 0, season = 1, theme = 'mix', { live = false } = {}) {
+export function buildModel(type, level = 1, variant = 0, season = 1, theme = 'mix', { live = false, appearance = null } = {}) {
   const g = new GeoBuilder();
   const ctx = makeCtx(variant, season, theme);
   ctx.live = live; // dans le monde : les cultures et les tas de bûches sont animés à part
   const out = { parts: [], emitters: [] };
   ctx.out = out;
   const L = Math.max(1, Math.min(level, BUILDINGS[type]?.maxLevel || 1));
-  if (hasKitModel(type)) KM[type](g, L, ctx);
+  if (BUILDINGS[type]?.civic) buildCivicModel(g,type,L);
+  else if (hasKitModel(type)) KM[type](g, L, ctx);
   else (MODELS[type] || MODELS.fallback)(g, L, ctx, out);
+  if (appearance && !BUILDINGS[type]?.civic) {
+    const target = FACADES[appearance.facade]?.color;
+    if(target){const tint=hexToLin(target);for(let k=0;k<g.body.col.length;k+=3){
+      const c=g.body.col, hi=Math.max(c[k],c[k+1],c[k+2]),lo=Math.min(c[k],c[k+1],c[k+2]);
+      if(g.body.nor[k+1]<.55 && hi>.45 && hi-lo<.4)for(let a=0;a<3;a++)c[k+a]=tint[a]*Math.min(1,hi+.1);
+    }}
+    gardenDetails(g,BUILDINGS[type].size,appearance.garden,season);
+  }
   g.body.freeze();
   g.glass.freeze();
   for (const p of out.parts) {

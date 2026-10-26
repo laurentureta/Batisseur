@@ -1,5 +1,6 @@
 // Terrains de départ proposés à la création d'une partie.
 export const PRESETS = {
+  ile: { id:'ile',name:'Île des Vergers',icon:'🏝️',desc:'Une île fertile entourée par la mer, dédiée aux échanges de marchandises.' },
   vallee: {
     id: 'vallee',
     name: 'Vallée verdoyante',

@@ -51,6 +51,7 @@ export function openFriends(ui, tab = 'friends') {
 
 function renderFriends(ui, body, screen, state, load) {
   const game = ui.game, on = game.online;
+  body.appendChild(h('button.btn.wide',{onclick:()=>ui.openCooperative()},'🤝 Rejoindre une coopérative'));
   // ton code
   const code = on.me?.code;
   body.appendChild(h('div.fr-code',

@@ -528,6 +528,12 @@ def({
   desc: 'Le cœur du village. Elle fournit un peu de bois, de pierre et de nourriture chaque jour. L\'améliorer fait grandir ton rang et permet d\'améliorer tous les autres bâtiments.',
 });
 
+for (const [id,name,unlock,icon] of [
+  ['civic_square','Place des Fêtes',3,'🎪'], ['civic_garden','Jardin des Horlogers',10,'🌷'], ['civic_harbor','Port des Explorateurs',18,'⚓'],
+]) def({ id, name, icon, cat: 'monuments', unlock, maxLevel: 4, size: [3,3], unique: true, civic: true,
+  near: id==='civic_harbor'?{types:['water','deep'],radius:4,sat:1,label:'de l’eau'}:undefined,
+  costs: [{ coins: 100 }, {}, {}, {}], levelNames: ['Emplacement · '+name, 'Fondations · '+name, 'Aménagement · '+name, name],
+  desc: 'Grand projet : les travaux se financent par étapes depuis Développer → Grands projets. Chaque phase transforme ce lieu.' });
 export const BUILDING_LIST = LIST;
 export const BUILDINGS = Object.fromEntries(LIST.map((d) => [d.id, d]));
 

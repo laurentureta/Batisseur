@@ -1,4 +1,5 @@
 // Création de l'état initial d'une partie.
+import { newCity, ensureCity } from './cityState.js';
 import { emptyStock } from '../data/resources.js';
 import { CENTER_ZONE, ZONES, CENTER, LEGACY_ZONES, LEGACY_OFFSET, ZONE } from '../world/constants.js';
 
@@ -13,6 +14,7 @@ export function createNewState({ name = 'Mon village', preset = 'vallee', mode =
   Object.assign(res, { coins: 600, wood: 120, stone: 60, food: 60 });
   return {
     version: SAVE_VERSION,
+    city: newCity(), regionId: 'home', regionBook: null,
     slot,
     name: name.trim().slice(0, 28) || 'Mon village',
     preset,
@@ -118,6 +120,7 @@ export function migrateState(st) {
   if (!Array.isArray(st.boosts)) st.boosts = [];
   if (!st.cosmetics) st.cosmetics = { roof: 'mix' };
   migrateWarehouses(st);
+  ensureCity(st);
   st.version = SAVE_VERSION;
   return st;
 }

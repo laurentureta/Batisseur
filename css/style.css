@@ -2159,3 +2159,68 @@ input.range::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; b
 @media (max-width: 700px) and (orientation: landscape) {
   .landscape-ui .hud-sub { width: min(230px, calc(47vw - var(--safe-left) - var(--safe-right) - 36px)); }
 }
+
+/* v4 — le carnet de développement, commun aux villages et à la région. */
+.city-screen { background: #f6f3e5; }
+.city-screen .screen-body { padding: 16px max(16px,var(--safe-right)) max(18px,var(--safe-bottom)) max(16px,var(--safe-left)); }
+.city-heading { margin: 3px 0 8px; font: 24px/1.15 var(--display); color: #476d50; }
+.city-note { margin: 8px 0 14px; max-width: 850px; color: #7d795e; font-size: 12px; line-height: 1.6; }
+.city-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(240px,100%),1fr)); gap: 12px; margin: 14px 0; }
+.city-card, .region-card { min-width: 0; padding: 17px; border-radius: 18px; border: 1px solid #dfd8bd; background: #fffcf2; box-shadow: 0 2px #dcd3b750; }
+.city-card h3, .region-card h3 { margin: 5px 0 9px; color: #5a6743; font: 20px/1.2 var(--display); }
+.city-card h4 { margin: 12px 0 7px; font-size: 14px; color: #6f6a4a; }
+.city-card p, .region-card p { font-size: 12px; line-height: 1.6; color: #827558; }
+.city-card small { font-size: 11px; color: #8b8368; }
+.city-card-icon { display: inline-grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; background: linear-gradient(#f5f7da,#dce9be); font-size: 29px; }
+.city-card-icon .ico { width: 31px; height: 31px; }
+.city-card .btn, .city-form .btn { margin-top: 10px; min-height: 40px; }
+.city-card .progress { margin: 12px 0; }
+.city-state { display: inline-block; padding: 4px 8px; border-radius: 8px; background: #f0ead8; color: #8b7c51; font-size: 11px; }
+.city-state.on { background: #e0edca; color: #547e37; }
+.city-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.city-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin: 18px 0; padding: 16px; border: 1px solid #d7dcc2; border-radius: 17px; background: #f1f4e4; }
+.city-form > h2, .city-form > h3, .city-form > p { flex-basis: 100%; margin: 0; }
+.city-field { display: flex; flex: 1 1 170px; min-width: 0; flex-direction: column; gap: 6px; color: #697353; font-size: 12px; font-weight: 600; }
+.city-field select, .city-form > select, .photo-settings select { min-height: 41px; width: 100%; max-width: 100%; padding: 9px; border: 1px solid #c9d3b6; border-radius: 10px; background: #fffdf5; color: #4c6547; font: inherit; }
+.city-form .text { min-height: 41px; border-color: #c9d3b6; background: #fffdf5; }
+.district-picker { flex-basis: 100%; display: grid; grid-template-columns: repeat(11,1fr); gap: 3px; max-width: 330px; padding: 8px; border-radius: 13px; background: #e0e6ce; }
+.district-cell { aspect-ratio: 1; min-width: 0; padding: 2px; border-radius: 4px; background: #fffcee; color: #6d8656; font-size: 10px; }
+.district-cell.on { background: #7aa85a; color: #fff; }
+.district-cell:disabled { background: #c7d0b6; color: #a0ad90; cursor: default; }
+.family-card blockquote { margin: 12px 0; padding: 12px; border-left: 3px solid #b9cf92; border-radius: 0 12px 12px 0; background: #f4f5e5; color: #767451; font-size: 13px; line-height: 1.6; }
+.city-reward { color: #a58431 !important; }
+.region-map { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(220px,100%),1fr)); gap: 14px; padding: 15px; border-radius: 24px; background: radial-gradient(ellipse at 50% 70%,#c8e3df,transparent),#e0ede3; margin: 16px 0; }
+.region-card { border-color: #d7dec2; background: #fffdf3ec; }
+.region-card.active { outline: 2px solid #91af67; outline-offset: -4px; }
+.region-card.island { background: linear-gradient(160deg,#fffef2,#dcedd5); }
+.region-card.mountain { background: linear-gradient(160deg,#fffef2,#dce4e8); }
+.region-card.coast { background: linear-gradient(160deg,#fffef2,#e1eeef); }
+.region-shipment { margin: 12px 0; }
+.region-track { position: relative; height: 35px; margin: 12px 0; background: linear-gradient(transparent 45%,#bfd2bb 45%,#bfd2bb 55%,transparent 55%); }
+.region-track > span { position: absolute; top: 3px; font-size: 25px; transition: left 1s linear; }
+.region-track .ico { width: 29px; height: 29px; }
+.city-error { padding: 12px; border-radius: 12px; background: #f8e7da; color: #9c5b3f; font-size: 13px; line-height: 1.5; }
+.coop-header { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
+.coop-header h2 { margin-bottom: 4px; color: #4d704c; }
+.coop-header p { font-size: 12px; color: #818164; }
+.coop-members { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 9px; margin: 12px 0; }
+.coop-members > div { display: flex; flex-direction: column; gap: 4px; border-radius: 10px; padding: 10px; background: #eef1df; }
+.coop-members span { font-size: 11px; color: #85846c; }
+#ui.photo-mode > .hud, #ui.photo-mode > .side, #ui.photo-mode > .bottom-bar, #ui.photo-mode > .tool-banner, #ui.photo-mode > .toasts, #ui.photo-mode > .stroke-info { display: none; }
+.photo-controls { position: absolute; z-index: 25; bottom: calc(var(--safe-bottom) + 10px); right: calc(var(--safe-right) + 12px); width: min(510px,calc(100% - var(--safe-right) - var(--safe-left) - 24px)); padding: 12px 15px; border: 1px solid #c9d7b7; border-radius: 18px; background: #fffdf1ed; box-shadow: 0 5px 25px #17361c33; }
+.photo-heading { display: flex; justify-content: space-between; align-items: center; gap: 14px; color: #4c6c47; }
+.photo-status { margin: 6px 0; color: #7c8162; font-size: 11px; }
+.photo-settings, .photo-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.photo-settings { margin: 7px 0; }
+.photo-settings select { width: auto; min-height: 33px; font-size: 11px; padding: 5px; }
+.photo-settings label { font-size: 11px; color: #6e795b; display: flex; align-items: center; }
+.photo-buttons .btn { flex: 1; font-size: 12px; }
+.photo-preview { position: absolute; left: calc(var(--safe-left) + 12px); top: calc(var(--safe-top) + 12px); width: min(40vw,380px); padding: 6px; background: #fff9ec; border: 1px solid #d4caac; border-radius: 10px; box-shadow: 0 8px 25px #253a2b40; pointer-events: none; }
+.photo-preview img { display: block; width: 100%; height: auto; max-height: 48vh; object-fit: contain; }
+@media (max-height: 450px) and (orientation: landscape) {
+  .city-heading { font-size: 21px; }
+  .city-screen .screen-head { padding-top: calc(var(--safe-top) + 8px); padding-bottom: 8px; }
+  .city-screen .screen-tabs { padding-top: 5px; padding-bottom: 5px; }
+  .photo-controls { padding: 8px 12px; }
+  .photo-settings { gap: 4px; }
+}

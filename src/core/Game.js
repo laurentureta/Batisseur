@@ -5,6 +5,7 @@ import { UI } from '../ui/UI.js';
 import { Input } from '../input/Input.js';
 import { Sound } from './audio.js';
 import { Music, pickMood } from './music.js';
+import { Cooperative } from '../net/Cooperative.js';
 import { Online } from '../net/online.js';
 import { stateFromSnapshot } from '../net/snapshot.js';
 import { BOT, botState, populateBot } from '../net/bot.js';
@@ -27,6 +28,7 @@ export class Game extends GameCore {
     this.sound = new Sound(this.settings);
     this.music = new Music(this.sound, this.settings); // musique d'ambiance (jour, nuit, fêtes)
     this.online = new Online(this); // amis, visites, cadeaux
+    this.cooperative = new Cooperative(this);
     this.visit = null;
     this.onlineAcc = 0;
     this.playing = false;
@@ -108,7 +110,7 @@ export class Game extends GameCore {
     if (!this.world) return;
     this.input?.update(dt);
     if (this.playing) {
-      this.sim.update(dt);
+      if (!this.ui.photoActive) this.sim.update(dt);
       this.autosaveAcc += dt;
       if (this.autosaveAcc > 20) {
         this.autosaveAcc = 0;
@@ -120,6 +122,7 @@ export class Game extends GameCore {
       this.villagers.demoTick(dt * rate); // le village du menu vit aussi
       this.construction.demoTick(dt * rate);
     }
+    if (this.playing) this.city.tick(dt);
     this.meta.tick(dt);
     this.renderer.frame(dt);
     this.ui.update(dt);
@@ -195,6 +198,7 @@ export class Game extends GameCore {
   }
 
   toMainMenu() {
+    this.ui?.exitPhoto?.();
     if (this.visit) {
       this.visit = null;
       this.ui.hideVisit();
@@ -232,6 +236,7 @@ export class Game extends GameCore {
   }
 
   startState(st) {
+    this.ui?.exitPhoto?.();
     if (this.visit) {
       this.visit = null;
       this.ui.hideVisit();

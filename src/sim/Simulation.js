@@ -140,6 +140,7 @@ export class Simulation {
     this.game.events.tick(days);
     this.game.prog.tick(days);
     this.game.requests?.tick(days);
+    this.game.city?.localTick(dt);
   }
 
   onNewDay(day) {
@@ -341,6 +342,8 @@ export class Simulation {
     else if (this.brokeFlag && st.res.coins >= upkeep * 0.5) this.brokeFlag = false;
     d.broke = this.brokeFlag;
 
+    this.game.city?.recount();
+    if (this.game.city?.completed('civic_garden')) d.storage += 200;
     this.computeMaps();
 
     const cal = calendar(st.time.day);
@@ -395,6 +398,7 @@ export class Simulation {
         else if (b.work?.noTrees && b.work.acc >= b.work.unit) status = 'noTrees';
         else if (def.residents && !(b.residents >= 0.5)) status = 'empty';
       }
+      eff *= game.city?.effects(b).production || 1;
       inf.eff = eff;
       inf.status = status;
 
@@ -414,12 +418,13 @@ export class Simulation {
         const near = def.income.radius ? this.residentsNear(b, def.income.radius) : 0;
         inf.residentsNear = near;
         inf.income = (def.income.base + def.income.perRes * Math.min(near, 500)) * INCOME_MULT[Math.min(b.level, 5) - 1] * staff * bm.tax * (bm.commerce || 1);
+        inf.income *= game.city?.effects(b).commerce || 1;
         commerce += inf.income;
       } else inf.income = 0;
     }
     taxes *= (1 + bonus.taxes) * ev.taxes * bm.tax;
     d.happiness = hW > 0 ? hSum / hW : hCount > 0 ? hHouses / hCount : 0.5;
-    const tourism = bonus.tourism * d.happiness;
+    const tourism = (bonus.tourism + (game.city?.districtTourism() || 0) + (game.city?.completed('civic_garden') ? 20 : 0) + (game.city?.completed('civic_harbor') ? 40 : 0)) * d.happiness;
     d.income = { taxes, commerce, tourism, total: taxes + commerce + tourism };
 
     this.computeRates();
@@ -437,7 +442,7 @@ export class Simulation {
     needs.paved = inf.paved;
     const beauty = Math.min(0.25, this.beauty[ci]);
     const poll = Math.min(0.4, this.pollution[ci]);
-    let h = 0.45;
+    let h = 0.45 + (this.game.city?.effects(b).happy || 0);
     h += d.starving ? -0.25 : 0.1;
     if (needs.water) h += 0.07;
     else if (b.level >= 2) h -= 0.04;
@@ -506,6 +511,10 @@ export class Simulation {
         frac = clamp(frac, 0, 1);
         inf.inFrac = inf.inFrac * 0.95 + frac * 0.05;
       }
+      for (const r in def.produces) {
+        const planned = def.produces[r] * mult * days;
+        if (planned > 0) frac = Math.min(frac, (this.game.city?.productionRoom(b,r) ?? Infinity) / planned);
+      }
       if (frac <= 0) continue;
       let room = false;
       for (const r in def.produces) if (libre || res[r] < cap) room = true;
@@ -521,6 +530,7 @@ export class Simulation {
       if (def.consumes) for (const r in def.consumes) res[r] = Math.max(0, res[r] - def.consumes[r] * mult * days * frac);
       for (const r in def.produces) {
         const add = def.produces[r] * mult * days * frac;
+        if (this.game.city?.bufferProduction(b,r,add)) continue;
         const before = res[r];
         res[r] = libre ? res[r] + add : Math.max(before, Math.min(cap, res[r] + add)); // jamais de perte au-dessus du plafond
         const gained = Math.max(0, res[r] - before);

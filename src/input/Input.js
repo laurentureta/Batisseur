@@ -210,6 +210,7 @@ export class Input {
     if (ui.modalStack.length || ui.screen) return;
     if (this.game.visit) return; // chez un ami : rien à construire
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (ui.photoActive && !MOVE_KEYS.has(e.code) && !['+','=','-','PageUp','PageDown','Home','h'].includes(k)) return;
     if ((e.ctrlKey || e.metaKey) && k === 'z') {
       e.preventDefault();
       ui.undo();

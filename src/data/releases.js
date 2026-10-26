@@ -1,6 +1,18 @@
 // Ajouter chaque nouvelle version ici, de la plus récente à la plus ancienne.
 export const RELEASES = [
   {
+    version: '4.0.0', title: 'Mon village, toute une région',
+    items: [
+      { icon: 'map', title: 'Des quartiers qui ont leur caractère', text: 'Nommez vos quartiers, associez leurs zones et spécialisez-les. Leur composition apporte de vrais bonus à la production, au commerce, au bonheur ou au tourisme.' },
+      { icon: 'hammer', title: 'Trois grands projets', text: 'La Place des Fêtes, le Jardin des Horlogers et le Port des Explorateurs se construisent par étapes, en temps réel. Leur modèle 3D évolue à chaque inauguration.' },
+      { icon: 'people', title: 'Les familles du village', text: 'Retrouvez les Rivière, les Morel et les Delorme. Leurs histoires suivent leurs maisons, vos bâtiments et vos voyages, avec des récompenses à gagner.' },
+      { icon: 'crate', title: 'Des marchandises en mouvement', text: 'Organisez des tournées de charrettes et de camions vers l’entrepôt. Les marchandises attendent leur véritable arrivée avant de rejoindre le stock.' },
+      { icon: 'road', title: 'Une région à développer', text: 'Fondez des villages sur l’Île des Vergers, dans la Vallée des Mines et au Rivage des Voyageurs. Reliez leurs stocks par caravanes, trains de fret ou cargos.' },
+      { icon: 'sun', title: 'Votre village en carte postale', text: 'Personnalisez les façades, toitures et jardins. Le mode photo masque l’interface, règle le cadrage et la lumière, puis enregistre ou partage une vraie image du jeu.' },
+      { icon: 'medal', title: 'Des coopératives entre maires', text: 'Rejoignez jusqu’à 20 joueurs, demandez des marchandises et participez aux chantiers collectifs. L’accès dépend de l’activation des coopératives sur le serveur.' },
+    ],
+  },
+  {
     version: '3.11.0', title: 'Votre village en paysage',
     items: [
       { icon: 'map', title: 'Jouez à l’horizontale', text: 'Tournez votre téléphone pour profiter du village en grand. En portrait, le jeu vous invite à pivoter et met la simulation en pause, sans perdre votre partie.' },

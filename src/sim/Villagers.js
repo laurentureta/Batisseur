@@ -236,6 +236,7 @@ export class Villagers {
     let taken = 0;
     for (const b of this.world.buildings.values()) {
       if (taken >= amount) break;
+      if (this.game.city?.hasRoute(b.id)) continue;
       const ws = WORKSITES[b.type];
       if (!ws || ws.res !== res || !b.work) continue;
       const s = b.work;
@@ -728,13 +729,14 @@ export class Villagers {
       return;
     }
     const cap = this.game.sim.d.storage;
-    const room = st.mode === 'libre' ? Infinity : Math.max(0, cap - st.res[load.res]);
+    const room = this.game.city?.hasRoute(b.id) ? this.game.city.productionRoom(b,load.res) : st.mode === 'libre' ? Infinity : Math.max(0, cap - st.res[load.res]);
     const n = Math.min(load.n, room);
     if (n > 0) {
-      st.res[load.res] += n;
+      const routed = this.game.city?.bufferProduction(b,load.res,n);
+      if (!routed) st.res[load.res] += n;
       const stats = st.stats;
-      stats.produced[load.res] = (stats.produced[load.res] || 0) + n;
-      if (stats.daily) stats.daily.produced[load.res] = (stats.daily.produced[load.res] || 0) + n;
+      if (!routed) stats.produced[load.res] = (stats.produced[load.res] || 0) + n;
+      if (!routed && stats.daily) stats.daily.produced[load.res] = (stats.daily.produced[load.res] || 0) + n;
       if (!load.fromBed) {
         s.acc = Math.max(0, s.acc - n);
         const r = Math.min(w.reserved || 0, n);

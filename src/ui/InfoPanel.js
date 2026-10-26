@@ -72,6 +72,8 @@ export function renderInfo(ui, body, sheet, id) {
     ));
   }
 
+  if (!def.civic) body.appendChild(h('button.btn.wide',{onclick:()=>ui.customizeBuilding(b.id)},'🎨 Personnaliser ce bâtiment'));
+  else body.appendChild(h('button.btn.primary.wide',{onclick:()=>ui.openCity('projects')},'🏗️ Ouvrir le grand projet'));
   const rows = h('div.info-rows');
   const row = (label, value) => rows.appendChild(h('div.info-row', h('span', label), h('b', value)));
 

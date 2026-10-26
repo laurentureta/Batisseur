@@ -46,8 +46,8 @@ export class Sky {
     this.weather = 'clear';
     this.weatherFactor = 1;
     // réglages d'éclairage (contraste soleil / ambiance)
-    this.sunMul = 2.6;
-    this.hemiMul = 0.78;
+    this.sunMul = 2.2;
+    this.hemiMul = 0.95;
   }
 
   setShadowQuality(size) {

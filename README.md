@@ -136,15 +136,21 @@ Ajoute aussi la version et ses nouveautés en tête de `src/data/releases.js` : 
 
 Les tests de régression se lancent avec `node --test tests/*.test.js`.
 
-## 🛣️ Feuille de route
+## 🏘️ Développement du village — v4.0
 
-- [x] Chantiers qui avancent hors ligne (temps réel)
-- [ ] Mode photo pour partager une image de sa ville
-- [x] Personnalisation des toits (thèmes)
-- [ ] Personnalisation des façades
-- [x] Trains et bateaux animés
-- [x] Musique d'ambiance
-- [ ] Nouveaux événements (tempêtes, touristes, élections municipales)
+Ouvre **Village → Développer** pour retrouver :
+
+- **Quartiers** : associer des zones débloquées voisines et choisir une spécialité. Le carnet indique la composition nécessaire et le bonus actif ; les quartiers industriels pénalisent aussi le bonheur des logements.
+- **Grands projets** : poser la Place des Fêtes (niveau 3), le Jardin des Horlogers (10) ou le Port des Explorateurs (18, près de l’eau), financer trois phases et inaugurer chaque étape. Les délais sont réels ; les bonus demandent que le lieu soit présent dans la ville.
+- **Habitants** : trois familles s’installent dans les maisons terminées, proposent neuf chapitres et se souviennent des histoires accomplies. Une démolition ne réinitialise pas les récompenses.
+- **Transports** : jusqu’à six tournées de charrettes ou camions. Après activation, la production est stockée au départ et créditée seulement à l’arrivée. Une route coupée ou un entrepôt plein suspend la livraison ; arrêter une tournée rapatrie son chargement.
+- **Région** : fonder l’Île des Vergers (niveau 12), la Vallée des Mines (20) et le Rivage des Voyageurs (30). Chaque village possède ses bâtiments, son stock et sa progression ; l’ensemble reste dans le même emplacement de sauvegarde. Les autres villes sont conservées, leur simulation ne tourne pas hors visite. Les expéditions circulent en temps réel : caravane (3 min), train de fret (90 s, gare reliée) ou cargo (2 min, port terminé).
+
+La fiche d’un bâtiment propose **Personnaliser** : façade, toiture et jardin. Ces apparences sont conservées dans les sauvegardes et dans les visites entre amis.
+
+**Village → Mode photo** masque les interfaces et suspend la simulation locale pendant le cadrage. Choisis la lumière, prends une photo et enregistre le PNG ou partage-le sur les appareils compatibles. Les expéditions et travaux qui utilisent l’heure réelle continuent leur délai. Les bâtiments des grands projets sont des modèles propres au jeu ; les ombres sont adoucies et l’ambiance lumineuse rééquilibrée.
+
+**Village → Coopératives** propose la création ou l’adhésion à un groupe de 20 joueurs, les demandes de colis et les chantiers collectifs. Cette fonction nécessite la migration serveur décrite dans `supabase/README.md` ; elle n’est pas simulée localement si le serveur n’est pas activé.
 
 ## 🔐 Multijoueur et sécurité
 

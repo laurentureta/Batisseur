@@ -99,7 +99,7 @@ export class Progression {
     const counts = {};
     const levels = {};
     for (const b of this.game.world?.buildings.values() || []) {
-      if (b.cons?.k === 'new') continue; // un chantier ne compte qu'une fois terminé
+      if (b.cons?.k === 'new' || (BUILDINGS[b.type]?.civic && b.level<4)) continue; // un chantier ne compte qu'une fois terminé
       counts[b.type] = (counts[b.type] || 0) + 1;
       const l = (levels[b.type] ||= new Array(12).fill(0));
       for (let k = 1; k <= b.level; k++) l[k]++;

@@ -172,6 +172,7 @@ export class WorldField {
 
   /** Eau à cet endroit ? 0 = non, T.WATER ou T.DEEP. */
   waterAt(x, z) {
+    if(this.preset === 'ile'){const d=Math.hypot((x-C)*1.05,z-C)+2*Math.sin(x*.15)*Math.sin(z*.11);if(d>43)return d>46?T.DEEP:T.WATER;}
     if (this.preset === 'cote') {
       const cx = this.coastX(z);
       for (const isl of this.islands) {
@@ -251,6 +252,14 @@ export function generateMap(seed, preset = 'vallee', { legacy = false } = {}) {
       const w = F.waterAt(x, z);
       if (w) terrain[i] = w;
       else if (F.sandAt(x, z)) terrain[i] = T.SAND;
+    }
+  }
+
+  if (preset === 'ile') {
+    for (let z=0; z<W; z++) for (let x=0; x<W; x++) {
+      const d = Math.hypot((x-C)*1.05,z-C) + 2*Math.sin(x*.15)*Math.sin(z*.11);
+      if (d > 43) terrain[z*W+x] = d > 46 ? T.DEEP : T.WATER;
+      else if (d > 40) terrain[z*W+x] = T.SAND;
     }
   }
 

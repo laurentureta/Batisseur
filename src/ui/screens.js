@@ -25,13 +25,14 @@ export function openScreen(ui, opts) {
   const body = h('div.screen-body');
   const el = h('div.screen' + (opts.cls ? '.' + opts.cls : ''), head, opts.tabs ? tabsEl : null, body);
   const screen = {
-    id: opts.id, el, body, tab: opts.tab || opts.tabs?.[0]?.id, pill,
+    id: opts.id, el, body, onClose: opts.onClose, tab: opts.tab || opts.tabs?.[0]?.id, pill,
     setTab(t) {
       screen.tab = t;
       screen.refresh(true);
     },
     refresh(force = false) {
       if (screen.pressed && !force) return;
+      if (!force && body.contains(document.activeElement) && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
       pill.update();
       if (opts.tabs) {
         const key = screen.tab + '|' + opts.tabs.map((t) => (t.badge ? t.badge() : 0)).join(',');
@@ -78,6 +79,7 @@ export function closeScreen(ui, instant = false) {
   const s = ui.screen;
   if (!s) return;
   ui.screen = null;
+  s.onClose?.();
   ui.root.classList.remove('screen-open');
   if (instant) s.el.remove();
   else {

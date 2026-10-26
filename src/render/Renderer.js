@@ -1,5 +1,6 @@
 // Moteur de rendu : scène Three.js, lumière, vues du monde, effets et étiquettes.
 import * as THREE from 'three';
+import { CityView } from './CityView.js';
 import { CameraController } from './CameraController.js';
 import { Sky } from './Sky.js';
 import { TerrainView } from './TerrainView.js';
@@ -42,7 +43,7 @@ export class Renderer {
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = this.quality !== 'low';
-    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.localClippingEnabled = true; // chantiers : les murs montent rang par rang
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(36, 1, 0.5, 420);
@@ -75,6 +76,8 @@ export class Renderer {
     this.train = new Train(this);
     this.scene.add(this.boats.group, this.train.group);
     this.scene.add(this.terrain.group, this.vegetation.group, this.roads.group, this.buildings.group, this.agents.group, this.people.group, this.worksites.group, this.sites.group, this.animals.group, this.particles.group, this.overlays.group, this.clouds.group);
+    this.cityView = new CityView(this);
+    this.scene.add(this.cityView.group);
     this.world = null;
     this.season = 1;
     this.emitAcc = 0;
@@ -244,6 +247,11 @@ export class Renderer {
       this.showCoverageFor(b);
     });
     bus.on('season:changed', (s) => this.setSeason(s));
+    bus.on('building:appearance',(b)=>{this.buildings.onPlaced(b,{silent:true});this.buildings.flush(true);});
+    bus.on('city:appearance', () => {
+      if(!this.world)return;
+      this.cityView.districtBorders(this.showDistricts);
+    });
     bus.on('weather:changed', (k) => (this.sky.weather = k));
     bus.on('sim:recalc', () => {
       const now = performance.now();
@@ -273,6 +281,7 @@ export class Renderer {
     this.ring = buildRing(world);
     this.terrain.build(world, this.ring, this.season);
     this.vegetation.build(world, this.ring, this.season);
+    this.showDistricts=false;this.cityView.clear();
     this.footprints = new Map();
     for (const b of world.buildings.values()) this.footprints.set(b.id, world.tilesOf(b));
     this.roads.build(world, this.season);
@@ -548,6 +557,16 @@ export class Renderer {
     fog.far = 96 + d * 1.35;
   }
 
+  capturePostcard(frame = true) {
+    this.renderer.render(this.scene,this.camera);
+    const source=this.canvas, out=document.createElement('canvas');
+    const ratio=Math.min(1,1600/source.width), footer=frame?84:0;
+    out.width=Math.round(source.width*ratio);out.height=Math.round(source.height*ratio)+footer;
+    const ctx=out.getContext('2d');ctx.drawImage(source,0,0,out.width,out.height-footer);
+    if(frame){ctx.fillStyle='#fff7e7';ctx.fillRect(0,out.height-footer,out.width,footer);ctx.fillStyle='#3f6752';ctx.font='28px "Fredoka", sans-serif';ctx.fillText(this.game.state.name.slice(0,28),24,out.height-43);ctx.font='13px "Fredoka", sans-serif';ctx.fillStyle='#7c896c';ctx.fillText('BÂTISSEUR · Mon village, mon histoire',24,out.height-18);}
+    return new Promise((resolve,reject)=>out.toBlob((blob)=>blob?resolve(blob):reject(new Error('La capture a échoué.')), 'image/png'));
+  }
+
   /* ───────── Boucle ───────── */
   frame(dt) {
     if (!this.world) return;
@@ -565,6 +584,7 @@ export class Renderer {
     this.updateFog();
     this.clouds.update(dt, sky.night, this.sky.weather);
     this.roads.update(sky.night);
+    this.cityView.update();
     this.buildings.update(dt, sky.night, st.time.speed);
     this.agents.update(dt, st.time.speed, sky.night, game.sim.d.population);
     this.crowd?.begin();

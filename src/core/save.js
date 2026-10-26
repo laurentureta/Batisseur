@@ -25,6 +25,7 @@ export function serialize(game) {
   st.trees = game.world.trees ? game.world.trees.save() : [];
   st.buildings = [...game.world.buildings.values()].map((b) => {
     const o = { id: b.id, type: b.type, x: b.x, z: b.z, rot: b.rot, level: b.level };
+    if (b.appearance) o.appearance = { ...b.appearance };
     if (b.residents != null) o.residents = Math.round(b.residents * 100) / 100;
     if (b.fire) o.fire = b.fire;
     if (b.born != null) o.born = Math.round(b.born * 100) / 100;

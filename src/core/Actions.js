@@ -194,7 +194,7 @@ export class Actions {
     }
     // un vrai chantier : les bâtisseurs viennent le construire
     const cons = this.game.construction;
-    if (!gift && cons?.enabled() && needsSite(def)) cons.start(b, 'new');
+    if (!gift && !def.civic && cons?.enabled() && needsSite(def)) cons.start(b, 'new');
     world.addBuilding(b);
     const stats = st.stats;
     stats.totalBuilt++;
@@ -402,6 +402,7 @@ export class Actions {
 
   /* ───────── Amélioration ───────── */
   checkUpgrade(b) {
+    if (BUILDINGS[b?.type]?.civic) return fail('Ce grand projet progresse depuis le carnet de développement.');
     const def = BUILDINGS[b.type];
     const prog = this.game.prog;
     const sim = this.game.sim;

@@ -42,6 +42,7 @@ export function makeSnapshot(game) {
     day: Math.round(st.time.day * 1000) / 1000,
     weather: st.weather?.kind || 'clear',
     roof: st.cosmetics?.roof || 'mix',
+    looks: Object.fromEntries([...w.buildings.values()].filter((b) => b.appearance).map((b) => [b.id,b.appearance])),
     zones: st.zones.map((z) => (z ? 1 : 0)).join(''),
     terrain: rleEncode(w.terrain),
     road: rleEncode(w.road),
@@ -69,6 +70,7 @@ export function stateFromSnapshot(s) {
   st.buildings = (s.b || []).filter((a) => Array.isArray(a) && BUILDINGS[a[1]]).map((a) => {
     const def = BUILDINGS[a[1]];
     const b = { id: a[0], type: a[1], x: a[2], z: a[3], rot: a[4] & 3, level: Math.max(1, Math.min(def.maxLevel || 1, a[5] || 1)) };
+    if (s.looks?.[b.id]) b.appearance = s.looks[b.id];
     if (def.residents) b.residents = a[6] || 0;
     if (a[7]) b.cons = { k: a[7] === 'up' ? 'up' : 'new', to: a[8] || b.level, W: 420, w: 420 * Math.min(1, a[9] || 0), del: 2, t0: 0 };
     return b;
