@@ -156,12 +156,11 @@ export class UI {
   buildBottom() {
     const e = this.el;
     const tb = (tool, name, label, cls, key) => h('button.tb.' + cls, { dataset: { tool }, onclick: () => this.toolButton(tool), title: `${label} (${key})` }, h('span.tb-face', icon(name)), h('span.l', label), h('kbd.tb-key', key));
-    e.tbSelect = tb('select', 'hand', 'Explorer', 'tb-blue', 'Échap');
     e.tbRoad = tb('road', 'road', 'Route', 'tb-stone', 'C');
     e.tbBuild = h('button.tb.big.tb-green', { onclick: () => this.openBuildMenu(), title: 'Construire (B)' }, h('span.tb-face', icon('hammer')), h('span.l', 'Construire'), h('kbd.tb-key', 'B'));
     e.tbDemolish = tb('demolish', 'bulldozer', 'Détruire', 'tb-red', 'X');
     e.tbUndo = h('button.tb.tb-yellow', { onclick: () => this.undo(), title: 'Annuler (Ctrl+Z)' }, h('span.tb-face', icon('undo')), h('span.l', 'Annuler'), h('kbd.tb-key', 'Ctrl+Z'));
-    this.bottom = h('div.bottom-bar', e.tbSelect, e.tbRoad, e.tbBuild, e.tbDemolish, e.tbUndo);
+    this.bottom = h('div.bottom-bar', e.tbRoad, e.tbBuild, e.tbDemolish, e.tbUndo);
     this.banner = h('div.tool-banner.hidden');
     this.root.append(this.banner, this.bottom);
   }
@@ -193,6 +192,7 @@ export class UI {
       this.start?.tick?.();
       return;
     }
+    this.game.prog.refreshOrders();
     this.refreshHud();
   }
 
@@ -573,7 +573,7 @@ export class UI {
 
   onToolChanged(tool) {
     const e = this.el;
-    for (const b of [e.tbSelect, e.tbRoad, e.tbDemolish]) b.classList.toggle('active', b.dataset.tool === tool.kind);
+    for (const b of [e.tbRoad, e.tbDemolish]) b.classList.toggle('active', b.dataset.tool === tool.kind);
     e.tbBuild.classList.toggle('active', tool.kind === 'build');
     const r = this.game.renderer;
     r.overlays.hideGhost();

@@ -5,6 +5,7 @@ import { MAIN_QUESTS, DAILY_POOL, dailyReward, ACHIEVEMENTS, achievementReward }
 import { RESOURCES, GOODS } from '../data/resources.js';
 import { mulberry32, hashStr } from '../core/rng.js';
 import { todayKey, round5 } from '../core/util.js';
+import { ORDER_DAY_MS } from '../core/state.js';
 import { ZONES } from '../world/constants.js';
 
 const PRODUCER_OF = {}; // ressource -> types de bâtiments qui la produisent
@@ -296,9 +297,9 @@ export class Progression {
   refreshOrders() {
     if (this.libre || !this.featureUnlocked('orders')) return;
     const o = this.st.orders;
-    const day = this.st.time.day;
+    const now = Date.now();
     for (let s = 0; s < 3; s++) {
-      if (!o.slots[s] && day >= (o.cooldown[s] || 0)) {
+      if (!o.slots[s] && now >= (o.readyAt[s] || 0)) {
         const order = this.makeOrder();
         if (order) {
           o.slots[s] = order;
@@ -341,7 +342,7 @@ export class Progression {
     this.game.actions.grant({ coins: order.coins });
     this.addXP(order.xp, 'order');
     o.slots[slot] = null;
-    o.cooldown[slot] = this.st.time.day + 0.25;
+    o.readyAt[slot] = Date.now() + 0.25 * ORDER_DAY_MS;
     this.st.stats.ordersDone++;
     if (this.st.stats.daily) this.st.stats.daily.orders++;
     this.game.bus.emit('order:delivered', order);
@@ -352,7 +353,7 @@ export class Progression {
     const o = this.st.orders;
     if (!o.slots[slot]) return false;
     o.slots[slot] = null;
-    o.cooldown[slot] = this.st.time.day + 0.5;
+    o.readyAt[slot] = Date.now() + 0.5 * ORDER_DAY_MS;
     this.game.bus.emit('order:discarded', slot);
     return true;
   }

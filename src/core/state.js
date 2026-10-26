@@ -3,6 +3,7 @@ import { emptyStock } from '../data/resources.js';
 import { CENTER_ZONE, ZONES, CENTER, LEGACY_ZONES, LEGACY_OFFSET, ZONE } from '../world/constants.js';
 
 export const SAVE_VERSION = 2;
+export const ORDER_DAY_MS = 24 * 60 * 60 * 1000;
 
 export function createNewState({ name = 'Mon village', preset = 'vallee', mode = 'carriere', seed, slot = 0 } = {}) {
   const libre = mode === 'libre';
@@ -30,7 +31,7 @@ export function createNewState({ name = 'Mon village', preset = 'vallee', mode =
     buildings: [{ id: 1, type: 'townhall', x: CENTER - 1, z: CENTER - 1, rot: 0, level: 1 }],
     nextId: 2,
     quests: { main: 0, mainReady: false, daily: null, achievements: {} },
-    orders: { slots: [null, null, null], cooldown: [0, 0.15, 0.3], nextId: 1 },
+    orders: { slots: [null, null, null], readyAt: [0, Date.now() + 0.15 * ORDER_DAY_MS, Date.now() + 0.3 * ORDER_DAY_MS], nextId: 1 },
     stats: {
       totalBuilt: 0,
       built: {},
@@ -105,6 +106,14 @@ export function migrateState(st) {
   for (const k of Object.keys(base.stats)) if (st.stats[k] === undefined) st.stats[k] = base.stats[k];
   for (const k of Object.keys(base.res)) if (st.res[k] === undefined) st.res[k] = 0;
   if (!st.quests.achievements) st.quests.achievements = {};
+  if (!Array.isArray(st.orders.readyAt)) {
+    const anchor = st.savedAt || Date.now();
+    st.orders.readyAt = [0, 1, 2].map((s) => {
+      const remaining = Math.max(0, (st.orders.cooldown?.[s] || 0) - st.time.day);
+      return remaining ? anchor + remaining * ORDER_DAY_MS : 0;
+    });
+  }
+  delete st.orders.cooldown;
   if (!st.orders.nextId) st.orders.nextId = 1;
   if (!Array.isArray(st.boosts)) st.boosts = [];
   if (!st.cosmetics) st.cosmetics = { roof: 'mix' };

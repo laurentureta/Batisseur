@@ -59,6 +59,7 @@ export class GameCore {
     this.sim.reset();
     this.actions.reset();
     this.prog.reset();
+    this.prog.refreshOrders();
     this.sim.lastSeason = calendar(state.time.day).season;
     this.sim.lastDayInt = Math.floor(state.time.day);
     this.sim.recalc();

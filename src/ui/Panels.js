@@ -9,6 +9,7 @@ import { TERRAIN_ICONS, BASE_STORAGE, TOWNHALL_STORAGE } from '../world/constant
 import { serialize, parseImport, saveSettings } from '../core/save.js';
 import { VERSION } from '../version.js';
 import { moodIcon, rewardText } from './UI.js';
+import { countdown } from './screens.js';
 import { TIER_NAMES } from '../sim/Simulation.js';
 
 /* ───────── Quêtes ───────── */
@@ -74,9 +75,9 @@ export function renderOrders(ui, body) {
   body.appendChild(h('p.hint', 'Des clients des villages voisins veulent tes marchandises. Livre-les pour gagner des pièces et de l\'XP.'));
   st.orders.slots.forEach((o, s) => {
     if (!o) {
-      const wait = Math.max(0, (st.orders.cooldown[s] || 0) - st.time.day);
+      const wait = Math.max(0, (st.orders.readyAt[s] || 0) - Date.now());
       const avail = prog.orderResources().length;
-      body.appendChild(h('div.order.empty', avail ? `⏳ Nouvelle commande dans ${Math.ceil(wait * 24)} h (temps du jeu)` : '🏭 Construis des bâtiments de production pour recevoir des commandes.'));
+      body.appendChild(h('div.order.empty', avail ? `⏳ Nouvelle commande dans ${countdown(wait)} (temps réel)` : '🏭 Construis des bâtiments de production pour recevoir des commandes.'));
       return;
     }
     const can = prog.canDeliver(o);
