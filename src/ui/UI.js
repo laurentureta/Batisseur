@@ -64,7 +64,7 @@ export class UI {
   constructor(game, root) {
     this.game = game;
     this.root = root;
-    this.root.classList.add('compact-ui');
+    this.root.classList.add('landscape-ui');
     this.watchDesktop();
     this.sheet = null;
     this.modalStack = [];
@@ -111,7 +111,7 @@ export class UI {
     const e = this.el;
     e.level = h('button.lvl', { onclick: () => this.openQuests(), 'aria-label': 'Niveau et quêtes' },
       h('span.lv-ring', { html: ring }), h('span.lv-disc', h('b.num', '1')), h('i.badge.hidden'));
-    const stat = (name, cls, fn) => h('button.chip-stat.' + cls, { onclick: fn }, hudIcon(name, 'ic'), h('span.v', h('b', '0'), h('small', '')));
+    const stat = (name, cls, fn) => h('button.chip-stat.' + cls, { onclick: fn }, icon(name, 'ic'), h('span.v', h('b', '0'), h('small', '')));
     e.coins = stat('coins', 'st-coins', () => this.openStock());
     e.coins.setAttribute('aria-label', 'Pièces et stock');
     e.gems = stat('gem', 'st-gems', () => this.openShop('gems'));
@@ -121,28 +121,29 @@ export class UI {
     e.happy = stat('smile', 'st-happy', () => this.openLayers('happiness'));
     e.happyIco = e.happy.querySelector('.ic');
     e.happy.querySelector('small').textContent = 'bonheur';
-    e.menu = h('button.icon-btn.menu-btn', { onclick: () => this.openMenu(), 'aria-label': 'Menu' }, hudIcon('menu'));
+    e.menu = h('button.icon-btn.menu-btn', { onclick: () => this.openMenu(), 'aria-label': 'Menu' }, icon('menu'));
     e.seasonIco = hudIcon('sun', 'tc-ico');
     e.weatherIco = hudIcon('sun', 'tc-ico');
     e.timeText = h('span.tt', '');
     e.date = h('button.time-chip', { onclick: () => this.openStock() }, e.seasonIco, e.timeText, e.weatherIco);
-    e.speedIco = hudIcon('play');
+    e.speedIco = icon('play');
     e.speed = h('button.speed-btn', { onclick: () => this.cycleSpeed(), 'aria-label': 'Vitesse', title: 'Vitesse (Espace : pause · 1, 2, 3 : vitesse)' }, e.speedIco);
     e.quest = h('button.quest-tracker', { onclick: () => this.openQuests() });
     e.alerts = h('div.alerts');
     e.boosts = h('div.boost-chips');
     e.event = h('button.event-chip.hidden', { onclick: () => this.openEvent(), 'aria-label': 'Événement de la semaine' });
+    e.townName = h('b.hud-town-name', 'Mon village');
     this.hud = h('div.hud',
-      h('div.hud-top', e.level, h('div.stats', e.coins, e.gems), e.menu),
-      h('div.hud-details', e.pop, e.happy, h('div.time', e.date, e.speed)),
+      h('div.hud-top', e.level, h('div.hud-town', e.townName, h('div.hud-civic', e.pop, e.happy)), h('div.stats', e.coins, e.gems), e.menu),
+      h('div.hud-details', h('div.time', e.date, e.speed)),
       h('div.hud-sub', e.quest),
       e.event,
       e.boosts,
       e.alerts,
     );
-    // Sources des activités : conservées hors écran pour leurs accès et leurs pastilles.
+    // Raccourcis directs en paysage ; les autres activités restent dans Village.
     const side = (name, label, fn, key, cls = '') => {
-      const b = h('button.side-btn' + cls, { onclick: fn, 'aria-label': label, title: label, dataset: { icon: name } }, hudIcon(name), h('span.sl', label), h('i.badge.hidden'));
+      const b = h('button.side-btn' + cls, { onclick: fn, 'aria-label': label, title: label, dataset: { icon: name } }, icon(name), h('span.sl', label), h('i.badge.hidden'));
       e[key] = b;
       return b;
     };
@@ -163,12 +164,12 @@ export class UI {
 
   buildBottom() {
     const e = this.el;
-    const tb = (tool, name, label, cls, key) => h('button.tb.' + cls, { dataset: { tool }, onclick: () => this.toolButton(tool), title: `${label} (${key})` }, h('span.tb-face', hudIcon(name)), h('span.l', label), h('kbd.tb-key', key));
+    const tb = (tool, name, label, cls, key) => h('button.tb.' + cls, { dataset: { tool }, onclick: () => this.toolButton(tool), title: `${label} (${key})` }, h('span.tb-face', icon(name)), h('span.l', label), h('kbd.tb-key', key));
     e.tbRoad = tb('road', 'road', 'Route', 'tb-stone', 'C');
-    e.tbBuild = h('button.tb.big.tb-green', { onclick: () => this.openBuildMenu(), title: 'Construire (B)' }, h('span.tb-face', hudIcon('hammer')), h('span.l', 'Construire'), h('kbd.tb-key', 'B'));
+    e.tbBuild = h('button.tb.big.tb-green', { onclick: () => this.openBuildMenu(), title: 'Construire (B)' }, h('span.tb-face', icon('hammer')), h('span.l', 'Construire'), h('kbd.tb-key', 'B'));
     e.tbDemolish = tb('demolish', 'bulldozer', 'Détruire', 'tb-red', 'X');
-    e.tbUndo = h('button.tb.tb-yellow', { onclick: () => this.undo(), title: 'Annuler (Ctrl+Z)' }, h('span.tb-face', hudIcon('undo')), h('span.l', 'Annuler'), h('kbd.tb-key', 'Ctrl+Z'));
-    e.tbVillage = h('button.tb.tb-village', { onclick: () => this.openVillage(), 'aria-label': 'Village', title: 'Village : activités et services' }, h('span.tb-face', hudIcon('village')), h('span.l', 'Village'));
+    e.tbUndo = h('button.tb.tb-yellow', { onclick: () => this.undo(), title: 'Annuler (Ctrl+Z)' }, h('span.tb-face', icon('undo')), h('span.l', 'Annuler'), h('kbd.tb-key', 'Ctrl+Z'));
+    e.tbVillage = h('button.tb.tb-village', { onclick: () => this.openVillage(), 'aria-label': 'Village', title: 'Village : activités et services' }, h('span.tb-face', icon('map')), h('span.l', 'Village'));
     this.bottom = h('div.bottom-bar', e.tbRoad, e.tbDemolish, e.tbBuild, e.tbUndo, e.tbVillage);
     this.banner = h('div.tool-banner.hidden');
     this.root.append(this.banner, this.bottom);
@@ -183,7 +184,7 @@ export class UI {
       probe.remove();
     }
     const safeTop = this.safeTop;
-    this.game.renderer.labels.setMargins(on ? 90 + safeTop : 0, on ? 78 : 0);
+    this.game.renderer.labels.setMargins(on ? 84 + safeTop : 0, on ? 86 : 0);
   }
 
   /* ───────── Mise à jour régulière ───────── */
@@ -321,6 +322,7 @@ export class UI {
     const libre = this.libre;
     // niveau
     const lp = game.prog.levelProgress();
+    e.townName.textContent = st.name;
     e.gems.querySelector('b').textContent = fmtCompact(game.meta.p.gems);
     e.level.querySelector('.num').textContent = libre ? '∞' : lp.level;
     e.level.querySelector('.fg').setAttribute('stroke-dashoffset', String(141.4 * (1 - (libre ? 1 : lp.pct))));

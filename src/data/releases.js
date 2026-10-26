@@ -1,6 +1,14 @@
 // Ajouter chaque nouvelle version ici, de la plus récente à la plus ancienne.
 export const RELEASES = [
   {
+    version: '3.11.0', title: 'Votre village en paysage',
+    items: [
+      { icon: 'map', title: 'Jouez à l’horizontale', text: 'Tournez votre téléphone pour profiter du village en grand. En portrait, le jeu vous invite à pivoter et met la simulation en pause, sans perdre votre partie.' },
+      { icon: 'hammer', title: 'Une vraie interface de jeu de gestion', text: 'Compteurs colorés, niveau et population en haut, outils en bas : la carte garde le centre de l’écran.' },
+      { icon: 'scroll', title: 'Vos activités à portée de doigt', text: 'Quêtes, commandes, stock, amis, boutique, passe et événements retrouvent leurs raccourcis visibles. Village garde les activités complémentaires.' },
+    ],
+  },
+  {
     version: '3.10.1', title: 'Plus de village, moins d’interface',
     items: [
       { icon: 'map', title: 'La carte retrouve sa place', text: 'Des compteurs plus fins et une barre d’outils discrète libèrent la vue. Les nouveaux pictogrammes sont plus simples et plus légers.' },

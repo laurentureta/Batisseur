@@ -16,6 +16,10 @@ Un jeu de construction de ville pour iPhone (et tout navigateur récent) : route
 
 Le jeu s'ouvre alors en plein écran, comme une vraie appli, et fonctionne même **hors ligne**. Ta partie est sauvegardée automatiquement sur ton téléphone.
 
+## 📐 Jouer en paysage
+
+Sur téléphone et tablette, tourne l’appareil à l’horizontale. Le jeu se met en pause en portrait et reprend la même partie après rotation. Sur iPhone, désactive le verrouillage de rotation si nécessaire : Safari ne permet pas toujours de forcer l’orientation. L’application installée demande le mode paysage via son manifeste.
+
 ## 🎮 Commandes
 
 | Geste | Action |

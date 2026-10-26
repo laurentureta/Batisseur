@@ -104,6 +104,7 @@ export class Game extends GameCore {
   }
 
   update(dt) {
+    if (document.documentElement.classList.contains('needs-landscape')) return;
     if (!this.world) return;
     this.input?.update(dt);
     if (this.playing) {

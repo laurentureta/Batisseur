@@ -1,9 +1,11 @@
 // Point d'entrée : écran de chargement, modèles 3D, puis le jeu ; installe le mode hors ligne.
 import { loadKit } from './render/kit.js';
 import { loadCreatures, setCreatureLib } from './render/creatures.js';
+import { setupLandscape } from './ui/orientation.js';
 import { emojify } from './ui/icons.js';
 
 const root = document.getElementById('app');
+setupLandscape(root);
 
 /**
  * Cadrage plein écran. Sur iPhone, en appli posée sur l'écran d'accueil (barre d'état
