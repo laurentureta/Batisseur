@@ -1,6 +1,6 @@
 // Actions du joueur : construire, tracer des routes, améliorer, détruire, déplacer, annuler.
 import {
-  BUILDINGS, ROAD_TYPES, sizeOf, costToLevel, totalInvested, buildXP, upgradeXP, levelName,
+  BUILDINGS, ROAD_TYPES, isPavedRoad, sizeOf, costToLevel, totalInvested, buildXP, upgradeXP, levelName,
 } from '../data/buildings.js';
 import { MAIRIE_FOR_LEVEL, RANKS } from '../data/progression.js';
 import { RESOURCES } from '../data/resources.js';
@@ -222,7 +222,7 @@ export class Actions {
     if (!world.zoneUnlocked(x, z)) return fail('Zone verrouillée 🔒');
     if (world.occ[i] >= 0) return fail('Un bâtiment est sur le passage');
     const cur = world.road[i];
-    if (cur === roadType || (cur === 2 && roadType === 1)) return { ok: true, skip: true, cost: {} };
+    if (cur === roadType || (isPavedRoad(cur) && roadType === 1)) return { ok: true, skip: true, cost: {} };
     const t = world.terrain[i];
     const def = ROAD_TYPES[roadType];
     if (t === T.MOUNTAIN) return fail('Impossible sur la montagne');
@@ -231,7 +231,7 @@ export class Actions {
       if (!this.game.prog.bridgeUnlocked()) return fail('Les ponts se débloquent au niveau 8');
       return { ok: true, cost: { ...def.bridgeCost }, bridge: true };
     }
-    if (cur === 1 && roadType === 2) return { ok: true, cost: { ...def.upgradeCost }, upgrade: true };
+    if (cur && !isPavedRoad(cur) && isPavedRoad(roadType)) return { ok: true, cost: { ...(def.upgradeCost || def.cost) }, upgrade: true };
     const cost = { ...def.cost };
     let clearT = null;
     const gain = {};

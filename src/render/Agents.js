@@ -1,7 +1,7 @@
 // La ville vivante : passants sur les chemins, voitures sur les routes pavées.
 import * as THREE from 'three';
 import { SIZE, N, T } from '../world/constants.js';
-import { BUILDINGS } from '../data/buildings.js';
+import { BUILDINGS, isPavedRoad } from '../data/buildings.js';
 import { GeoBuilder } from './geom.js';
 import { toGeometry } from './TerrainView.js';
 import { kit, kitReady, kitBox } from './kit.js';
@@ -82,7 +82,7 @@ export class Agents {
   randomPath(start, paved, minLen, maxLen) {
     const w = this.world;
     const road = w.road;
-    const ok = (i) => (paved ? road[i] === 2 : road[i] > 0);
+    const ok = (i) => (paved ? isPavedRoad(road[i]) : road[i] > 0);
     if (!ok(start)) return null;
     const g = ++this.gen;
     let qh = 0, qt = 0;
@@ -140,7 +140,7 @@ export class Agents {
   spawnCar() {
     const w = this.world;
     const paved = [];
-    for (let i = 0; i < N; i += 1) if (w.road[i] === 2) paved.push(i);
+    for (let i = 0; i < N; i += 1) if (isPavedRoad(w.road[i])) paved.push(i);
     if (paved.length < 4) return;
     const start = paved[Math.floor(Math.random() * paved.length)];
     const path = this.randomPath(start, true, 4, 26);
@@ -247,7 +247,7 @@ export class Agents {
         const p = a.pts[Math.min(a.seg + 1, a.pts.length - 1)];
         const tx = Math.floor(p[0] + HALF), tz = Math.floor(p[2] + HALF);
         const i = tz * SIZE + tx;
-        if (tx < 0 || tz < 0 || tx >= SIZE || tz >= SIZE || (paved ? road[i] !== 2 : !road[i])) list.splice(k, 1);
+        if (tx < 0 || tz < 0 || tx >= SIZE || tz >= SIZE || (paved ? !isPavedRoad(road[i]) : !road[i])) list.splice(k, 1);
       }
     };
     check(this.people, false);

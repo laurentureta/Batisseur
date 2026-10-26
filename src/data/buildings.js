@@ -39,7 +39,29 @@ export const ROAD_TYPES = {
     cost: { coins: 6, stone: 1 }, upgradeCost: { coins: 4, stone: 1 }, bridgeCost: { coins: 35, stone: 6 },
     desc: 'Plus belle, les voitures y roulent. Indispensable aux villas et immeubles.',
   },
+  3: {
+    id: 'gravel', type: 3, name: 'Sentier de gravier', icon: '🟫', unlock: 10, cat: 'roads', paved: false,
+    cost: { coins: 4, stone: 1 }, bridgeCost: { coins: 25, wood: 5, stone: 2 },
+    desc: 'Un sentier clair pour les jardins, fermes et quartiers champêtres.',
+  },
+  4: {
+    id: 'cobbles', type: 4, name: 'Rue en pavés', icon: '⬛', unlock: 16, cat: 'roads', paved: true,
+    cost: { coins: 9, stone: 2 }, upgradeCost: { coins: 6, stone: 2 }, bridgeCost: { coins: 45, stone: 8 },
+    desc: 'Des pavés de pierre élégants, accessibles aux voitures.',
+  },
+  5: {
+    id: 'promenade', type: 5, name: 'Allée paysagée', icon: '🟫', unlock: 24, cat: 'roads', paved: false,
+    cost: { coins: 10, stone: 2, wood: 1 }, bridgeCost: { coins: 55, stone: 8, wood: 3 },
+    desc: 'Une promenade piétonne bordée de pierre et de verdure.',
+  },
+  6: {
+    id: 'avenue', type: 6, name: 'Grande avenue', icon: '⬛', unlock: 36, cat: 'roads', paved: true,
+    cost: { coins: 18, stone: 3, bricks: 1 }, upgradeCost: { coins: 12, stone: 2, bricks: 1 }, bridgeCost: { coins: 70, stone: 10, bricks: 3 },
+    desc: 'Large chaussée, marquage doré et lampadaires prestigieux.',
+  },
 };
+/** Une route carrossable donne accès aux voitures et aux bâtiments exigeant le pavage. */
+export const isPavedRoad = (type) => type === 2 || type === 4 || type === 6;
 export const BRIDGE_UNLOCK = 8;
 
 // Multiplicateurs par niveau (index = niveau - 1)

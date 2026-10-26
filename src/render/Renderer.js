@@ -167,6 +167,8 @@ export class Renderer {
     bus.on('building:placed', (b, opts = {}) => {
       this.buildings.onPlaced(b, opts);
       this.vegFootprint(b);
+      this.roads.markTiles(this.world.perimeter(b));
+      this.roads.flush();
       if (b.cons) this.sites.sync();
       if (!opts.undo) this.puff(b, 'dust', 18);
     });
@@ -182,6 +184,8 @@ export class Renderer {
     });
     bus.on('building:removed', (b, opts = {}) => {
       this.buildings.onRemoved(b);
+      this.roads.markTiles(this.world.perimeter(b));
+      this.roads.flush();
       this.sites.sync();
       this.vegFootprint(b, true);
       this.puff(b, opts.burnt ? 'smoke' : 'dust', opts.burnt ? 30 : 22);
@@ -197,6 +201,14 @@ export class Renderer {
     });
     bus.on('building:moved', (b) => {
       this.buildings.onMoved(b);
+      const prev = this.footprints?.get(b.id) || [];
+      const around = (i) => {
+        const x = i % SIZE, z = Math.floor(i / SIZE);
+        return [i, ...(x > 0 ? [i - 1] : []), ...(x < SIZE - 1 ? [i + 1] : []),
+          ...(z > 0 ? [i - SIZE] : []), ...(z < SIZE - 1 ? [i + SIZE] : [])];
+      };
+      this.roads.markTiles([...prev.flatMap(around), ...this.world.perimeter(b)]);
+      this.roads.flush();
       this.sites.sync();
       this.vegFootprint(b);
       this.puff(b, 'dust', 14);

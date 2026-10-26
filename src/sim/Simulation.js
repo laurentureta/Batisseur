@@ -1,7 +1,7 @@
 // Simulation économique : routes, main-d'œuvre, production, habitants, bonheur, impôts.
 import { boostMul } from '../data/shop.js';
 import {
-  BUILDINGS, workersAt, residentsAt, radiusAt, upkeepAt, sizeOf, prodMult, INCOME_MULT,
+  BUILDINGS, isPavedRoad, workersAt, residentsAt, radiusAt, upkeepAt, sizeOf, prodMult, INCOME_MULT,
 } from '../data/buildings.js';
 import {
   DAY_SECONDS, WORK_RATIO, FOOD_PER_RESIDENT, SIZE, N, BASE_STORAGE, TOWNHALL_STORAGE,
@@ -206,7 +206,7 @@ export class Simulation {
       for (const i of world.perimeter(b)) {
         if (conn[i]) {
           c = true;
-          if (world.road[i] === 2) p = true;
+          if (isPavedRoad(world.road[i])) p = true;
         }
       }
       inf.connected = c;

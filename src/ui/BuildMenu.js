@@ -20,7 +20,7 @@ export function renderBuildMenu(ui, body, sheet) {
   body.appendChild(grid);
 
   if (ui.buildCat === 'roads') {
-    for (const t of [1, 2]) {
+    for (const t of Object.keys(ROAD_TYPES).map(Number)) {
       const rt = ROAD_TYPES[t];
       const unlocked = game.prog.roadUnlocked(t);
       grid.appendChild(card({

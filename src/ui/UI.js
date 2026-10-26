@@ -548,7 +548,7 @@ export class UI {
         this.exitTool();
         return;
       }
-      const type = this.lastRoadType === 2 && this.game.prog.roadUnlocked(2) ? 2 : 1;
+      const type = this.game.prog.roadUnlocked(this.lastRoadType) ? this.lastRoadType : 1;
       this.setTool({ kind: 'road', roadType: type });
     } else if (kind === 'demolish') this.setTool({ kind: 'demolish' });
   }
@@ -604,7 +604,7 @@ export class UI {
         close,
       );
     } else if (tool.kind === 'road') {
-      const types = [1, 2].map((t) => {
+      const types = Object.keys(ROAD_TYPES).map(Number).map((t) => {
         const rt = ROAD_TYPES[t];
         const unlocked = this.game.prog.roadUnlocked(t);
         return h('button.seg' + (tool.roadType === t ? '.on' : '') + (unlocked ? '' : '.locked'), {
@@ -616,7 +616,7 @@ export class UI {
             this.lastRoadType = t;
             this.game.setTool({ kind: 'road', roadType: t });
           },
-        }, `${rt.icon} ${t === 1 ? 'Chemin' : 'Pavée'}`, unlocked ? '' : ' 🔒');
+        }, `${rt.icon} ${['', 'Terre', 'Asphalte', 'Gravier', 'Pavés', 'Jardin', 'Avenue'][t]}`, unlocked ? '' : ' 🔒');
       });
       const rt = ROAD_TYPES[tool.roadType];
       b.append(
