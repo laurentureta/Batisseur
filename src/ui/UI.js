@@ -15,6 +15,7 @@ import { openProfile } from './profile.js';
 import { openFriends, giftDialog } from './friends.js';
 import { showRewards, showLogin } from './rewards.js';
 import { closeScreen } from './screens.js';
+import { hudIcon, hudIconURL } from './hudIcons.js';
 import { showNews } from './news.js';
 import { BOOSTS } from '../data/shop.js';
 import { COVER_COLORS } from '../render/Renderer.js';
@@ -46,7 +47,7 @@ export function moodName(h) {
 function setIcon(img, name) {
   if (img.dataset.i !== name) {
     img.dataset.i = name;
-    img.src = iconURL(name);
+    img.src = img.classList.contains('hud-icon') ? hudIconURL(name) : iconURL(name);
   }
 }
 
@@ -63,6 +64,7 @@ export class UI {
   constructor(game, root) {
     this.game = game;
     this.root = root;
+    this.root.classList.add('compact-ui');
     this.watchDesktop();
     this.sheet = null;
     this.modalStack = [];
@@ -109,23 +111,22 @@ export class UI {
     const e = this.el;
     e.level = h('button.lvl', { onclick: () => this.openQuests(), 'aria-label': 'Niveau et quêtes' },
       h('span.lv-ring', { html: ring }), h('span.lv-disc', h('b.num', '1')), h('i.badge.hidden'));
-    const stat = (name, cls, fn) => h('button.chip-stat.' + cls, { onclick: fn }, icon(name, 'ic'), h('span.v', h('b', '0'), h('small', '')));
+    const stat = (name, cls, fn) => h('button.chip-stat.' + cls, { onclick: fn }, hudIcon(name, 'ic'), h('span.v', h('b', '0'), h('small', '')));
     e.coins = stat('coins', 'st-coins', () => this.openStock());
     e.coins.setAttribute('aria-label', 'Pièces et stock');
     e.gems = stat('gem', 'st-gems', () => this.openShop('gems'));
     e.gems.setAttribute('aria-label', 'Gemmes et boutique');
     e.gems.querySelector('small').textContent = 'gemmes';
-    e.gems.appendChild(h('span.stat-plus', '+'));
     e.pop = stat('people', 'st-pop', () => this.openStock());
     e.happy = stat('smile', 'st-happy', () => this.openLayers('happiness'));
     e.happyIco = e.happy.querySelector('.ic');
     e.happy.querySelector('small').textContent = 'bonheur';
-    e.menu = h('button.icon-btn.menu-btn', { onclick: () => this.openMenu(), 'aria-label': 'Menu' }, icon('menu'));
-    e.seasonIco = icon('blossom', 'tc-ico');
-    e.weatherIco = icon('sun', 'tc-ico');
+    e.menu = h('button.icon-btn.menu-btn', { onclick: () => this.openMenu(), 'aria-label': 'Menu' }, hudIcon('menu'));
+    e.seasonIco = hudIcon('sun', 'tc-ico');
+    e.weatherIco = hudIcon('sun', 'tc-ico');
     e.timeText = h('span.tt', '');
     e.date = h('button.time-chip', { onclick: () => this.openStock() }, e.seasonIco, e.timeText, e.weatherIco);
-    e.speedIco = icon('play');
+    e.speedIco = hudIcon('play');
     e.speed = h('button.speed-btn', { onclick: () => this.cycleSpeed(), 'aria-label': 'Vitesse', title: 'Vitesse (Espace : pause · 1, 2, 3 : vitesse)' }, e.speedIco);
     e.quest = h('button.quest-tracker', { onclick: () => this.openQuests() });
     e.alerts = h('div.alerts');
@@ -139,9 +140,9 @@ export class UI {
       e.boosts,
       e.alerts,
     );
-    // boutons latéraux (icône + libellé)
+    // Sources des activités : conservées hors écran pour leurs accès et leurs pastilles.
     const side = (name, label, fn, key, cls = '') => {
-      const b = h('button.side-btn' + cls, { onclick: fn, 'aria-label': label, title: label }, icon(name), h('span.sl', label), h('i.badge.hidden'));
+      const b = h('button.side-btn' + cls, { onclick: fn, 'aria-label': label, title: label, dataset: { icon: name } }, hudIcon(name), h('span.sl', label), h('i.badge.hidden'));
       e[key] = b;
       return b;
     };
@@ -162,12 +163,13 @@ export class UI {
 
   buildBottom() {
     const e = this.el;
-    const tb = (tool, name, label, cls, key) => h('button.tb.' + cls, { dataset: { tool }, onclick: () => this.toolButton(tool), title: `${label} (${key})` }, h('span.tb-face', icon(name)), h('span.l', label), h('kbd.tb-key', key));
+    const tb = (tool, name, label, cls, key) => h('button.tb.' + cls, { dataset: { tool }, onclick: () => this.toolButton(tool), title: `${label} (${key})` }, h('span.tb-face', hudIcon(name)), h('span.l', label), h('kbd.tb-key', key));
     e.tbRoad = tb('road', 'road', 'Route', 'tb-stone', 'C');
-    e.tbBuild = h('button.tb.big.tb-green', { onclick: () => this.openBuildMenu(), title: 'Construire (B)' }, h('span.tb-face', icon('hammer')), h('span.l', 'Construire'), h('kbd.tb-key', 'B'));
+    e.tbBuild = h('button.tb.big.tb-green', { onclick: () => this.openBuildMenu(), title: 'Construire (B)' }, h('span.tb-face', hudIcon('hammer')), h('span.l', 'Construire'), h('kbd.tb-key', 'B'));
     e.tbDemolish = tb('demolish', 'bulldozer', 'Détruire', 'tb-red', 'X');
-    e.tbUndo = h('button.tb.tb-yellow', { onclick: () => this.undo(), title: 'Annuler (Ctrl+Z)' }, h('span.tb-face', icon('undo')), h('span.l', 'Annuler'), h('kbd.tb-key', 'Ctrl+Z'));
-    this.bottom = h('div.bottom-bar', e.tbRoad, e.tbBuild, e.tbDemolish, e.tbUndo);
+    e.tbUndo = h('button.tb.tb-yellow', { onclick: () => this.undo(), title: 'Annuler (Ctrl+Z)' }, h('span.tb-face', hudIcon('undo')), h('span.l', 'Annuler'), h('kbd.tb-key', 'Ctrl+Z'));
+    e.tbVillage = h('button.tb.tb-village', { onclick: () => this.openVillage(), 'aria-label': 'Village', title: 'Village : activités et services' }, h('span.tb-face', hudIcon('village')), h('span.l', 'Village'));
+    this.bottom = h('div.bottom-bar', e.tbRoad, e.tbDemolish, e.tbBuild, e.tbUndo, e.tbVillage);
     this.banner = h('div.tool-banner.hidden');
     this.root.append(this.banner, this.bottom);
   }
@@ -181,7 +183,7 @@ export class UI {
       probe.remove();
     }
     const safeTop = this.safeTop;
-    this.game.renderer.labels.setMargins(on ? 170 + safeTop : 0, on ? 110 : 0);
+    this.game.renderer.labels.setMargins(on ? 90 + safeTop : 0, on ? 78 : 0);
   }
 
   /* ───────── Mise à jour régulière ───────── */
@@ -379,6 +381,7 @@ export class UI {
     this.badge(e.sOrders, c.orders);
     this.badge(e.sAch, c.achievements);
     this.badge(e.sFriends, game.online.allInbox().length);
+    e.tbVillage.classList.toggle('has-notice', c.quests + rq + c.orders + c.achievements + game.online.allInbox().length > 0);
     this.badge(e.level, c.quests + rq);
     e.sOrders.classList.toggle('hidden', libre || !game.prog.featureUnlocked('orders'));
     e.sQuests.classList.toggle('hidden', libre && !game.requests.list().length);
@@ -883,6 +886,24 @@ export class UI {
       return;
     }
     this.openSheet('layers', '🗺️ Calques', (body) => Panels.renderLayers(this, body), { live: false });
+  }
+
+  openVillage() {
+    this.openSheet('village', 'Village', (body) => {
+      body.appendChild(h('p.village-intro', this.st.name));
+      const grid = h('div.village-grid');
+      for (const source of this.side.children) {
+        if (source.classList.contains('hidden')) continue;
+        const label = source.querySelector('.sl').textContent;
+        const badge = source.querySelector('.badge');
+        const count = badge && !badge.classList.contains('hidden') ? badge.textContent : '';
+        grid.appendChild(h('button.village-action', {
+          onclick: () => source.click(), 'aria-label': label,
+        }, hudIcon(source.dataset.icon), h('span', label), count ? h('i.village-count', count) : null));
+      }
+      grid.appendChild(h('button.village-action', { onclick: () => this.openEvent(), 'aria-label': 'Événements' }, hudIcon('event'), h('span', 'Événements')));
+      body.appendChild(grid);
+    }, { live: true, cls: 'village-sheet' });
   }
 
   openMenu() {

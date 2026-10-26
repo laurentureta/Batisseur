@@ -9,7 +9,7 @@ export function showNews(ui, { automatic = false, onClose } = {}) {
   const releases = automatic ? releasesSince(ui.game.settings.newsVersion) : RELEASES;
   const body = h('div.news-content',
     h('div.news-hero', h('span.news-seal', icon('hammer')), h('span.news-kicker', 'LE CARNET DU BÂTISSEUR'),
-      h('h1', 'Le village fait peau neuve !'), h('p', 'De nouvelles idées pour construire encore plus grand.')),
+      h('h1', releases[0]?.title || 'Les nouveautés du village'), h('p', 'De nouvelles idées pour construire encore plus grand.')),
     releases.map((release, i) => h('section.news-release',
       h('div.news-release-head', h('span.news-version', `v${release.version}`), h('h2', release.title), i === 0 ? h('span.news-tag', 'NOUVEAU') : null),
       release.items.map((item) => h('article.news-item', h('span.news-item-icon', icon(item.icon)), h('div', h('h3', item.title), h('p', item.text)))),
