@@ -10,6 +10,7 @@ import { RandomEvents } from './RandomEvents.js';
 import { BUILDINGS, prodMult, workersAt } from '../data/buildings.js';
 import { N, SIZE, DAY_SECONDS } from '../world/constants.js';
 import { GOODS } from '../data/resources.js';
+import { hasWorkshopQueue } from '../data/recipes.js';
 
 export const REGIONAL_MAX_MS = 8 * 60 * 60 * 1000;
 export const REGIONAL_DAY_MS = 60 * 60 * 1000;
@@ -51,7 +52,7 @@ function produce(g, days) {
   const { state: st, sim, city } = g;
   for (const b of g.world.buildings.values()) {
     const def = BUILDINGS[b.type], inf = sim.info.get(b.id);
-    if (b.type === 'townhall' || !def.produces || !(inf?.eff > 0)) continue;
+    if (b.type === 'townhall' || !def.produces || !(inf?.eff > 0) || hasWorkshopQueue(st,b.id)) continue;
     const mult = prodMult(b.level) * inf.eff * days;
     let fraction = 1;
     for (const [r, amount] of Object.entries(def.consumes || {})) if (amount > 0) fraction = Math.min(fraction, Math.max(0, st.res[r] || 0) / (amount * mult));
