@@ -17,6 +17,8 @@ import { showRewards, showLogin } from './rewards.js';
 import { closeScreen } from './screens.js';
 import { openCity, customizeBuilding } from './city.js';
 import { openCooperative } from './cooperative.js';
+import { openTourism } from './tourism.js';
+import { openNotifications } from './notifications.js';
 import { openPhoto } from './photo.js';
 import { hudIcon, hudIconURL } from './hudIcons.js';
 import { showNews } from './news.js';
@@ -180,14 +182,21 @@ export class UI {
 
   setPlayingUI(on) {
     this.root.classList.toggle('playing', on);
-    if (this.safeTop == null) {
+    this.refreshLabelMargins();
+    if (!this.marginWatcher) {
+      this.marginWatcher = () => this.refreshLabelMargins();
+      window.addEventListener('resize', this.marginWatcher);
+      window.addEventListener('app-resize', this.marginWatcher);
+    }
+  }
+
+  refreshLabelMargins() {
       const probe = h('div', { style: { position: 'absolute', paddingTop: 'env(safe-area-inset-top)', visibility: 'hidden' } });
       document.body.appendChild(probe);
       this.safeTop = parseFloat(getComputedStyle(probe).paddingTop) || 0;
       probe.remove();
-    }
-    const safeTop = this.safeTop;
-    this.game.renderer.labels.setMargins(on ? 84 + safeTop : 0, on ? 86 : 0);
+    const on = this.root.classList.contains('playing');
+    this.game.renderer.labels.setMargins(on ? 84 + this.safeTop : 0, on ? 86 : 0);
   }
 
   /* ───────── Mise à jour régulière ───────── */
@@ -750,6 +759,7 @@ export class UI {
       kind, el, body, titleEl, live, onClose, pressed: false,
       refresh: (force = false) => {
         if (sheet.pressed && !force) return;
+        if (!force && body.contains(document.activeElement) && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
         const tmp = h('div');
         render(tmp, sheet);
         emojifyTree(tmp);
@@ -899,6 +909,8 @@ export class UI {
   }
 
   openCooperative() { return openCooperative(this); }
+  openTourism(tab) { this.closeSheet(true); return openTourism(this,tab); }
+  openNotifications() { this.closeSheet(true); return openNotifications(this); }
   openCity(tab) { return openCity(this,tab); }
   customizeBuilding(id) { return customizeBuilding(this,id); }
   openPhoto() { return openPhoto(this); }
@@ -920,6 +932,8 @@ export class UI {
       grid.appendChild(h('button.village-action',{onclick:()=>this.openCity(),'aria-label':'Développer'},hudIcon('village'),h('span','Développer')));
       grid.appendChild(h('button.village-action',{onclick:()=>this.openPhoto(),'aria-label':'Mode photo'},hudIcon('sun'),h('span','Mode photo')));
       grid.appendChild(h('button.village-action',{onclick:()=>this.openCooperative(),'aria-label':'Coopératives'},hudIcon('people'),h('span','Coopératives')));
+      grid.appendChild(h('button.village-action',{onclick:()=>this.openTourism(),'aria-label':'Parc et festivals'},hudIcon('event'),h('span','Parc et festivals')));
+      grid.appendChild(h('button.village-action',{onclick:()=>this.openNotifications(),'aria-label':'Notifications'},hudIcon('scroll'),h('span','Notifications')));
       body.appendChild(grid);
     }, { live: true, cls: 'village-sheet' });
   }

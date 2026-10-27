@@ -1,7 +1,21 @@
 // Service worker : le jeu fonctionne hors ligne une fois chargé.
 // Pense à changer VERSION à chaque mise à jour pour que les joueurs reçoivent la nouvelle version.
-const VERSION = 'batisseur-v4.0.0';
+importScripts('./push-worker.js');
+const VERSION = 'batisseur-v5.0.0';
 const FILES = [
+  './src/data/catalogue.js',
+  './src/data/tourism.js',
+  './src/net/Notifications.js',
+  './src/render/TourismView.js',
+  './src/render/catalogueModels.js',
+  './src/render/labelLayout.js',
+  './src/render/livingPlans.js',
+  './src/render/tourismModels.js',
+  './src/sim/RegionalEconomy.js',
+  './src/sim/Tourism.js',
+  './src/ui/notifications.js',
+  './src/ui/tourism.js',
+
   './src/core/cityState.js',
   './src/data/city.js',
   './src/net/Cooperative.js',

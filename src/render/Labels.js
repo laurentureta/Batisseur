@@ -1,5 +1,6 @@
 // Étiquettes HTML posées sur la scène 3D (cadenas des zones, alertes au-dessus des bâtiments).
 import * as THREE from 'three';
+import { labelRect, fitsLabel, overlapsLabel } from './labelLayout.js';
 
 const v = new THREE.Vector3();
 
@@ -35,6 +36,7 @@ export class Labels {
     if (it.html !== html) {
       it.el.innerHTML = html;
       it.html = html;
+      it.width = it.height = 0;
     }
     if (it.cls !== cls) {
       it.el.className = 'label3d ' + cls;
@@ -67,7 +69,10 @@ export class Labels {
   update() {
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
     const camPos = this.camera.position;
-    for (const it of this.items.values()) {
+    const occupied = [];
+    // Les demandes et l'état des bâtiments restent prioritaires sur les zones à acheter.
+    const items = [...this.items.values()].sort((a,b) => (a.cls === 'zone' ? 1 : 0) - (b.cls === 'zone' ? 1 : 0));
+    for (const it of items) {
       v.set(it.x, it.y, it.z);
       const dist = v.distanceTo(camPos);
       v.project(this.camera);
@@ -85,11 +90,17 @@ export class Labels {
       }
       const sx = (v.x * 0.5 + 0.5) * w, sy = (-v.y * 0.5 + 0.5) * h;
       // on évite de passer sous la barre du haut et la barre du bas
-      if (sy < this.marginTop || sy > h - this.marginBottom) {
+      if (!it.width || !it.height) {
+        it.width = it.el.offsetWidth;
+        it.height = it.el.offsetHeight;
+      }
+      const rect = labelRect(sx, sy, it.width, it.height);
+      if (!fitsLabel(rect,w,h,this.marginTop,this.marginBottom) || occupied.some((other) => overlapsLabel(rect,other))) {
         it.el.style.display = 'none';
         it.hidden = true;
         continue;
       }
+      occupied.push(rect);
       if (Math.abs(sx - (it.sx ?? -1e9)) > 0.4 || Math.abs(sy - (it.sy ?? -1e9)) > 0.4) {
         it.sx = sx;
         it.sy = sy;

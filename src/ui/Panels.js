@@ -278,6 +278,8 @@ export function renderMenu(ui, body) {
   item('📦', 'Stock et statistiques', () => ui.openStock());
   item('🗺️', 'Calques', () => ui.openLayers());
   item('🏘️', 'Développer le village', () => ui.openCity());
+  item('🎡', 'Parc et festivals', () => ui.openTourism());
+  item('🔔', 'Notifications du téléphone', () => ui.openNotifications());
   item('🤝', 'Coopératives', () => ui.openCooperative());
   item('📷', 'Mode photo', () => ui.openPhoto());
   item('📜', 'Nouveautés', () => ui.openNews());
@@ -321,6 +323,7 @@ export function renderSettings(ui, body) {
     }, l));
   }
   body.appendChild(h('div.setting.col', h('span', 'Qualité (ombres, finesse)'), qual));
+  body.appendChild(h('button.btn.wide', { onclick: () => ui.openNotifications() }, '🔔 Notifications du téléphone'));
   toggle('Indicateurs ⬆️ d\'amélioration', 'upgradeHints', () => game.renderer.refreshStatusLabels());
   body.appendChild(h('div.section-title', 'Son'));
   toggle('Effets sonores', 'sound');

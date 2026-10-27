@@ -6,9 +6,10 @@ import { Input } from '../input/Input.js';
 import { Sound } from './audio.js';
 import { Music, pickMood } from './music.js';
 import { Cooperative } from '../net/Cooperative.js';
+import { Notifications } from '../net/Notifications.js';
 import { Online } from '../net/online.js';
 import { stateFromSnapshot } from '../net/snapshot.js';
-import { BOT, botState, populateBot } from '../net/bot.js';
+import { BOT, botState, populateBot, tickBotVisit, saveBotCity } from '../net/bot.js';
 import { loadSettings, readSlot, writeSlot, serialize } from './save.js';
 import { createNewState } from './state.js';
 import { populateDemo } from './demo.js';
@@ -29,6 +30,7 @@ export class Game extends GameCore {
     this.music = new Music(this.sound, this.settings); // musique d'ambiance (jour, nuit, fêtes)
     this.online = new Online(this); // amis, visites, cadeaux
     this.cooperative = new Cooperative(this);
+    this.notifications = new Notifications(this);
     this.visit = null;
     this.onlineAcc = 0;
     this.playing = false;
@@ -42,11 +44,26 @@ export class Game extends GameCore {
     this.ui = new UI(this, root.querySelector('#ui'));
     this.input = new Input(this, canvas);
     document.addEventListener('pointerdown', () => this.sound.unlock(), true);
-    const flush = () => this.save();
+    const flush = () => {
+      if (this.state?.botCity) saveBotCity(this);
+      this.save({ flush: true });
+    };
     window.addEventListener('pagehide', flush);
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) flush();
+      if (document.hidden) { this.hiddenAt = Date.now(); flush(); }
+      else if (this.playing && this.hiddenAt && Date.now() - this.hiddenAt > 60000) {
+        const st = readSlot(this.state.slot), cam = this.renderer.cam;
+        if (st) {
+          const view = { target: cam.target.clone(), distance: cam.distance, azimuth: cam.azimuth };
+          this.startState(st);
+          cam.target.copy(view.target); cam.distance = view.distance; cam.azimuth = view.azimuth;
+        }
+        this.hiddenAt = 0;
+      }
       this.lastT = 0;
+    });
+    navigator.serviceWorker?.addEventListener('message', (event) => {
+      if (event.data?.type === 'notification:open') this.openNotification(event.data.url);
     });
     // sauvegarde rapide après les gros changements
     for (const ev of ['building:upgraded', 'zone:unlocked', 'quest:claimed', 'level:up']) this.bus.on(ev, () => (this.autosaveAcc = Math.max(this.autosaveAcc, 17)));
@@ -65,6 +82,7 @@ export class Game extends GameCore {
 
   boot() {
     this.toMainMenu();
+    this.openNotification(window.location.href);
     // Après une mise à jour, le récapitulatif précède la cinématique et les cadeaux.
     if (this.settings.newsVersion !== VERSION) {
       setTimeout(() => this.greet(), 250);
@@ -116,13 +134,15 @@ export class Game extends GameCore {
         this.autosaveAcc = 0;
         this.save();
       }
+    } else if (this.state.botCity && this.visit) {
+      tickBotVisit(this, dt);
     } else {
       const rate = this.demoRate ?? 0.6;
       this.state.time.day += (dt / DAY_SECONDS) * rate;
       this.villagers.demoTick(dt * rate); // le village du menu vit aussi
       this.construction.demoTick(dt * rate);
     }
-    if (this.playing) this.city.tick(dt);
+    if (this.playing) { this.city.tick(dt); this.tourism.tick(dt); }
     this.meta.tick(dt);
     this.renderer.frame(dt);
     this.ui.update(dt);
@@ -144,6 +164,7 @@ export class Game extends GameCore {
    * partagé (rien n'y est modifiable, rien n'est enregistré). « Rentrer » ramène chez soi.
    */
   async visitFriend(f) {
+    if (this.state?.botCity) saveBotCity(this);
     let data;
     try {
       data = await this.online.village(f.id);
@@ -177,6 +198,7 @@ export class Game extends GameCore {
       BOT.pop = populateBot(this.world);
       this.sim.recalc();
       data.pop = BOT.pop;
+      data.level = st.level;
     }
     this.visit = { friend: { ...f, name: data.name || f.name, village: data.village || f.village, level: data.level, pop: data.pop, avatar: data.avatar }, home, at: data.snapshot_at };
     this.renderer.buildings.setTheme(st.cosmetics?.roof || 'mix');
@@ -191,6 +213,7 @@ export class Game extends GameCore {
   endVisit() {
     const v = this.visit;
     if (!v) return;
+    if (this.state?.botCity) saveBotCity(this);
     this.visit = null;
     this.ui.hideVisit();
     if (v.home != null) this.continueGame(v.home);
@@ -198,6 +221,7 @@ export class Game extends GameCore {
   }
 
   toMainMenu() {
+    if (this.state?.botCity) saveBotCity(this);
     this.ui?.exitPhoto?.();
     if (this.visit) {
       this.visit = null;
@@ -236,16 +260,19 @@ export class Game extends GameCore {
   }
 
   startState(st) {
+    if (this.state?.botCity) saveBotCity(this);
     this.ui?.exitPhoto?.();
     if (this.visit) {
       this.visit = null;
       this.ui.hideVisit();
     }
+    this.city.catchUpActive(st);
     this.loadState(st);
     this.renderer.buildings.setTheme(st.cosmetics?.roof || 'mix');
     this.renderer.setWorld(this.world);
     this.renderer.cam.autoOrbit = 0;
     this.playing = true;
+    this.tourism.advance();
     this.autosaveAcc = 0;
     this.ui.start.hide();
     this.ui.setPlayingUI(true);
@@ -277,8 +304,28 @@ export class Game extends GameCore {
     if (st.mode !== 'libre') setTimeout(() => this.playing && this.ui.eventIntro(), 1500);
   }
 
-  save() {
+  save({ flush = false } = {}) {
     if (!this.state || this.isDemo || !this.playing) return false;
-    return writeSlot(this.state.slot, serialize(this));
+    const saved = writeSlot(this.state.slot, serialize(this));
+    if (saved) {
+      if (flush) this.notifications.flush();
+      else this.notifications.sync();
+    }
+    return saved;
+  }
+
+  openNotification(value) {
+    let url;
+    try { url = new URL(value, window.location.href); } catch { return; }
+    const base = new URL('./', window.location.href);
+    if (url.origin !== base.origin || ![base.pathname, base.pathname + 'index.html'].includes(url.pathname)) return;
+    const slot = url.searchParams.get('notificationSlot');
+    if (!/^[0-2]$/.test(slot || '')) return;
+    const state = readSlot(Number(slot));
+    if (!state) return;
+    if (this.playing) this.save();
+    this.startState(state);
+    url.searchParams.delete('notificationSlot');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
   }
 }

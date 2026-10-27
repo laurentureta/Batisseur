@@ -1,6 +1,20 @@
 // Ajouter chaque nouvelle version ici, de la plus récente à la plus ancienne.
 export const RELEASES = [
   {
+    version: '5.0.0', title: 'Une ville qui vit',
+    items: [
+      { icon: 'hammer', title: '240 nouvelles maisons, commerces, services et décorations', text: 'Six collections architecturales, de nouvelles silhouettes 3D et un catalogue avec recherche, collections et pagination pour composer votre ville.' },
+      { icon: 'people', title: 'Les habitants ont leur journée', text: 'Les familles rejoignent les commerces, les écoles et les parcs reliés à leur quartier, puis rentrent chez elles. Leurs déplacements suivent les routes de votre ville.' },
+      { icon: 'road', title: 'Le fret prend vie', text: 'Les livraisons régionales animent les trains de marchandises et les cargos : chargement, départ et retour suivent leurs véritables échéances.' },
+      { icon: 'map', title: 'Vos régions travaillent ensemble', text: 'Les bâtiments continuent à produire en votre absence, dans la limite de huit heures et de leurs stocks. Organisez des liaisons régulières et financez des contrats ferroviaires ou maritimes.' },
+      { icon: 'event', title: 'Le Parc des Merveilles', text: 'Six attractions se construisent par étapes : entrée, jardins, gourmandises, carrousel, grande roue et théâtre. Reliez-les pour accueillir des visiteurs et recevoir leurs recettes.' },
+      { icon: 'medal', title: 'Les festivals de votre ville', text: 'Approvisionnez une fête chaque semaine, gagnez une décoration saisonnière et exposez vos trophées au parc. Les projets des coopératives restent accessibles depuis leur propre écran.' },
+      { icon: 'people', title: 'Capucine développe vraiment son village', text: 'Votre amie simulée possède ses habitants, ses ateliers et ses stocks. Elle finance de nouveaux bâtiments, inaugure ses chantiers et conserve sa progression entre vos visites.' },
+      { icon: 'scroll', title: 'Des notifications sur téléphone', text: 'Un écran dédié permet de connecter votre téléphone aux rappels de commandes, travaux, livraisons et cadeaux. Les envois nécessitent l’activation du service serveur ; sur iPhone, installez le jeu sur l’écran d’accueil.' },
+      { icon: 'sun', title: 'Un affichage plus propre sur mobile', text: 'Panneaux adaptés aux encoches, saisie plus confortable et étiquettes de carte qui évitent les chevauchements et les bords de l’écran.' },
+    ],
+  },
+  {
     version: '4.0.0', title: 'Mon village, toute une région',
     items: [
       { icon: 'map', title: 'Des quartiers qui ont leur caractère', text: 'Nommez vos quartiers, associez leurs zones et spécialisez-les. Leur composition apporte de vrais bonus à la production, au commerce, au bonheur ou au tourisme.' },

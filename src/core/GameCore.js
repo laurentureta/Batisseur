@@ -1,5 +1,6 @@
 // Cœur du jeu (sans affichage) : état, monde, simulation, progression, actions.
 import { CityDevelopment } from '../sim/CityDevelopment.js';
+import { Tourism } from '../sim/Tourism.js';
 import { EventBus } from './EventBus.js';
 import { Simulation } from '../sim/Simulation.js';
 import { Progression } from '../sim/Progression.js';
@@ -33,6 +34,7 @@ export class GameCore {
     this.bus.on('building:moved', (b) => this.construction.onMoved(b));
     this.requests = new Requests(this);
     this.city = new CityDevelopment(this); // demandes des habitants
+    this.tourism = new Tourism(this);
     this.tool = { kind: 'select' };
     this.selection = null;
     this.isDemo = false;
@@ -66,6 +68,7 @@ export class GameCore {
     this.sim.lastSeason = calendar(state.time.day).season;
     this.sim.lastDayInt = Math.floor(state.time.day);
     this.sim.recalc();
+    this.tourism.reset();
     this.bus.emit('game:loaded', state);
   }
 

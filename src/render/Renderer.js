@@ -1,6 +1,7 @@
 // Moteur de rendu : scène Three.js, lumière, vues du monde, effets et étiquettes.
 import * as THREE from 'three';
 import { CityView } from './CityView.js';
+import { TourismView } from './TourismView.js';
 import { CameraController } from './CameraController.js';
 import { Sky } from './Sky.js';
 import { TerrainView } from './TerrainView.js';
@@ -78,6 +79,8 @@ export class Renderer {
     this.scene.add(this.terrain.group, this.vegetation.group, this.roads.group, this.buildings.group, this.agents.group, this.people.group, this.worksites.group, this.sites.group, this.animals.group, this.particles.group, this.overlays.group, this.clouds.group);
     this.cityView = new CityView(this);
     this.scene.add(this.cityView.group);
+    this.tourismView = new TourismView(this);
+    this.scene.add(this.tourismView.group);
     this.world = null;
     this.season = 1;
     this.emitAcc = 0;
@@ -276,6 +279,7 @@ export class Renderer {
 
   setWorld(world) {
     this.world = world;
+    this.tourismView.clear();
     this.season = calendar(this.game.state.time.day).season;
     this.sky.weather = this.game.state.weather?.kind || 'clear';
     this.ring = buildRing(world);
@@ -586,6 +590,7 @@ export class Renderer {
     this.roads.update(sky.night);
     this.cityView.update();
     this.buildings.update(dt, sky.night, st.time.speed);
+    this.tourismView.update(dt);
     this.agents.update(dt, st.time.speed, sky.night, game.sim.d.population);
     this.crowd?.begin();
     this.people.update(dt, st.time.speed);
