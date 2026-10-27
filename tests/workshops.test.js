@@ -84,3 +84,26 @@ test('fabrications : des villes différentes ne mélangent ni files ni marchandi
  c.add(90000);a.g.workshop.tick();assert.equal(a.g.state.res.food,food+25);assert.equal(a.g.state.res.pastries,0);assert.equal(snapshot.res.pastries,6);
  a.g.workshop.tick();assert.equal(snapshot.res.pastries,6);
 });
+
+test('commandes artisanales : chaîne complète, atelier relié et niveau de recette requis',()=>{
+ const {g}=fixture();
+ function add(type,id){const b={id,type,x:40+id,z:40,rot:0,level:1};g.world.addBuilding(b);g.sim.info.set(id,{connected:true,eff:1});return b;}
+ const t=[...g.world.buildings.values()].find(b=>b.type==='townhall');g.sim.info.set(t.id,{connected:true,eff:1});
+ g.prog.recount();assert.equal(g.prog.orderResources().includes('pastries'),false);
+ const mill=add('mill',20),farm=add('farm',21);g.prog.recount();g.state.level=6;
+ assert.equal(g.prog.orderResources().includes('pastries'),false);
+ g.state.level=7;assert.equal(g.prog.orderResources().includes('pastries'),true);
+ g.sim.info.get(mill.id).connected=false;assert.equal(g.prog.orderResources().includes('pastries'),false);
+ g.sim.info.get(mill.id).connected=true;farm.cons={k:'new'};assert.equal(g.prog.orderResources().includes('pastries'),false);delete farm.cons;
+ g.state.level=40;add('pasture',22);add('v5_shop_fashion_bocage',23);
+ assert.equal(g.prog.orderResources().includes('fabric'),true);assert.equal(g.prog.orderResources().includes('clothing'),false);
+ add('forge',24);add('mine',25);assert.equal(g.prog.orderResources().includes('clothing'),true);
+ g.state.level=11;assert.equal(g.prog.orderResources().includes('clothing'),false);
+});
+test('commandes artisanales : vraie demande, débit des produits et récompense unique',()=>{
+ const {g}=fixture();g.prog.orderResources=()=>['pastries'];g.state.res.pastries=1000;
+ const order=g.prog.makeOrder(),coins=g.state.res.coins;
+ assert.equal(order.items[0].res,'pastries');assert.ok(order.items[0].qty>0);g.state.orders.slots[0]=order;
+ assert.equal(g.prog.deliverOrder(0),true);assert.equal(g.state.res.pastries,1000-order.items[0].qty);assert.equal(g.state.res.coins,coins+order.coins);
+ assert.equal(g.prog.deliverOrder(0),false);assert.equal(g.state.res.coins,coins+order.coins);
+});

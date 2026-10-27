@@ -3,6 +3,7 @@ import { CRAFTED_GOODS, RECIPE_BY_ID, WORKSHOP_QUEUE_LIMIT, recipesForDefinition
 import { RESOURCES } from '../data/resources.js';
 const clone=x=>JSON.parse(JSON.stringify(x));
 const fail=reason=>({ok:false,reason});
+function saved(game){try{return game.save?.()===true;}catch{return false;}}
 export function ensureWorkshops(state){
  state.city ||= {};
  const data=state.city.workshops ||= {nextId:1,byBuilding:{}};
@@ -19,7 +20,7 @@ export function advanceWorkshopState(state,now,{buildings=state.buildings||[],ca
   if(!e.queue?.length)continue;
   const b=map.get(Number(id)),clock=Math.max(Number(e.lastAt)||0,now);
   if(!b){for(const job of e.queue){refund(state,job);refunded++;}delete data.byBuilding[id];changed=true;continue;}
-  const allowed=operable?!!operable(b):e.operable===true;
+  const allowed=operable?!!operable(b):e.operable===true&&!b.cons&&!b.fire;
   if(capacity!==null)e.capacity=capacity;
   e.operable=allowed;
   let head=e.queue[0];
@@ -60,7 +61,7 @@ export class Workshop{
   const g=this.game,st=g.state,previous={res:{...st.res},stats:clone(st.stats),data:clone(this.data)};
   const result=change();
   if(!result.ok)return result;
-  if(g.save?.()===true){g.sim?.markDirty();g.bus.emit('workshop:changed');return result;}
+  if(saved(g)){g.sim?.markDirty();g.bus.emit('workshop:changed');return result;}
   st.res=previous.res;st.stats=previous.stats;st.city.workshops=previous.data;
   return fail('Sauvegarde impossible : aucune marchandise n’a été engagée.');
  }
@@ -107,7 +108,7 @@ export class Workshop{
    const r=advanceWorkshopState(st,now,options);changed||=r.changed;completed+=r.completed;refunded+=r.refunded;
   }
   if(!changed)return {changed:false};
-  if(g.save?.()!==true){for(const b of backups){b.st.res=b.res;b.st.stats=b.stats;b.st.city.workshops=b.data;}return {changed:false,failed:true};}
+  if(!saved(g)){for(const b of backups){b.st.res=b.res;b.st.stats=b.stats;b.st.city.workshops=b.data;}return {changed:false,failed:true};}
   g.sim?.markDirty();g.bus.emit('workshop:changed',{completed,refunded});
   return {changed,completed,refunded};
  }

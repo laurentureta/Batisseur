@@ -3,6 +3,7 @@ import { BUILDINGS, BUILDING_LIST, ROAD_TYPES, BRIDGE_UNLOCK } from '../data/bui
 import { MAX_LEVEL, xpToNext, RANKS, zoneCost, zoneLevelReq, FEATURES, levelReward } from '../data/progression.js';
 import { MAIN_QUESTS, DAILY_POOL, dailyReward, ACHIEVEMENTS, achievementReward } from '../data/quests.js';
 import { RESOURCES, GOODS } from '../data/resources.js';
+import { CRAFTED_GOODS, recipesForDefinition } from '../data/recipes.js';
 import { mulberry32, hashStr } from '../core/rng.js';
 import { todayKey, round5 } from '../core/util.js';
 import { ORDER_DAY_MS } from '../core/state.js';
@@ -285,11 +286,33 @@ export class Progression {
   }
 
   /* ───────── Commandes ───────── */
+  craftableOrderResources() {
+    // New goods require a complete, connected supply chain rather than a single gifted item.
+    const ready = [...(this.game.world?.buildings.values() || [])].filter(b => {
+      const info = this.game.sim?.info.get(b.id);
+      return !b.cons && !b.fire && info?.connected && info.eff > 0;
+    });
+    const supplied = new Set();
+    const recipes = ready.flatMap(b => recipesForDefinition(BUILDINGS[b.type])).filter(r => this.libre || this.st.level >= r.level);
+    for (let pass = 0; pass < GOODS.length; pass++) {
+      const previous = supplied.size;
+      for (const b of ready) {
+        const def = BUILDINGS[b.type];
+        if (def.produces && Object.keys(def.consumes || {}).every(r => supplied.has(r)))
+          for (const r in def.produces) supplied.add(r);
+      }
+      for (const recipe of recipes) if (Object.keys(recipe.inputs).every(r => supplied.has(r)))
+        for (const r in recipe.outputs) supplied.add(r);
+      if (previous === supplied.size) break;
+    }
+    return new Set(CRAFTED_GOODS.filter(r => supplied.has(r)));
+  }
+
   orderResources() {
-    const out = [];
+    const out = [], crafted = this.craftableOrderResources();
     for (const r of GOODS) {
       const types = PRODUCER_OF[r] || [];
-      if (types.some((t) => this.countType(t) > 0)) out.push(r);
+      if (types.some((t) => this.countType(t) > 0) || crafted.has(r)) out.push(r);
     }
     return out;
   }
