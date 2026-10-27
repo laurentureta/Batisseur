@@ -6,7 +6,7 @@ export const MAX_TOURISM_ABSENCE=8*3600000;
 function fresh(now){return {attractions:{},visitors:0,revenue:0,milestones:[],lastAt:now,fraction:0,festival:null,trophies:[],festivalHistory:[],lastRates:{visitors:0,revenue:0},guests:[],receipts:[],nextGuest:1,admissions:0,arrivalFraction:0,arrivalBudget:0,spentRevenue:0,completedTours:0,spentByVenue:{},unusedVouchers:0};}
 export class Tourism {
  constructor(game){this.game=game;this.acc=0;game.bus.on('building:placed',b=>{if(ATTRACTIONS[b.type])b.level=this.attraction(b.type).phase+1;});}
- get data(){const city=this.game.state.city ||= {},d=city.tourism ||= fresh(Date.now()),base=fresh(Date.now());const legacy=d.guests===undefined;if(legacy){d.admissions=Math.floor(d.visitors||0);d.nextGuest=d.admissions+1;d.spentRevenue=d.revenue||0;}for(const key in base)if(d[key]===undefined)d[key]=base[key];return d;}
+ get data(){const city=this.game.state.city ||= {},d=city.tourism ||= fresh(Date.now()),base=fresh(Date.now());const legacy=d.guests===undefined;if(legacy){d.admissions=Math.floor(d.visitors||0);d.nextGuest=d.admissions+1;d.arrivalFraction=Math.max(0,(d.visitors||0)-d.admissions);d.arrivalBudget=0;d.spentRevenue=d.revenue||0;}for(const key in base)if(d[key]===undefined)d[key]=base[key];return d;}
  writable(){return !!this.game.state&&!this.game.isDemo&&!this.game.visit;}
  reset(){this.acc=0;this.buildingWorld=null;this.networkKey=null;this.routeVersion=-1;this.data;this.syncFestival();}
  changed(visual=false){this.game.sim.markDirty();this.game.bus.emit('tourism:changed');if(visual)this.game.bus.emit('city:appearance');this.game.save?.();}

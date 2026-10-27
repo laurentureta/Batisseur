@@ -47,7 +47,7 @@ test('touristes : sauvegarde, absence bornée, comptes uniques et interruption a
  const save=migrateState(JSON.parse(serialize(g)));assert.deepEqual(save.city.tourism.guests,m.data.guests);
  const coins=g.state.res.coins;g.world.setRoad(40*SIZE+37,0);m.settleGuests(now);assert.equal(m.data.guests.length,0);assert.ok(m.data.receipts.some(r=>r.status==='interrupted'));assert.equal(g.state.res.coins,coins);
  now+=24*3600000;m.advance(now);const count=m.data.admissions,revenue=m.data.revenue,after=g.state.res.coins;m.advance(now);assert.equal(m.data.admissions,count);assert.equal(m.data.revenue,revenue);assert.equal(g.state.res.coins,after);assert.ok(m.data.receipts.length<=64);assert.ok(m.data.guests.length<=MAX_VISIBLE_TOURISTS);
- const legacy=m.data;delete legacy.guests;delete legacy.admissions;legacy.visitors=12.5;legacy.revenue=100;const migrated=m.data;assert.equal(migrated.admissions,12);assert.equal(migrated.nextGuest,13);assert.equal(g.state.res.coins,after);
+ const legacy=m.data;delete legacy.guests;delete legacy.admissions;legacy.visitors=12.5;legacy.revenue=100;const migrated=m.data;assert.equal(migrated.admissions,12);assert.equal(migrated.nextGuest,13);assert.equal(migrated.arrivalFraction,.5);assert.equal(g.state.res.coins,after);
 });
 
 test('tourisme : reprise réelle sans recrédit et économie du bot explicitement isolée des visites ordinaires',t=>{
