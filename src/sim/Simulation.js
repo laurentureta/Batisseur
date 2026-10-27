@@ -9,6 +9,7 @@ import {
 import { GOODS } from '../data/resources.js';
 import { clamp, calendar } from '../core/util.js';
 import { WORKSITES } from './Villagers.js';
+import { hasWorkshopQueue } from '../data/recipes.js';
 
 const STEP = 0.25; // pas de simulation (secondes de jeu)
 const SEASON_FACTORS = {
@@ -30,6 +31,7 @@ export function workTier(def) {
 
 export const STATUS_TEXT = {
   ok: 'En activité',
+  crafting: 'Fabrication manuelle en cours',
   noRoad: 'Pas relié à la mairie par une route',
   noResource: 'Ressource naturelle absente autour',
   noWorkers: 'Manque de main-d\'œuvre',
@@ -392,7 +394,8 @@ export class Simulation {
         if (def.upkeep && d.broke) {
           status = 'unpaid';
           eff = 0;
-        } else if (def.workers && staff < 0.5) status = 'noWorkers';
+        } else if (hasWorkshopQueue(st,b.id)) status = 'crafting';
+        else if (def.workers && staff < 0.5) status = 'noWorkers';
         else if (def.consumes && inf.inFrac < 0.15) status = 'noInput';
         else if (def.produces && inf.full) status = 'full';
         else if (b.work?.noTrees && b.work.acc >= b.work.unit) status = 'noTrees';
@@ -467,7 +470,7 @@ export class Simulation {
     for (const r of GOODS) rates[r] = { prod: 0, cons: 0 };
     for (const b of world.buildings.values()) {
       const def = BUILDINGS[b.type];
-      if (!def.produces) continue;
+      if (!def.produces || hasWorkshopQueue(this.state,b.id)) continue;
       const inf = this.info.get(b.id);
       if (!inf || inf.eff <= 0) continue;
       const mult = prodMult(b.level) * inf.eff;
@@ -491,7 +494,7 @@ export class Simulation {
     const daily = stats.daily;
     for (const b of world.buildings.values()) {
       const def = BUILDINGS[b.type];
-      if (!def.produces) continue;
+      if (!def.produces || hasWorkshopQueue(this.state,b.id)) continue;
       const inf = this.info.get(b.id);
       if (!inf) continue;
       if (inf.eff <= 0) {

@@ -1,3 +1,4 @@
+import { hasWorkshopQueue } from '../data/recipes.js';
 // Les habitants qui travaillent. Chacun a un nom, une maison, un emploi et un emploi du temps :
 // MAISON → TRAJET → TRAVAIL (récolte, transport, dépôt) → LOISIR → RETOUR.
 //
@@ -210,6 +211,7 @@ export class Villagers {
 
   /** Production de l'économie → travail accumulé sur le site (appelé par la simulation). */
   accumulate(b, add) {
+    if (hasWorkshopQueue(this.st,b.id)) return true;
     const s = this.site(b);
     if (!s) return false;
     s.acc = Math.min(s.cap, s.acc + add);
