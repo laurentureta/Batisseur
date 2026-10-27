@@ -1,15 +1,27 @@
 import { ATTRACTIONS,PARK_MILESTONES,FESTIVAL_STAGES,FESTIVAL_VALUES,festivalCalendar } from '../data/tourism.js';
+import { BUILDINGS } from '../data/buildings.js';
+import { buildTouristNetwork,makeTouristPlan,touristPlanValid,MAX_VISIBLE_TOURISTS } from '../render/touristPlans.js';
 const fail=reason=>({ok:false,reason});
 export const MAX_TOURISM_ABSENCE=8*3600000;
-function fresh(now){return {attractions:{},visitors:0,revenue:0,milestones:[],lastAt:now,fraction:0,festival:null,trophies:[],festivalHistory:[],lastRates:{visitors:0,revenue:0}};}
+function fresh(now){return {attractions:{},visitors:0,revenue:0,milestones:[],lastAt:now,fraction:0,festival:null,trophies:[],festivalHistory:[],lastRates:{visitors:0,revenue:0},guests:[],receipts:[],nextGuest:1,admissions:0,arrivalFraction:0,arrivalBudget:0,spentRevenue:0,completedTours:0,spentByVenue:{},unusedVouchers:0};}
 export class Tourism {
  constructor(game){this.game=game;this.acc=0;game.bus.on('building:placed',b=>{if(ATTRACTIONS[b.type])b.level=this.attraction(b.type).phase+1;});}
- get data(){const city=this.game.state.city ||= {},d=city.tourism ||= fresh(Date.now()),base=fresh(Date.now());for(const key in base)if(d[key]===undefined)d[key]=base[key];return d;}
+ get data(){const city=this.game.state.city ||= {},d=city.tourism ||= fresh(Date.now()),base=fresh(Date.now());const legacy=d.guests===undefined;if(legacy){d.admissions=Math.floor(d.visitors||0);d.nextGuest=d.admissions+1;d.spentRevenue=d.revenue||0;}for(const key in base)if(d[key]===undefined)d[key]=base[key];return d;}
  writable(){return !!this.game.state&&!this.game.isDemo&&!this.game.visit;}
- reset(){this.acc=0;this.data;this.syncFestival();}
+ reset(){this.acc=0;this.buildingWorld=null;this.networkKey=null;this.routeVersion=-1;this.data;this.syncFestival();}
  changed(visual=false){this.game.sim.markDirty();this.game.bus.emit('tourism:changed');if(visual)this.game.bus.emit('city:appearance');this.game.save?.();}
  attraction(type){return this.data.attractions[type]||{phase:0,readyAt:0};}
- building(type){return [...this.game.world.buildings.values()].find(b=>b.type===type&&!b.cons?.k);}
+ building(type){
+  const w=this.game.world;if(this.buildingWorld!==w||this.buildingVersion!==w.version){this.buildingWorld=w;this.buildingVersion=w.version;this.allBuildings=[...w.buildings.values()];this.buildingsByType=new Map();for(const b of this.allBuildings){if(!this.buildingsByType.has(b.type))this.buildingsByType.set(b.type,[]);this.buildingsByType.get(b.type).push(b);}}
+  return this.buildingsByType.get(type)?.find(b=>!b.cons?.k)||null;
+ }
+ network(){
+  this.building('park_gate');const w=this.game.world,info=this.game.sim.info;
+  const relevant=this.allBuildings.filter(b=>ATTRACTIONS[b.type]||b.type==='station'||['restaurant','cafe','tea','hotel'].includes(BUILDINGS[b.type]?.catalogue?.family));
+  const key=w.version+':'+this.game.sim.netVersion+'|'+relevant.map(b=>`${b.id}:${b.level}:${b.cons?.k||''}:${!!b.fire}:${!!info.get(b.id)?.connected}:${info.get(b.id)?.eff===0}:${this.data.attractions[b.type]?.phase||0}`).join(',');
+  if(this.networkKey!==key){this.networkKey=key;this.touristNetwork=buildTouristNetwork(w,info,this.data.attractions,this.game.sim.roadConn);}
+  return this.touristNetwork;
+ }
  completed(type){return this.attraction(type).phase===3&&!!this.building(type);}
  start(type){
   if(!this.writable())return fail('Ouvrez votre propre ville.');
@@ -29,28 +41,66 @@ export class Tourism {
  }
  rates(){
   let visitors=0,revenue=0,active=[];
-  const gate=this.building('park_gate');if(!this.completed('park_gate')||gate.fire||!this.game.sim.info.get(gate.id)?.connected)return {visitors,revenue,active};
+  const gate=this.building('park_gate');if(!this.completed('park_gate')||gate.fire||!this.game.sim.info.get(gate.id)?.connected)return {visitors,revenue,active,beauty:0,refreshment:0,arrivalFactor:1};
+  const network=this.network();
   for(const [type,a]of Object.entries(ATTRACTIONS)){
    const b=this.building(type);if(!b||b.fire||!this.completed(type)||!this.game.sim.info.get(b.id)?.connected)continue;
+   if(network.usable&&type!=='park_gate'&&!network.attractions.some(n=>n.id===b.id))continue;
    active.push(type);visitors+=a.visitors;revenue+=a.visitors*a.ticket;
   }
   const festival=this.syncFestival();if(festival.claimed.length===3){visitors*=1.25;revenue*=1.25;}
-  return {visitors,revenue,active};
+  revenue=revenue*(1+network.beauty)+visitors*network.refreshment;
+  visitors*=network.arrivalFactor;revenue*=network.arrivalFactor;
+  return {visitors,revenue,active,beauty:network.beauty,refreshment:network.refreshment,arrivalFactor:network.arrivalFactor};
  }
+ // Admission revenue pays for a park pass and any refreshment vouchers up front.
+ // Visits redeem that same budget; neither the renderer nor venue visits mint coins.
+ bookArrivals(count,amount,now,rate){
+  const d=this.data;d.arrivalFraction+=count;d.arrivalBudget+=amount;
+  const n=Math.floor(d.arrivalFraction+1e-9);if(!n)return;
+  const budget=d.arrivalBudget/d.arrivalFraction;d.arrivalFraction=Math.max(0,d.arrivalFraction-n);d.arrivalBudget=Math.max(0,d.arrivalBudget-n*budget);d.admissions+=n;
+  const network=this.network(),skip=Math.max(0,n-64);d.nextGuest+=skip;d.completedTours+=skip;d.spentRevenue+=skip*budget;
+  for(let i=skip;i<n;i++){
+   const id=d.nextGuest++,arrivedAt=now-(n-i-1+d.arrivalFraction)*3600000/rate;
+   const plan=makeTouristPlan(network,id,arrivedAt,budget);
+   const receipt={id,arrivedAt,paid:budget,spent:0,fromTrain:!!plan?.fromTrain,status:plan?'visiting':'completed',venues:plan?plan.legs.filter(l=>l.kind==='visit').map(l=>({id:l.venue,type:l.type,amount:l.amount})):[]};
+   d.receipts.push(receipt);
+   if(plan)d.guests.push(plan);else{receipt.spent=budget;d.spentRevenue+=budget;d.completedTours++;}
+  }
+  d.receipts=d.receipts.slice(-64);
+  // High-flow parks retain complete aggregate accounts, with bounded visible detail.
+  while(d.guests.length>MAX_VISIBLE_TOURISTS){const g=d.guests.shift();this.settleGuest(g,g.leavesAt);d.completedTours++;}
+ }
+ settleGuest(guest,now){
+  const d=this.data,receipt=d.receipts.find(r=>r.id===guest.id);
+  while(guest.settled<guest.legs.length){const leg=guest.legs[guest.settled];if(leg.endAt>now)break;guest.settled++;
+   if(leg.kind!=='visit')continue;d.spentRevenue+=leg.amount;d.spentByVenue[leg.type]=(d.spentByVenue[leg.type]||0)+leg.amount;if(receipt)receipt.spent+=leg.amount;
+  }
+  if(receipt&&now>=guest.leavesAt)receipt.status='completed';
+ }
+ settleGuests(now){
+  const d=this.data,w=this.game.world,validate=this.routeVersion!==w.version;this.routeVersion=w.version;
+  const keep=[];for(const guest of d.guests){this.settleGuest(guest,now);
+   if(now>=guest.leavesAt){d.completedTours++;continue;}
+   if(validate&&!touristPlanValid(guest,w,now)){const r=d.receipts.find(r=>r.id===guest.id);if(r)r.status='interrupted';d.unusedVouchers+=Math.max(0,guest.paid-(r?.spent||0));continue;}
+   keep.push(guest);
+  }d.guests=keep;
+ }
+
  syncFestival(now=Date.now()){
   const c=festivalCalendar(now),d=this.data;
   if(d.festival?.id!==c.id){if(d.festival)d.festivalHistory.push({id:d.festival.id,points:d.festival.points,claimed:[...d.festival.claimed]});d.festivalHistory=d.festivalHistory.slice(-12);d.festival={id:c.id,points:0,claimed:[],donated:{}};}
   return d.festival;
  }
- advance(now=Date.now()){
-  if(!this.writable())return;
+ advance(now=Date.now(),{bot=false}={}){
+  if(!this.writable()&&!(bot&&this.game.state?.botCity))return;
   const d=this.data,prior=Number.isFinite(d.lastAt)?d.lastAt:now,elapsed=Math.max(0,Math.min(MAX_TOURISM_ABSENCE,now-prior));
   // Avancer le curseur AVANT le crédit évite de rejouer l'absence après une sauvegarde.
-  if(now<prior)return;d.lastAt=now;this.syncFestival(now);
+  if(now<prior)return;d.lastAt=now;this.syncFestival(now);this.settleGuests(now);
   const current=this.rates(),last=d.lastRates||current;d.lastRates={visitors:current.visitors,revenue:current.revenue};
   const rate={visitors:Math.min(current.visitors,last.visitors),revenue:Math.min(current.revenue,last.revenue)};if(!elapsed||!rate.visitors)return;
   const count=elapsed/3600000*rate.visitors;d.visitors+=count;
-  const amount=elapsed/3600000*rate.revenue;d.revenue+=amount;
+  const amount=elapsed/3600000*rate.revenue;d.revenue+=amount;this.bookArrivals(count,amount,now,rate.visitors);this.settleGuests(now);
   this.game.actions.grant({coins:amount});
   if(this.game.state.stats)this.game.state.stats.coinsEarned=(this.game.state.stats.coinsEarned||0)+amount;
   this.game.sim.markDirty();
