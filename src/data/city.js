@@ -59,3 +59,10 @@ export const HOUSEHOLDS = [
     { title: 'Un lien entre nos villages', text: 'Inès attend la première livraison venue d’un autre territoire.', kind: 'regionalDeliveries', target: 1, reward: { coins: 1600, xp: 250 } },
   ] },
 ];
+
+export const TRADE_INTERVALS = [15, 30, 60, 120]; // minutes réelles
+export const EXPEDITIONS = {
+  countryside: { name: 'Marché des campagnes', icon: '🐎', mode: 'cart', seconds: 900, cost: { coins: 25, wood: 20, stone: 20, food: 15 }, reward: { coins: 240, xp: 80 }, desc: 'Équipez un convoi et échangez votre production au marché voisin.' },
+  metropolis: { name: 'Commande de la métropole', icon: '🚂', mode: 'train', seconds: 600, cost: { coins: 50, planks: 30, food: 40 }, reward: { coins: 320, tools: 8, xp: 120 }, desc: 'Une commande express pour votre gare : des provisions et des matériaux.' },
+  archipelago: { name: 'Comptoir de l’archipel', icon: '⛵', mode: 'boat', seconds: 1800, cost: { coins: 100, food: 60, planks: 40 }, reward: { coins: 600, bricks: 25, tools: 10, xp: 200 }, desc: 'Le port ouvre une route vers les comptoirs des îles et leurs matériaux rares.' },
+};

@@ -1,6 +1,6 @@
 import { h, costChips, progressBar } from './dom.js';
 import { openScreen, countdown } from './screens.js';
-import { SPECIALTIES, FACADES, GARDENS, PROJECTS, HOUSEHOLDS, TERRITORIES, TRANSPORT } from '../data/city.js';
+import { SPECIALTIES, FACADES, GARDENS, PROJECTS, HOUSEHOLDS, TERRITORIES, TRANSPORT, TRADE_INTERVALS, EXPEDITIONS } from '../data/city.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { GOODS, RESOURCES } from '../data/resources.js';
 import { SIZE,ZONE,ZONES } from '../world/constants.js';
@@ -108,18 +108,26 @@ function renderLogistics(ui,body,screen,drafts) {
     list.appendChild(h('article.city-card',h('h3',`${route.mode==='truck'?'🚚':'🐎'} ${BUILDINGS[b?.type]?.name||'Producteur'}`),h('p',`Vers ${BUILDINGS[target?.type]?.name||'l’entrepôt'}`),note(buffer?`En attente : ${buffer}`:'Le producteur prépare son chargement.'),job?h('div',h('p',`${RESOURCES[job.res].name} · ${fmtDec(job.qty)} · ${job.blocked?'Route coupée':job.progress===1?'Attend de la place':'En route'}`),progressBar(job.progress)):null,h('button.btn.small',{onclick:()=>apply(ui,screen,city.removeRoute(route.from),'Tournée arrêtée, marchandises rapatriées')},'Arrêter la tournée')));
   }
   body.append(list,note(`${city.data.delivered} livraisons arrivées à l’entrepôt.`));
-  if(!producers.length||!depots.length)return body.appendChild(note('Terminez un bâtiment de production et un Grand Entrepôt pour organiser votre première tournée.'));
+  if(!producers.length||!depots.length) body.appendChild(note('Terminez un bâtiment de production et un Grand Entrepôt pour organiser votre première tournée.'));
+  else {
   const d=drafts.route ||= {from:producers[0].id,to:depots[0].id,mode:'cart'};
   body.append(h('div.city-form',title('Nouvelle tournée'),select('Producteur',producers.map((b)=>[String(b.id),`${BUILDINGS[b.type].name} n°${b.id}`]),String(d.from),(v)=>d.from=Number(v)),select('Entrepôt',depots.map((b)=>[String(b.id),`Grand Entrepôt n°${b.id}`]),String(d.to),(v)=>d.to=Number(v)),select('Véhicule',[['cart','Charrette · 20 unités'],['truck','Camion · 60 unités, chaussée carrossable']],d.mode,(v)=>d.mode=v),button('Créer la tournée',()=>apply(ui,screen,city.createRoute(d.from,d.to,d.mode),'Tournée créée'))));
+  }
+  renderExpeditions(ui,body,screen);
 }
 
 function renderRegions(ui,body,screen,drafts) {
   const city=ui.game.city,book=city.book,id=ui.st.regionId;
-  body.append(title('Une région entière à construire'),note('Chaque territoire possède sa carte, ses bâtiments et son stock. Vos autres villages sont conservés pendant votre voyage. Les expéditions continuent en temps réel ; la simulation des villages se déroule quand vous les visitez.'));
+  body.append(title('Une région entière à construire'),note('Vos villes travaillent aussi en votre absence : une journée de production par heure réelle, jusqu’à huit heures par absence. Les bâtiments terminés respectent les routes, les ouvriers, les matières premières et le stockage. Les habitants et les chantiers restent en place ; la mairie ne produit pas en veille. Une ville mise en pause ne produit pas.'),note('Les délais des convois restent en temps réel. Les liaisons régulières reprennent à l’ouverture du jeu avec un seul départ par liaison, sans accumulation de convois pendant la fermeture.'));
   const map=h('div.region-map');
   for(const [key,rule] of Object.entries(TERRITORIES)){
     const entry=book.settlements[key],active=id===key;
     const card=h('article.region-card.'+key+(active?'.active':''),h('span.city-card-icon',rule.icon),h('h3',entry?.name||rule.name),h('p',active?'Vous êtes ici':entry?'Village ouvert':`Niveau ${rule.level} requis`));
+    if(entry && !active){
+      const stocks=Object.entries(entry.snapshot?.res||{}).filter(([r,n])=>r!=='coins'&&n>=1).slice(0,5).map(([r,n])=>`${RESOURCES[r]?.icon||''} ${fmt(n)}`).join(' · ');
+      if(stocks)card.appendChild(note(stocks));
+      if(entry.snapshot?.regionalReport?.capped)card.appendChild(note('Huit heures de veille prises en compte.'));
+    }
     if(key!=='home')card.appendChild(note(key==='island'?'Production de nourriture +15 %':key==='mountain'?'Production de pierre +15 %':'Commerces +15 %'));
     if(!entry)card.append(cost(ui,rule.cost),button('Fonder ce village',()=>apply(ui,screen,city.unlockTerritory(key),'Nouveau territoire ouvert !'),!ui.libre&&book.level<rule.level));
     else if(!active)card.append(button('Voyager',()=>{const r=city.switchTerritory(key);if(!r.ok)ui.toast(r.reason,'error');else ui.toast(`Bienvenue : ${ui.game.state.name}`,'good');}));
@@ -128,14 +136,33 @@ function renderRegions(ui,body,screen,drafts) {
   body.appendChild(map);
   const dest=Object.keys(book.settlements).filter((k)=>k!==id);
   if(dest.length){
-    const d=drafts.shipment ||= {to:dest[0],res:'wood',qty:20,mode:'cart'};
+    const d=drafts.shipment ||= {to:dest[0],res:'wood',qty:20,mode:'cart',interval:30};
     if(!dest.includes(d.to))d.to=dest[0];
-    body.append(h('div.city-form',title('Relier vos villes'),select('Destination',dest.map((k)=>[k,book.settlements[k].name]),d.to,(v)=>d.to=v),select('Marchandise',GOODS.map((r)=>[r,RESOURCES[r].name]),d.res,(v)=>d.res=v),h('label.city-field',h('span','Quantité à expédier'),h('input.text',{type:'number',min:1,max:500,step:1,value:d.qty,'aria-label':'Quantité à expédier',oninput:(e)=>d.qty=Number(e.target.value)})),select('Transport régional',Object.entries(TRANSPORT).map(([k,v])=>[k,`${v.icon} ${v.name} · ${v.capacity} unités · ${v.fee} pièces · ${countdown(v.seconds*1000)}`]),d.mode,(v)=>d.mode=v),note('Le train exige une gare reliée ; le cargo exige un Port des Explorateurs terminé. Les convois légers, par route ou par bac, sont disponibles dès le premier territoire.'),button('Expédier les marchandises',()=>apply(ui,screen,city.sendShipment(d.to,d.res,d.qty,d.mode),'Votre convoi est parti !'))));
+    body.append(h('div.city-form',title('Relier vos villes'),select('Destination',dest.map((k)=>[k,book.settlements[k].name]),d.to,(v)=>d.to=v),select('Marchandise',GOODS.map((r)=>[r,RESOURCES[r].name]),d.res,(v)=>d.res=v),h('label.city-field',h('span','Quantité à expédier'),h('input.text',{type:'number',min:1,max:500,step:1,value:d.qty,'aria-label':'Quantité à expédier',oninput:(e)=>d.qty=Number(e.target.value)})),select('Transport régional',Object.entries(TRANSPORT).map(([k,v])=>[k,`${v.icon} ${v.name} · ${v.capacity} unités · ${v.fee} pièces · ${countdown(v.seconds*1000)}`]),d.mode,(v)=>d.mode=v),note('Le train exige une gare reliée ; le cargo exige un Port des Explorateurs terminé. Les convois légers, par route ou par bac, sont disponibles dès le premier territoire.'),button('Expédier les marchandises',()=>apply(ui,screen,city.sendShipment(d.to,d.res,d.qty,d.mode),'Votre convoi est parti !')),select('Fréquence de la liaison',TRADE_INTERVALS.map(n=>[String(n),`Toutes les ${n} minutes réelles`]),String(d.interval),(v)=>d.interval=Number(v)),button('Créer une liaison régulière',()=>apply(ui,screen,city.createTradeRoute(d.to,d.res,d.qty,d.mode,d.interval),'Liaison régulière créée'))));
+  }
+  if(book.tradeRoutes.length)body.appendChild(title('Vos liaisons régulières'));
+  for(const route of book.tradeRoutes){
+    body.appendChild(h('article.city-card',h('h3',`${TRANSPORT[route.mode].icon} ${book.settlements[route.from]?.name} → ${book.settlements[route.to]?.name}`),h('p',`${route.qty} ${RESOURCES[route.res].name} · toutes les ${route.interval} min · ${route.sent} départs`),note(route.enabled?`${route.status} · prochain essai dans ${countdown(route.nextAt-Date.now())}`:'Liaison en pause'),h('div.city-actions',h('button.btn.small',{onclick:()=>apply(ui,screen,city.toggleTradeRoute(route.id),'Liaison modifiée')},route.enabled?'Mettre en pause':'Reprendre'),h('button.btn.small',{onclick:()=>apply(ui,screen,city.removeTradeRoute(route.id),'Liaison supprimée, convois en cours conservés')},'Supprimer'))));
   }
   for(const job of book.shipments.slice().reverse().slice(0,10)){
     const progress=job.delivered?1:Math.min(1,(Date.now()-job.sentAt)/(job.readyAt-job.sentAt));
     body.appendChild(h('article.city-card.region-shipment',h('h3',`${TRANSPORT[job.mode].icon} ${book.settlements[job.from]?.name} → ${book.settlements[job.to]?.name}`),h('p',`${job.qty} ${RESOURCES[job.res].name} · ${job.delivered?'Livré':countdown(job.readyAt-Date.now())}`),h('div.region-track',h('span',{style:{left:`${Math.round(progress*92)}%`}},TRANSPORT[job.mode].icon)),progressBar(progress)));
   }
+}
+
+function renderExpeditions(ui,body,screen) {
+  const city=ui.game.city,now=Date.now();
+  body.append(title('Des voyages qui rapportent'),note('Choisissez un contrat, préparez les marchandises et retrouvez le convoi à son retour. Les récompenses reviennent au village qui finance le départ. Un contrat de chaque type à la fois.'));
+  const grid=h('div.city-grid');
+  for(const [kind,rule] of Object.entries(EXPEDITIONS)){
+    const e=city.book.expeditions.find(j=>j.kind===kind&&!j.claimed);
+    const card=h('article.city-card',h('span.city-card-icon',rule.icon),h('h3',rule.name),h('p',rule.desc),cost(ui,rule.cost),h('p.city-reward',Object.entries(rule.reward).map(([r,n])=>`${n} ${r==='xp'?'XP':RESOURCES[r]?.name||r}`).join(' · ')));
+    if(e){
+      card.append(note(`Départ : ${city.book.settlements[e.from]?.name||'votre village'}`),progressBar(Math.min(1,(now-e.sentAt)/(e.readyAt-e.sentAt))),button(now>=e.readyAt?'Recevoir les récompenses':`Retour · ${countdown(e.readyAt-now)}`,()=>apply(ui,screen,city.claimExpedition(e.id),'Le convoi est revenu !'),now<e.readyAt));
+    } else card.append(button(`Préparer le départ · ${countdown(rule.seconds*1000)}`,()=>apply(ui,screen,city.startExpedition(kind),'Votre voyage commence !')));
+    grid.appendChild(card);
+  }
+  body.appendChild(grid);
 }
 
 export function customizeBuilding(ui,id) {
