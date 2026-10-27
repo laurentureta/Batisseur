@@ -1,6 +1,8 @@
 // Modèles 3D low-poly de tous les bâtiments, générés en code (aucune image à charger).
 // Repère local : emprise centrée sur (0, 0), façade avant tournée vers +z, sol à y = 0.
 import { buildCivicModel, gardenDetails } from './civicModels.js';
+import { buildCatalogueModel } from './catalogueModels.js';
+import { buildTourismModel } from './tourismModels.js';
 import { FACADES } from '../data/city.js';
 import { hexToLin } from './geom.js';
 import { GeoBuilder, shade, mix } from './geom.js';
@@ -38,6 +40,7 @@ function makeCtx(variant, season, theme = 'mix') {
   const th = ROOF_THEMES[theme] || ROOF_THEMES.mix;
   return {
     v: variant,
+    theme,
     season,
     winter,
     autumn,
@@ -1027,7 +1030,9 @@ export function buildModel(type, level = 1, variant = 0, season = 1, theme = 'mi
   const out = { parts: [], emitters: [] };
   ctx.out = out;
   const L = Math.max(1, Math.min(level, BUILDINGS[type]?.maxLevel || 1));
-  if (BUILDINGS[type]?.civic) buildCivicModel(g,type,L);
+  if (BUILDINGS[type]?.catalogue) buildCatalogueModel(g,BUILDINGS[type],L,ctx,out);
+  else if (BUILDINGS[type]?.tourism) buildTourismModel(g,type,L,ctx,out);
+  else if (BUILDINGS[type]?.civic) buildCivicModel(g,type,L);
   else if (hasKitModel(type)) KM[type](g, L, ctx);
   else (MODELS[type] || MODELS.fallback)(g, L, ctx, out);
   if (appearance && !BUILDINGS[type]?.civic) {

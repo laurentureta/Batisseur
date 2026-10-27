@@ -32,7 +32,8 @@ export class Thumbnails {
 
   /** Prépare les vignettes petit à petit, sans bloquer le jeu. */
   warmup(types) {
-    const queue = types.filter((t) => !this.cache.has(`${t}|1`));
+    // A large catalogue must not trigger hundreds of WebGL renders after loading.
+    const queue = types.filter((t) => !this.cache.has(`${t}|1`)).slice(0, 24);
     const next = () => {
       const t = queue.shift();
       if (!t) return;

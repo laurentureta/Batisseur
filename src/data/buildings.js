@@ -2,6 +2,8 @@
 // Les coûts sont donnés par niveau : costs[0] = construction, costs[n] = passage au niveau n+1.
 
 import { costValue } from './resources.js';
+import { EXPANDED_BUILDINGS } from './catalogue.js';
+import { TOURISM_BUILDINGS } from './tourism.js';
 import { round5 } from '../core/util.js';
 import { RANKS } from './progression.js';
 
@@ -534,6 +536,8 @@ for (const [id,name,unlock,icon] of [
   near: id==='civic_harbor'?{types:['water','deep'],radius:4,sat:1,label:'de l’eau'}:undefined,
   costs: [{ coins: 100 }, {}, {}, {}], levelNames: ['Emplacement · '+name, 'Fondations · '+name, 'Aménagement · '+name, name],
   desc: 'Grand projet : les travaux se financent par étapes depuis Développer → Grands projets. Chaque phase transforme ce lieu.' });
+for (const d of EXPANDED_BUILDINGS) def(d);
+for (const d of TOURISM_BUILDINGS) def(d);
 export const BUILDING_LIST = LIST;
 export const BUILDINGS = Object.fromEntries(LIST.map((d) => [d.id, d]));
 
