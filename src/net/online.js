@@ -4,7 +4,7 @@
 // avec elle ; tout passe par des fonctions qui vérifient le secret du joueur (gardé sur ce
 // téléphone, jamais affiché) et qui fixent elles-mêmes le contenu des cadeaux.
 import { makeSnapshot } from './snapshot.js';
-import { BOT } from './bot.js';
+import { BOT, botSummary, grantBotGift } from './bot.js';
 import { todayKey } from '../core/util.js';
 
 const API = 'https://kuiyozeeqzjaqzifnfok.supabase.co/rest/v1/rpc/';
@@ -79,7 +79,7 @@ export class Online {
 
   botEntry() {
     const d = this.botData();
-    return { ...BOT, gift_sent: d.sent === todayKey(), last_seen: new Date().toISOString() };
+    return { ...botSummary(), gift_sent: d.sent === todayKey() };
   }
 
   /** Le cadeau du jour de Capucine (un par jour). */
@@ -193,8 +193,10 @@ export class Online {
 
   async sendGift(id, kind) {
     if (id === BOT.id) {
+      if (!GIFTS[kind]) throw new Error('Choisis une ressource à offrir.');
       const d = this.botData();
       if (d.sent === todayKey()) throw new Error("Tu lui as déjà envoyé un cadeau aujourd'hui.");
+      if (!grantBotGift(kind, GIFTS[kind].amount, undefined, undefined, this.game)) throw new Error('Le cadeau ne peut pas être enregistré sur cet appareil.');
       d.sent = todayKey();
       this.saveBot(d);
       this.bus.emit('online:changed');

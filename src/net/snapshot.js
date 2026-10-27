@@ -42,6 +42,7 @@ export function makeSnapshot(game) {
     day: Math.round(st.time.day * 1000) / 1000,
     weather: st.weather?.kind || 'clear',
     roof: st.cosmetics?.roof || 'mix',
+    tourism: tourismSnapshot(st.city?.tourism),
     looks: Object.fromEntries([...w.buildings.values()].filter((b) => b.appearance).map((b) => [b.id,b.appearance])),
     zones: st.zones.map((z) => (z ? 1 : 0)).join(''),
     terrain: rleEncode(w.terrain),
@@ -76,6 +77,17 @@ export function stateFromSnapshot(s) {
     return b;
   });
   if (!st.buildings.some((b) => b.type === 'townhall')) st.buildings.unshift(createNewState({ seed: 1 }).buildings[0]);
+  if (s.tourism) st.city.tourism = tourismSnapshot(s.tourism);
   st.nextId = Math.max(1, ...st.buildings.map((b) => b.id)) + 1;
   return st;
+}
+
+// Les visites ne transportent que les éléments visuels du parc, jamais une récompense en attente.
+function tourismSnapshot(data) {
+  if (!data || typeof data !== 'object') return undefined;
+  const clamp = (n,max) => Math.max(0,Math.min(max,Math.floor(Number(n)||0)));
+  const attractions = {};
+  for(const [id,phase] of Object.entries(data.attractions || {}).slice(0,12)) if(BUILDINGS[id]?.tourism) attractions[id]={phase:clamp(phase?.phase,3),readyAt:0};
+  const festival = data.festival && typeof data.festival.id === 'string' ? {id:data.festival.id.slice(0,40),points:clamp(data.festival.points,700),claimed:[],donated:{}} : null;
+  return {attractions,festival,trophies:Array.isArray(data.trophies)?data.trophies.filter(t=>['spring','maritime','harvest','winter'].includes(t)).slice(0,4):[]};
 }
