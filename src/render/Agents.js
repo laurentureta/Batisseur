@@ -5,6 +5,7 @@ import { BUILDINGS, isPavedRoad } from '../data/buildings.js';
 import { GeoBuilder } from './geom.js';
 import { toGeometry } from './TerrainView.js';
 import { kit, kitReady, kitBox } from './kit.js';
+import { dailyActivity, planErrand } from './livingPlans.js';
 
 // voitures (modèles KayKit) et camionnette (Kenney) : [nom, longueur visée]
 const CAR_MODELS = [['c_car_sedan', 0.4], ['c_car_taxi', 0.4], ['c_car_hatchback', 0.36], ['c_car_stationwagon', 0.4], ['c_car_sedan', 0.4], ['c_car_police', 0.4], ['mk_delivery_truck', 0.5]];
@@ -76,6 +77,9 @@ export class Agents {
     this.sim = sim;
     this.people = [];
     this.vehicles = [];
+    this.destinationVersion = -1;
+    this.pavedCountCache = 0;
+    this.householdCursor = 0;
   }
 
   /** Marche au hasard sur le réseau (BFS limité), renvoie un chemin de cases. */
@@ -121,26 +125,50 @@ export class Agents {
     return path;
   }
 
+  refreshDestinations() {
+    const w = this.world;
+    if (this.destinationVersion !== w.version) {
+      this.destinationVersion = w.version;
+      this.destinations = [...w.buildings.values()];
+      this.pavedTiles = [];
+      for (let i = 0; i < N; i++) if (isPavedRoad(w.road[i])) this.pavedTiles.push(i);
+      this.pavedCountCache = this.pavedTiles.length;
+    }
+  }
+
   spawnPerson() {
     const w = this.world;
-    const houses = [];
-    for (const b of w.buildings.values()) if (BUILDINGS[b.type].residents && b.residents >= 1) houses.push(b);
+    this.refreshDestinations();
+    const houses = this.destinations.filter((b) => BUILDINGS[b.type]?.residents && b.residents >= 1 && b.cons?.k !== 'new');
     if (!houses.length) return;
-    const h = houses[Math.floor(Math.random() * houses.length)];
+    const cursor = this.householdCursor = (this.householdCursor || 0) + 1;
+    const h = houses[cursor % houses.length], member = Math.floor(cursor / houses.length) % Math.min(4, Math.max(1, Math.floor(h.residents)));
+    const identity = `${h.id}:${member}`;
+    if (this.people.some((a) => a.identity === identity)) return;
+    const hour = ((w.state.time.day % 1) + 1) % 1 * 24;
+    const activity = dailyActivity(hour, member);
+    if (!activity) return;
+    const seed = (Math.imul(h.id + 1, 69069) + member * 593) >>> 0;
+    const trip = planErrand(w, h, this.destinations, activity, seed);
     const starts = w.perimeter(h).filter((i) => w.road[i]);
     if (!starts.length) return;
-    const path = this.randomPath(starts[Math.floor(Math.random() * starts.length)], false, 3, 18);
+    // When a service is missing, a resident may still take a short walk.
+    const path = trip?.path || this.randomPath(starts[0], false, 2, 12);
     if (!path || path.length < 2) return;
-    this.people.push(this.makeAgent(path, 0.32 + Math.random() * 0.15, (Math.random() < 0.5 ? -1 : 1) * (0.3 + Math.random() * 0.05), {
-      shirt: SHIRTS[Math.floor(Math.random() * SHIRTS.length)],
-      skin: SKINS[Math.floor(Math.random() * SKINS.length)],
+    const family = w.state.city?.families?.find((f) => f.house === h.id);
+    const kid = member === 0, long = member % 2 === 0;
+    this.people.push(this.makeAgent(path, kid ? 0.48 : 0.35 + (seed % 10) * 0.008, (member % 2 ? -1 : 1) * 0.28, {
+      identity, home: h.id, target: trip?.target || null, activity: trip?.activity || 'stroll',
+      family: family?.family ?? null, visiting: false, returning: false, visitTime: 0,
+      path, shirt: SHIRTS[seed % SHIRTS.length], skin: SKINS[seed % SKINS.length],
+      look: { skin: SKINS[seed % SKINS.length], hair: [0x513925,0x9a6c41,0xc5aa73][seed % 3], pants: 0x425c70, long, kid,
+        seed: seed % 997, model: kid ? (long ? 'casual_f' : 'casual_m') : member === 3 ? 'old_m' : long ? 'casual_f' : 'casual_m' },
     }));
   }
 
   spawnCar() {
     const w = this.world;
-    const paved = [];
-    for (let i = 0; i < N; i += 1) if (isPavedRoad(w.road[i])) paved.push(i);
+    const paved = this.pavedTiles || [];
     if (paved.length < 4) return;
     const start = paved[Math.floor(Math.random() * paved.length)];
     const path = this.randomPath(start, true, 4, 26);
@@ -173,6 +201,7 @@ export class Agents {
   update(dt, gameSpeed, night, population) {
     if (!this.world) return;
     const w = this.world;
+    this.refreshDestinations();
     const move = gameSpeed > 0 ? Math.min(gameSpeed, 3) : 0;
     // nombre souhaité
     // promeneurs : enfants, retraités, flâneurs (les travailleurs sont suivis à part)
@@ -182,13 +211,33 @@ export class Agents {
     this.spawnAcc += dt;
     if (this.spawnAcc > 0.25) {
       this.spawnAcc = 0;
-      this.pavedCountCache = w.countRoads(2);
       if (this.people.length < wantPeople && move > 0) this.spawnPerson();
       if (this.vehicles.length < wantCars && move > 0) this.spawnCar();
     }
-    this.advance(this.people, dt * move);
+    this.advancePeople(dt * move);
     this.advance(this.vehicles, dt * move);
     this.write(dt);
+  }
+
+  advancePeople(dt) {
+    for (let k = this.people.length - 1; k >= 0; k--) {
+      const a = this.people[k];
+      if (!this.world.buildings.has(a.home) || a.target && !this.world.buildings.has(a.target)) { this.people.splice(k, 1); continue; }
+      if (a.visiting) {
+        a.visitTime += dt;
+        if (a.visitTime < (a.activity === 'school' ? 9 : 4 + (a.look.seed % 5))) continue;
+        a.visiting = false;
+        a.returning = true;
+        a.pts = a.pts.slice().reverse();
+        a.seg = 0; a.t = 0;
+      }
+      a.t += a.speed * dt;
+      while (a.t >= 1 && a.seg < a.pts.length - 2) { a.t -= 1; a.seg++; }
+      if (a.seg >= a.pts.length - 2 && a.t >= 1) {
+        if (a.returning) this.people.splice(k, 1);
+        else { a.t = 1; a.visiting = true; a.visitTime = 0; }
+      }
+    }
   }
 
   advance(list, dt) {
@@ -243,6 +292,7 @@ export class Agents {
     const check = (list, paved) => {
       for (let k = list.length - 1; k >= 0; k--) {
         const a = list[k];
+        if (a.path && a.path.some((i) => !road[i])) { list.splice(k, 1); continue; }
         // on vérifie la case suivante
         const p = a.pts[Math.min(a.seg + 1, a.pts.length - 1)];
         const tx = Math.floor(p[0] + HALF), tz = Math.floor(p[2] + HALF);

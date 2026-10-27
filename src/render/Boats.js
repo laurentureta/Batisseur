@@ -9,6 +9,8 @@ import { toGeometry } from './TerrainView.js';
 import { hash2 } from '../core/rng.js';
 import { HumanPoser } from './humanPose.js';
 import { pose } from './People.js';
+import { freightScene } from './livingPlans.js';
+import { RESOURCES } from '../data/resources.js';
 
 const HALF = SIZE / 2;
 const WATER_Y = -0.07;
@@ -63,7 +65,7 @@ export class Boats {
     if (m) return m;
     const lib = this.r.crowd?.lib;
     let geo = null, mat = this.mat;
-    if (kind === 'barge') (geo = bargeGeo()), (mat = this.matSmooth);
+    if (kind === 'barge' || kind === 'cargo') (geo = bargeGeo()), (mat = this.matSmooth);
     else if (lib?.statics[kind]) geo = lib.statics[kind];
     if (!geo) return null;
     m = new THREE.InstancedMesh(geo, mat, 8);
@@ -79,6 +81,7 @@ export class Boats {
   clear() {
     this.boats = [];
     this.version = -1;
+    this.freightRoute = null;
   }
 
   /* ───────── L'eau navigable ───────── */
@@ -362,11 +365,52 @@ export class Boats {
       }
       this.draw(bt);
     }
+    this.updateFreight(dt);
     for (const k in this.meshes) {
       const m = this.meshes[k];
       if (m.count) m.instanceMatrix.needsUpdate = true;
       m.visible = m.count > 0;
     }
+  }
+
+  /** A cargo ship leaves the actual harbor and remains on navigable water. */
+  updateFreight(dt) {
+    const st = this.r.game.state;
+    const scene = freightScene(st.regionBook?.shipments, st.regionId || 'home', 'boat');
+    if (!scene) { this.r.labels?.remove('freight-boat'); return; }
+    const harbor = [...this.world.buildings.values()].find((b) => b.type === 'civic_harbor' && b.level >= 4 && !b.cons);
+    if (!harbor) { this.r.labels?.remove('freight-boat'); return; }
+    const key = `${this.world.version}:${harbor.id}`;
+    if (this.freightRoute?.key !== key) {
+      const dock = this.dockOf(harbor), body = dock >= 0 ? this.bodies?.[this.body[dock]] : null;
+      if (!body) return;
+      const dx = dock % SIZE, dz = Math.floor(dock / SIZE);
+      // Prefer an open stretch, but never draw over land to reach the horizon.
+      const choices = body.tiles.filter((i) => Math.abs(i%SIZE-dx)+Math.abs(Math.floor(i/SIZE)-dz) <= 15)
+        .sort((a,b) => (Math.abs(b%SIZE-dx)+Math.abs(Math.floor(b/SIZE)-dz))-(Math.abs(a%SIZE-dx)+Math.abs(Math.floor(a/SIZE)-dz)));
+      let route = null;
+      for (const end of choices.slice(0,8)) { route = this.path(dock,end); if (route?.length > 3) break; }
+      if (!route?.length) return;
+      const points = this.smooth(route);
+      this.freightRoute = { key, points };
+    }
+    const points = this.freightRoute.points;
+    let f = scene.phase === 'departing' ? scene.progress : scene.phase === 'arriving' ? 1-scene.progress : 0;
+    f = Math.min(1,Math.max(0,f)) * (points.length-1);
+    const k = Math.min(points.length-2,Math.floor(f)), a=points[k], b=points[k+1];
+    if(!a || !b) return;
+    const t=f-k, returning=scene.phase === 'arriving';
+    const ship = this.freightBoat || (this.freightBoat={kind:'cargo',seed:171,pts:null});
+    ship.x=a[0]+(b[0]-a[0])*t;ship.z=a[1]+(b[1]-a[1])*t;
+    ship.dir=Math.atan2(b[0]-a[0],b[1]-a[1])+(returning?Math.PI:0);
+    ship.pts=scene.phase==='arriving'||scene.phase==='departing' ? points : null;
+    this.draw(ship);
+    if(ship.pts && Math.random()<dt*5 && (ship.x-this.r.cam.target.x)**2+(ship.z-this.r.cam.target.z)**2<900)
+      this.r.particles.emit('splash',ship.x-Math.sin(ship.dir)*.45,WATER_Y+.02,ship.z-Math.cos(ship.dir)*.45,1);
+    const c=this.world.centerOf(harbor);
+    const title={loading:'Chargement',departing:'Départ',arriving:'Arrivée',unloading:'Livraison'}[scene.phase];
+    this.r.labels?.set('freight-boat',{x:c.cx-HALF,y:1.15,z:c.cz-HALF,
+      html:`<div class="freight-badge">⛵ ${title} · ${Math.floor(scene.job.qty)} ${RESOURCES[scene.job.res]?.icon||'📦'}</div>`,cls:'status',maxDist:35});
   }
 
   draw(bt) {

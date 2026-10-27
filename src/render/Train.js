@@ -8,6 +8,8 @@ import { SIZE, T } from '../world/constants.js';
 import { GeoBuilder, shade } from './geom.js';
 import { toGeometry } from './TerrainView.js';
 import { localToWorld } from '../sim/Villagers.js';
+import { freightScene } from './livingPlans.js';
+import { RESOURCES } from '../data/resources.js';
 
 const HALF = SIZE / 2;
 const MAX_TILES = 8; // longueur de voie de chaque côté de la gare (cases)
@@ -35,6 +37,22 @@ function coachGeo(color) {
   g.box(0, 0.12, L * 0.47, W * 0.7, 0.18, 0.04, 0x3a3a40);
   g.box(0, 0.12, -L * 0.47, W * 0.7, 0.18, 0.04, 0x3a3a40);
   return { body: toGeometry(g.body), glass: toGeometry(g.glass) };
+}
+
+/** Open freight wagons: the cargo belongs to an actual regional shipment. */
+function freightGeo(loaded = true) {
+  const g = new GeoBuilder();
+  g.box(0, .07, 0, .35, .08, COACH_LEN * .92, 0x416f76);
+  for (const x of [-.17, .17]) g.box(x, .15, 0, .025, .12, COACH_LEN * .92, 0x79a09d);
+  for (const z of [-COACH_LEN*.45, COACH_LEN*.45]) g.box(0, .15, z, .35, .12, .025, 0x79a09d);
+  for (const z of [-.23, .23]) for (const x of [-.14, .14]) g.cylX(x, .04, z, .045, .035, 8, 0x323b41);
+  for (let k=0;loaded && k<4;k++) {
+    const x=k%2 ? .075 : -.075, z=k<2 ? -.17 : .12;
+    g.box(x,.15,z,.135,.16,.22,k%2?0xceab78:0xad8054);
+    g.box(x,.16,z+.111,.015,.13,.005,0xefd3a0);
+    g.box(x,.21,z+.111,.13,.015,.005,0xefd3a0);
+  }
+  return toGeometry(g.body);
 }
 
 export class Train {
@@ -227,7 +245,7 @@ export class Train {
       const m = new THREE.Mesh(geo.body, this.carMatSmooth);
       m.castShadow = true;
       m.add(new THREE.Mesh(geo.glass, this.glassMat));
-      cars.push({ mesh: m, off: LOCO_LEN + GAP + COACH_LEN * (k + 0.5) + GAP * k });
+      cars.push({ mesh: m, normal: geo.body, freight: freightGeo(), emptyFreight: freightGeo(false), glass: m.children[0], off: LOCO_LEN + GAP + COACH_LEN * (k + 0.5) + GAP * k });
     }
     for (const c of cars) {
       c.mesh.visible = false;
@@ -250,9 +268,43 @@ export class Train {
       this.build(line);
       if (!line) this.hide();
     }
-    if (!this.line) return;
+    if (!this.line) { this.r.labels?.remove('freight-train'); return; }
     if (!this.cars) this.cars = this.makeCars();
     if (!this.cars) return;
+    const st = this.r.game.state;
+    const freight = freightScene(st.regionBook?.shipments, st.regionId || 'home', 'train');
+    this.freightMode(!!freight);
+    if (freight) {
+      this.freightKey = freight.job.id;
+      this.dirSign = 1;
+      const center = this.line.stop + this.trainLen / 2;
+      if (freight.phase === 'loading' || freight.phase === 'unloading') {
+        this.state = 'stop'; this.s = center; this.v = 0;
+      } else if (freight.phase === 'departing') {
+        this.state = 'leave'; this.s = center + (this.line.len + this.trainLen - center) * freight.progress; this.v = 1;
+      } else {
+        this.state = 'arrive'; this.s = -.3 + (center + .3) * freight.progress; this.v = 1;
+      }
+      let wagon = 0;
+      const loaded = Math.min(3, Math.max(1, Math.ceil(freight.job.qty / 100)));
+      for (const c of this.cars) if (!c.loco) {
+        const fill = freight.phase === 'loading' ? freight.progress : freight.phase === 'unloading' ? 1-freight.progress : 1;
+        c.mesh.geometry = wagon < loaded && fill > wagon / loaded ? c.freight : c.emptyFreight;
+        wagon++;
+      }
+      const phaseKey = `${freight.job.id}:${freight.phase}`;
+      if (phaseKey !== this.freightPhase) {
+        this.freightPhase = phaseKey;
+        if (freight.phase === 'departing' || freight.phase === 'arriving') this.whistle();
+      }
+      this.freightLabel(freight);
+      this.place(dt);
+      return;
+    }
+    this.r.labels?.remove('freight-train');
+    if (this.freightKey != null) {
+      this.freightKey = null; this.state = 'away'; this.timer = 12;
+    }
     const sp = Math.max(0, Math.min(3, speed));
     const step = dt * sp;
     const L = this.line.len, stop = this.line.stop;
@@ -301,6 +353,22 @@ export class Train {
       default:
     }
     this.place(dt);
+  }
+
+  freightMode(active) {
+    if (active === this.freightActive || !this.cars) return;
+    this.freightActive = active;
+    for (const c of this.cars) if (!c.loco) {
+      c.mesh.geometry = active ? c.freight : c.normal;
+      c.glass.visible = !active;
+    }
+  }
+
+  freightLabel(scene) {
+    const c = this.world.centerOf(this.line.b);
+    const title = { loading:'Chargement', departing:'Départ', arriving:'Arrivée', unloading:'Livraison' }[scene.phase];
+    this.r.labels?.set('freight-train', { x:c.cx-HALF,y:.9,z:c.cz-HALF,
+      html:`<div class="freight-badge">🚂 ${title} · ${Math.floor(scene.job.qty)} ${RESOURCES[scene.job.res]?.icon || '📦'}</div>`, cls:'status',maxDist:35 });
   }
 
   /** Des voyageurs descendent, d'autres montent (seulement si on regarde la gare). */

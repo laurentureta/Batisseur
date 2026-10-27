@@ -517,10 +517,11 @@ export class People {
       f.z = z;
       f.y = p0[1] - 0.03;
       f.dir = Math.atan2(p1[0] - p0[0], p1[2] - p0[2]);
-      f.anim = 'walk';
+      f.anim = a.visiting ? a.activity === 'shopping' ? 'browse' : a.activity === 'play' ? 'play' : 'chat' : 'walk';
       f.phase = (a.seg + a.t) * 9;
-      f.t = 0;
-      f.load = null;
+      f.t = a.visitTime || 0;
+      f.load = !a.visiting && a.returning && a.activity === 'shopping' ? 'basketTomato' : null;
+      if (f.load) f.anim = 'carryFront';
       f.tool = null;
       f.d2 = dx * dx + dz * dz;
     }
@@ -861,6 +862,8 @@ export class People {
   resetMovers() {
     this.movers = [];
     this.homeSeen = new Map();
+    this.homeSeenInit = false;
+    this.commuters = [];
   }
 
   /** Une maison gagne ou perd un habitant : quelqu'un arrive (ou part) par la route, depuis la mairie. */
@@ -1221,6 +1224,25 @@ export function pose(f, time) {
   const P = { legL: 0, legR: 0, armL: 0.05, armR: -0.05, armSpread: 0, tilt: 0.02, look: 0, bob: 0, crouch: 0, tool: null, toolL: null, loadDrop: 0 };
   const t = f.t || 0;
   switch (f.anim) {
+    case 'browse':
+      P.armR = -0.8 + Math.sin(t * 1.6) * 0.25;
+      P.armL = -0.15;
+      P.look = Math.sin(t * 0.8) * 0.35;
+      P.tilt = 0.12;
+      break;
+    case 'chat':
+      P.armR = -0.6 + Math.sin(t * 2) * 0.35;
+      P.armSpread = 0.1 + Math.sin(t * 1.4) * 0.12;
+      P.look = Math.sin(t * 0.8) * 0.18;
+      break;
+    case 'play':
+      P.armL = -0.5 + Math.sin(t * 4) * 0.5;
+      P.armR = -0.5 - Math.sin(t * 4) * 0.5;
+      P.legL = Math.sin(t * 4) * 0.15;
+      P.legR = -P.legL;
+      P.bob = Math.max(0, Math.sin(t * 4)) * 0.025;
+      P.look = Math.sin(t * 2) * 0.25;
+      break;
     case 'walk':
     case 'carryLogs':
     case 'carryFront': {
