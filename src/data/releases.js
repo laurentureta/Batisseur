@@ -1,5 +1,14 @@
 // Ajouter chaque nouvelle version ici, de la plus récente à la plus ancienne.
 export const RELEASES = [
+  { version: '6.0.0', title: 'Ma ville, ma stratégie', items: [
+    { icon: 'map', title: 'Bellerive, une île achevée', text: 'Capucine vous accueille sur une île entièrement recomposée : quartiers architecturaux, monuments, marina, parc et jardins. Tous les types de bâtiments y sont représentés au niveau maximal ; sept points de vue permettent de la découvrir.' },
+    { icon: 'hammer', title: 'Des recettes à choisir', text: 'Quatorze recettes et neuf nouvelles marchandises : tissus, vêtements, meubles, viennoiseries et bien plus. Préparez jusqu’à six lots par atelier, avec de véritables ingrédients réservés, des délais réels et un stockage limité.' },
+    { icon: 'road', title: 'Le mode urbaniste', text: 'Déplacez ensemble vos bâtiments et leurs routes après validation. Rangez vos décorations sans perdre leur apparence, enregistrez des plans et construisez-les avec le budget et les chantiers habituels.' },
+    { icon: 'people', title: 'Les voyageurs découvrent votre ville', text: 'Les visiteurs comptés dans le parc arrivent, visitent les attractions et fréquentent les restaurants accessibles. Le train, la beauté et les offres de restauration influencent la fréquentation et les dépenses.' },
+    { icon: 'crate', title: 'Des marchés régionaux vivants', text: 'Les prix et les besoins changent toutes les quinze minutes. Chaque marché possède des stocks et un budget limités ; vos achats et ventes utilisent les ressources du village sélectionné.' },
+    { icon: 'medal', title: 'Trois aventures à partager', text: 'En coopérative, choisissez le phare, l’exposition ou la gare régionale. Financez leurs trois étapes ensemble et recevez des récompenses et une décoration. Nécessite l’activation du service serveur.' },
+    { icon: 'scroll', title: 'Un compte et cinq versions de chaque village', text: 'Connectez votre compte pour sauvegarder trois villages, votre profil et votre code ami. Retrouvez-les sur un autre appareil ou restaurez une version précédente. Les conflits suspendent la synchronisation ; le service cloud doit être activé sur le serveur.' },
+  ] },
   {
     version: '5.0.0', title: 'Une ville qui vit',
     items: [

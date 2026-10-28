@@ -1,6 +1,9 @@
 // Cœur du jeu (sans affichage) : état, monde, simulation, progression, actions.
 import { CityDevelopment } from '../sim/CityDevelopment.js';
 import { Tourism } from '../sim/Tourism.js';
+import { Workshop } from '../sim/Workshop.js';
+import { RegionalMarket } from '../sim/RegionalMarket.js';
+import { UrbanPlanner } from '../sim/UrbanPlanner.js';
 import { EventBus } from './EventBus.js';
 import { Simulation } from '../sim/Simulation.js';
 import { Progression } from '../sim/Progression.js';
@@ -35,6 +38,9 @@ export class GameCore {
     this.requests = new Requests(this);
     this.city = new CityDevelopment(this); // demandes des habitants
     this.tourism = new Tourism(this);
+    this.workshop = new Workshop(this);
+    this.market = new RegionalMarket(this);
+    this.urbanist = new UrbanPlanner(this);
     this.tool = { kind: 'select' };
     this.selection = null;
     this.isDemo = false;
@@ -69,6 +75,8 @@ export class GameCore {
     this.sim.lastDayInt = Math.floor(state.time.day);
     this.sim.recalc();
     this.tourism.reset();
+    this.workshop.reset();
+    this.market.reset();
     this.bus.emit('game:loaded', state);
   }
 

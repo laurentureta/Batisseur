@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { CityView } from './CityView.js';
 import { TourismView } from './TourismView.js';
+import { TouristView } from './TouristView.js';
 import { CameraController } from './CameraController.js';
 import { Sky } from './Sky.js';
 import { TerrainView } from './TerrainView.js';
@@ -81,6 +82,8 @@ export class Renderer {
     this.scene.add(this.cityView.group);
     this.tourismView = new TourismView(this);
     this.scene.add(this.tourismView.group);
+    this.touristView = new TouristView(this);
+    this.scene.add(this.touristView.group);
     this.world = null;
     this.season = 1;
     this.emitAcc = 0;
@@ -280,6 +283,7 @@ export class Renderer {
   setWorld(world) {
     this.world = world;
     this.tourismView.clear();
+    this.touristView.clear();
     this.season = calendar(this.game.state.time.day).season;
     this.sky.weather = this.game.state.weather?.kind || 'clear';
     this.ring = buildRing(world);
@@ -596,6 +600,7 @@ export class Renderer {
     this.people.update(dt, st.time.speed);
     this.animals.update(dt, st.time.speed);
     this.boats.update(dt, st.time.speed);
+    this.touristView.update(dt);
     this.crowd?.end();
     this.train.update(dt, st.time.speed);
     this.worksites.update(dt);

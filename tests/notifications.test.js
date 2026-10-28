@@ -58,3 +58,8 @@ test('notifications : deux sauvegardes en vol sont réconciliées dans l’ordre
  const first=n.sync(true);await Promise.resolve();state.buildings[0].cons.ready=true;await n.flush();assert.equal(calls.length,1);finish();await first;await new Promise(resolve=>setImmediate(resolve));
  assert.equal(calls.length,2);assert.deepEqual(calls[1].options,{keepalive:true});assert.ok(!calls[1].payload.p_events.some(e=>e.kind==='construction'));
 });
+
+test('notifications : atelier prêt utilise son échéance et ignore les files suspendues',()=>{
+ const state=fixture();state.city.workshops={byBuilding:{2:{queue:[{id:3,readyAt:now+12000}]},3:{queue:[{id:4,readyAt:now+13000,paused:true}]},4:{queue:[{id:5,readyAt:now+14000,blocked:true}]}}};
+ const events=notificationEvents(state,preferences,now).filter(e=>e.tag.includes('workshop:'));assert.equal(events.length,1);assert.equal(events[0].kind,'construction');assert.equal(Date.parse(events[0].at),now+12000);
+});

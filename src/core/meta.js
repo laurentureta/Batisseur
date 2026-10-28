@@ -76,6 +76,7 @@ export class Meta {
   }
 
   save() {
+    if (this.game.restoringCloud) return;
     this.dirty = false;
     try {
       localStorage.setItem(KEY, JSON.stringify(this.p));

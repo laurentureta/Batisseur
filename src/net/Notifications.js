@@ -1,7 +1,7 @@
 // Web Push fonctionne même lorsque le jeu est fermé : les échéances sont confiées au serveur.
 // Aucun minuteur navigateur ne prétend remplacer un envoi en arrière-plan.
 const STORE = 'batisseur.notifications';
-export const PUSH_KINDS = { orders: 'Nouvelles commandes', construction: 'Chantiers terminés', projects: 'Grands projets', shipments: 'Livraisons régionales', gifts: 'Cadeaux de vos amis' };
+export const PUSH_KINDS = { orders: 'Nouvelles commandes', construction: 'Chantiers et fabrications terminés', projects: 'Grands projets', shipments: 'Livraisons régionales', gifts: 'Cadeaux de vos amis' };
 const DEFAULTS = Object.fromEntries(Object.keys(PUSH_KINDS).map((k) => [k, true]));
 
 export function pushSupport(env = globalThis) {
@@ -24,6 +24,10 @@ export function notificationEvents(state, preferences = DEFAULTS, now = Date.now
     for (const b of st.buildings || []) if (b.cons && !b.cons.ready) add('construction', b.id, b.cons.rs + b.cons.rd, region);
     for (const [type, p] of Object.entries(st.city?.projects || {})) add('projects', `${type}:${p.phase}`, p.readyAt, region);
     for (const [type, p] of Object.entries(st.city?.tourism?.attractions || {})) add('projects', `park:${type}:${p.phase}`, p.readyAt, region);
+    for (const [id, workshop] of Object.entries(st.city?.workshops?.byBuilding || {})) {
+      const job = workshop.queue?.[0];
+      if (job && !job.paused && !job.blocked) add('construction', `workshop:${id}:${job.id}`, job.readyAt, region);
+    }
     for (let i = 0; i < (st.orders?.readyAt?.length || 0); i++) if (!st.orders.slots?.[i]) add('orders', i, st.orders.readyAt[i], region);
   };
   village(state, state.regionId || 'home');

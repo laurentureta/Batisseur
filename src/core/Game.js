@@ -7,6 +7,7 @@ import { Sound } from './audio.js';
 import { Music, pickMood } from './music.js';
 import { Cooperative } from '../net/Cooperative.js';
 import { Notifications } from '../net/Notifications.js';
+import { CloudSave } from '../net/CloudSave.js';
 import { Online } from '../net/online.js';
 import { stateFromSnapshot } from '../net/snapshot.js';
 import { BOT, botState, populateBot, tickBotVisit, saveBotCity } from '../net/bot.js';
@@ -31,6 +32,7 @@ export class Game extends GameCore {
     this.online = new Online(this); // amis, visites, cadeaux
     this.cooperative = new Cooperative(this);
     this.notifications = new Notifications(this);
+    this.cloud = new CloudSave(this);
     this.visit = null;
     this.onlineAcc = 0;
     this.playing = false;
@@ -83,6 +85,8 @@ export class Game extends GameCore {
   boot() {
     this.toMainMenu();
     this.openNotification(window.location.href);
+    if (this.cloud.session) void this.cloud.check();
+    if (new URLSearchParams(location.hash.slice(1)).get('type') === 'recovery') setTimeout(() => this.ui.openCloud(), 600);
     // Après une mise à jour, le récapitulatif précède la cinématique et les cadeaux.
     if (this.settings.newsVersion !== VERSION) {
       setTimeout(() => this.greet(), 250);
@@ -106,6 +110,7 @@ export class Game extends GameCore {
   }
 
   greet() {
+    if (this.visit) { this.pendingGreeting = true; return; }
     if (this.settings.newsVersion !== VERSION) {
       this.ui.openNews({ automatic: true, onClose: () => setTimeout(() => this.greet(), 250) });
       return;
@@ -124,6 +129,7 @@ export class Game extends GameCore {
   }
 
   update(dt) {
+    if (this.restoringCloud) return;
     if (document.documentElement.classList.contains('needs-landscape')) return;
     if (!this.world) return;
     this.input?.update(dt);
@@ -142,7 +148,11 @@ export class Game extends GameCore {
       this.villagers.demoTick(dt * rate); // le village du menu vit aussi
       this.construction.demoTick(dt * rate);
     }
-    if (this.playing) { this.city.tick(dt); this.tourism.tick(dt); }
+    if (this.playing) {
+      this.city.tick(dt); this.tourism.tick(dt); this.market.tick(dt);
+      this.workshopAcc = (this.workshopAcc || 0) + dt;
+      if (this.workshopAcc >= 1) { this.workshopAcc = 0; this.workshop.tick(); }
+    }
     this.meta.tick(dt);
     this.renderer.frame(dt);
     this.ui.update(dt);
@@ -194,7 +204,7 @@ export class Game extends GameCore {
     this.ui.setLayer(null);
     this.loadState(st, { demo: true });
     if (data.bot) {
-      // la ville de Capucine se construit ici (pas besoin de connexion)
+      // L’île achevée de Capucine reste disponible sans connexion.
       BOT.pop = populateBot(this.world);
       this.sim.recalc();
       data.pop = BOT.pop;
@@ -204,6 +214,7 @@ export class Game extends GameCore {
     this.renderer.buildings.setTheme(st.cosmetics?.roof || 'mix');
     this.renderer.setWorld(this.world);
     this.renderer.cam.autoOrbit = 0;
+    if (st.botCity?.camera) this.focusBotView(st.botCity.camera);
     this.ui.setPlayingUI(false);
     this.ui.start.hide();
     this.ui.showVisit(this.visit);
@@ -218,6 +229,7 @@ export class Game extends GameCore {
     this.ui.hideVisit();
     if (v.home != null) this.continueGame(v.home);
     else this.toMainMenu();
+    if (this.pendingGreeting) { this.pendingGreeting = false; setTimeout(() => this.greet(), 250); }
   }
 
   toMainMenu() {
@@ -272,6 +284,8 @@ export class Game extends GameCore {
     this.renderer.setWorld(this.world);
     this.renderer.cam.autoOrbit = 0;
     this.playing = true;
+    this.workshop.tick();
+    this.cooperative.restoreAdventureDecor?.();
     this.tourism.advance();
     this.autosaveAcc = 0;
     this.ui.start.hide();
@@ -305,11 +319,12 @@ export class Game extends GameCore {
   }
 
   save({ flush = false } = {}) {
-    if (!this.state || this.isDemo || !this.playing) return false;
+    if (this.restoringCloud || !this.state || this.isDemo || !this.playing) return false;
     const saved = writeSlot(this.state.slot, serialize(this));
     if (saved) {
       if (flush) this.notifications.flush();
       else this.notifications.sync();
+      this.cloud.sync();
     }
     return saved;
   }
@@ -327,5 +342,14 @@ export class Game extends GameCore {
     this.startState(state);
     url.searchParams.delete('notificationSlot');
     history.replaceState(null, '', url.pathname + url.search + url.hash);
+  }
+
+  focusBotView(view) {
+    if (!view?.target) return;
+    const cam = this.renderer.cam;
+    cam.target.set(view.target.x, 0, view.target.z);
+    cam.distance = view.distance || 38;
+    cam.azimuth = view.azimuth ?? 0.68;
+    cam.autoOrbit = 0; cam.fly = null; cam.update(0);
   }
 }

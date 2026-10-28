@@ -74,6 +74,8 @@ export function renderInfo(ui, body, sheet, id) {
 
   if (!def.civic) body.appendChild(h('button.btn.wide',{onclick:()=>ui.customizeBuilding(b.id)},'🎨 Personnaliser ce bâtiment'));
   else body.appendChild(h('button.btn.primary.wide',{onclick:()=>def.tourism?ui.openTourism():ui.openCity('projects')},def.tourism?'🎡 Développer cette attraction':'🏗️ Ouvrir le grand projet'));
+  if (game.workshop.recipesFor(b).length) body.appendChild(h('button.btn.primary.wide',{onclick:()=>ui.openWorkshops(b.id)},'⚒️ Choisir les recettes et la file de production'));
+  body.appendChild(h('button.btn.wide',{onclick:()=>ui.openUrbanist('move',b.id)},'📐 Organiser ce quartier'));
   const rows = h('div.info-rows');
   const row = (label, value) => rows.appendChild(h('div.info-row', h('span', label), h('b', value)));
 

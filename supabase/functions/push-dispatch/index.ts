@@ -34,7 +34,8 @@ Deno.serve(async(req: Request)=>{
    if(allowed.test(job.subscription.endpoint)){
     try {
      const slot=/^slot([0-2])$/.exec(job.scope);
-     const payload={body:TEXT[job.kind]||'Votre village vous attend.',tag:`${job.scope}:${job.tag}`,slot:slot?Number(slot[1]):null};
+     const body=job.kind==='construction'&&job.tag.includes(':workshop:')?'Une fabrication est terminée. Retrouvez votre atelier dans le village.':TEXT[job.kind]||'Votre village vous attend.';
+     const payload={body,tag:`${job.scope}:${job.tag}`,slot:slot?Number(slot[1]):null};
      const result=await webpush.sendNotification(job.subscription,JSON.stringify(payload),{TTL:3600,urgency:'normal',timeout:10000});status=result.statusCode;
     }catch(error){status=Number((error as {statusCode?:number}).statusCode)||503;}
    }

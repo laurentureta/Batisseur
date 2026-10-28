@@ -7,8 +7,7 @@ import { makeSnapshot } from './snapshot.js';
 import { BOT, botSummary, grantBotGift } from './bot.js';
 import { todayKey } from '../core/util.js';
 
-const API = 'https://kuiyozeeqzjaqzifnfok.supabase.co/rest/v1/rpc/';
-const KEY = 'sb_publishable_jNAE7KWQgEkhVheifZ1BPA_DnpZq8P2';
+import { RPC_URL as API, PUBLIC_KEY as KEY } from './config.js';
 // ancienne clé publique « anon » du même projet (même rôle, mêmes droits) : utilisée seulement si
 // la nouvelle clé était refusée par un vieux relais
 const LEGACY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1aXlvemVlcXpqYXF6aWZuZm9rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3MjQ5MTYsImV4cCI6MjEwODMwMDkxNn0.ygfrPNlkd459bQOSNqOqpRaDGTBNIJAQY_6RvM3CQGk';

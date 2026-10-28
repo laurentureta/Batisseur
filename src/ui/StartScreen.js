@@ -125,6 +125,7 @@ export class StartScreen {
       icons,
       h('div.start-foot',
         h('button.link', { onclick: () => this.ui.openNews() }, `Nouveautés · v${VERSION}`),
+        h('button.link', { onclick: () => this.ui.openCloud() }, 'Compte et sauvegardes'),
         h('button.link', { onclick: () => this.showCredits() }, 'Crédits'),
         installed ? null : h('span', 'Partager → « Sur l\'écran d\'accueil » pour l\'installer'),
       ),

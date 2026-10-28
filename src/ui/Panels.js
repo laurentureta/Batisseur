@@ -278,6 +278,11 @@ export function renderMenu(ui, body) {
   item('📦', 'Stock et statistiques', () => ui.openStock());
   item('🗺️', 'Calques', () => ui.openLayers());
   item('🏘️', 'Développer le village', () => ui.openCity());
+  item('☁️', 'Compte et sauvegardes', () => ui.openCloud());
+  item('📐', 'Mode urbaniste', () => ui.openUrbanist());
+  item('⚒️', 'Ateliers et recettes', () => ui.openWorkshops());
+  item('⚖️', 'Marché régional', () => ui.openMarket());
+  item('🧭', 'Aventures en équipe', () => ui.openAdventures());
   item('🎡', 'Parc et festivals', () => ui.openTourism());
   item('🔔', 'Notifications du téléphone', () => ui.openNotifications());
   item('🤝', 'Coopératives', () => ui.openCooperative());

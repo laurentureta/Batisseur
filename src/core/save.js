@@ -106,7 +106,7 @@ export function firstFreeSlot() {
 /** Vérifie et lit une sauvegarde importée (texte JSON). */
 export function parseImport(text) {
   const st = JSON.parse(text);
-  if (!st || typeof st !== 'object' || !Array.isArray(st.buildings) || !st.res || !st.seed) throw new Error('Fichier de sauvegarde invalide');
+  if (!st || typeof st !== 'object' || !Array.isArray(st.buildings) || !st.res || !Number.isInteger(st.seed) || st.seed < 0 || st.seed > 0xffffffff) throw new Error('Fichier de sauvegarde invalide');
   return migrateState(st);
 }
 

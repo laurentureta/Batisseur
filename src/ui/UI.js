@@ -19,6 +19,11 @@ import { openCity, customizeBuilding } from './city.js';
 import { openCooperative } from './cooperative.js';
 import { openTourism } from './tourism.js';
 import { openNotifications } from './notifications.js';
+import { openCloud } from './cloud.js';
+import { openWorkshops } from './workshops.js';
+import { openUrbanist } from './urbanist.js';
+import { openMarket } from './market.js';
+import { openAdventures } from './adventures.js';
 import { openPhoto } from './photo.js';
 import { hudIcon, hudIconURL } from './hudIcons.js';
 import { showNews } from './news.js';
@@ -291,6 +296,12 @@ export class UI {
       h('div.vb-btns', giftBtn, h('button.btn.small.vb-home', { onclick: () => this.game.endVisit() }, '🏠 Rentrer')),
     );
     this.root.appendChild(this.visitEl);
+    const views = this.game.state.botCity?.views;
+    if (f.bot && views?.length) {
+      this.visitEl.querySelector('.vb-btns').prepend(h('select.bot-views', {
+        'aria-label': 'Découvrir l’île de Capucine', onchange: e => this.game.focusBotView(views[Number(e.target.value)]),
+      }, h('option',{value:'',disabled:true,selected:true},'Découvrir l’île'), ...views.map((view,i)=>h('option',{value:String(i)},view.name))));
+    }
     this.root.classList.add('visiting');
   }
 
@@ -911,6 +922,11 @@ export class UI {
   openCooperative() { return openCooperative(this); }
   openTourism(tab) { this.closeSheet(true); return openTourism(this,tab); }
   openNotifications() { this.closeSheet(true); return openNotifications(this); }
+  openCloud() { this.closeSheet(true); return openCloud(this); }
+  openWorkshops(id) { this.closeSheet(true); return openWorkshops(this,id); }
+  openUrbanist(tab,id) { this.closeSheet(true); return openUrbanist(this,tab,id); }
+  openMarket(region) { this.closeSheet(true); return openMarket(this,region); }
+  openAdventures() { this.closeSheet(true); return openAdventures(this); }
   openCity(tab) { return openCity(this,tab); }
   customizeBuilding(id) { return customizeBuilding(this,id); }
   openPhoto() { return openPhoto(this); }
@@ -934,6 +950,13 @@ export class UI {
       grid.appendChild(h('button.village-action',{onclick:()=>this.openCooperative(),'aria-label':'Coopératives'},hudIcon('people'),h('span','Coopératives')));
       grid.appendChild(h('button.village-action',{onclick:()=>this.openTourism(),'aria-label':'Parc et festivals'},hudIcon('event'),h('span','Parc et festivals')));
       grid.appendChild(h('button.village-action',{onclick:()=>this.openNotifications(),'aria-label':'Notifications'},hudIcon('scroll'),h('span','Notifications')));
+      for (const [label,ic,fn] of [
+        ['Compte et sauvegardes','crate',()=>this.openCloud()],
+        ['Ateliers et recettes','hammer',()=>this.openWorkshops()],
+        ['Mode urbaniste','map',()=>this.openUrbanist()],
+        ['Marché régional','stall',()=>this.openMarket()],
+        ['Aventures en équipe','people',()=>this.openAdventures()],
+      ]) grid.appendChild(h('button.village-action', {onclick:fn,'aria-label':label},hudIcon(ic),h('span',label)));
       body.appendChild(grid);
     }, { live: true, cls: 'village-sheet' });
   }
