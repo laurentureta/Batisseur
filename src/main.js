@@ -126,6 +126,12 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     navigator.serviceWorker.register('./sw.js').then((reg) => {
       const offerUpdate = (worker) => {
         if (!worker || !navigator.serviceWorker.controller) return;
+        // Hors partie (accueil), la mise à jour s'applique tout de suite : rien à perdre,
+        // et le joueur n'a pas à repérer une petite bulle pour en profiter.
+        if (!window.batisseur?.playing) {
+          worker.postMessage('skipWaiting');
+          return;
+        }
         window.batisseur?.ui?.toast('✨ Nouvelle version disponible', 'info', {
           label: 'Mettre à jour',
           onclick: () => {

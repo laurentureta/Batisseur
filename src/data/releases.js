@@ -1,5 +1,8 @@
 // Ajouter chaque nouvelle version ici, de la plus récente à la plus ancienne.
 export const RELEASES = [
+  { version: '6.0.2', title: 'Toujours à jour', items: [
+    { icon: 'scroll', title: 'La dernière version s’installe toute seule', text: 'Quand tu ouvres le jeu sans partie en cours, la mise à jour s’applique immédiatement. En pleine partie, elle attend toujours ton accord pour ne rien interrompre.' },
+  ] },
   { version: '6.0.1', title: 'Du neuf bien rangé', items: [
     { icon: 'scroll', title: 'Les activités s’ouvrent à leur tour', text: 'Ateliers, Développer, urbaniste, marchés, parc et coopératives apparaissent dans Village avec le niveau qui les débloque, au lieu d’être tous proposés dès le départ.' },
     { icon: 'hammer', title: 'Le menu Construire en grand', text: 'En paysage, la fenêtre profite de toute la largeur et les huit familles de bâtiments tiennent à l’écran : plus d’onglet coupé.' },
