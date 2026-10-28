@@ -43,6 +43,12 @@ export const FEATURES = {
   events: { level: 4, name: 'Événements du village', icon: '🎉' },
   trade: { level: 5, name: 'Comptoir de négoce (acheter et vendre des marchandises)', icon: '⚖️' },
   fires: { level: 6, name: 'Incendies (pense aux pompiers !)', icon: '🔥' },
+  workshops: { level: 7, name: 'Ateliers et recettes', icon: '🛠️' },
+  city: { level: 8, name: 'Développer : quartiers, projets et région', icon: '🏙️' },
+  urbanist: { level: 10, name: 'Mode urbaniste (déplacer un quartier entier)', icon: '📐' },
+  market: { level: 12, name: 'Marchés régionaux', icon: '🏪' },
+  tourism: { level: 14, name: 'Parc des Merveilles et festivals', icon: '🎡' },
+  coop: { level: 16, name: 'Coopératives et aventures en équipe', icon: '⚖️' },
 };
 
 export function levelReward(level) {

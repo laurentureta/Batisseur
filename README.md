@@ -173,6 +173,25 @@ La production en veille se calcule au retour ou à la consultation des régions 
 - **Village → Aventures en équipe** : trois choix partagés (phare, exposition, gare régionale), trois étapes, contributions réelles et récompenses uniques. Les quotas et reçus sont communs à la coopérative. Le service nécessite la migration `006_coop_adventures.sql`, décrite dans [supabase/ADVENTURES.md](supabase/ADVENTURES.md).
 - **Accueil ou Village → Compte et sauvegardes** : connexion par e-mail/mot de passe, récupération du compte, trois emplacements cloud et cinq versions par emplacement. Le profil et le code ami sont privés avec les villages. La synchronisation automatique s’active après un envoi choisi ; un conflit la suspend jusqu’à sélection d’une version. Restaurer conserve une copie locale annulable et désactive les anciennes sauvegardes automatiques pendant le rechargement. Le service nécessite `007_cloud_saves.sql` et Supabase Auth ; détails dans [supabase/CLOUD.md](supabase/CLOUD.md).
 
+### Mettre le serveur en service (une seule fois)
+
+Les coopératives, les aventures en équipe, les comptes cloud et les notifications ont besoin de leurs
+tables côté serveur. Tout est réuni dans un seul fichier :
+[`supabase/migrations/v6_installation_complete.sql`](supabase/migrations/v6_installation_complete.sql)
+(migrations 004 à 007). Ouvre le projet Supabase → **SQL Editor** → colle le fichier → **Run**.
+Le script est rejouable sans risque et ne supprime aucune donnée.
+
+Les notifications demandent deux étapes de plus :
+
+1. Ouvre [`tools/vapid.html`](tools/vapid.html) sur ton téléphone : la page fabrique les clés sur
+   l'appareil, sans rien envoyer. Copie les trois valeurs dans Supabase → **Edge Functions → Secrets**
+   (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `PUSH_CRON_SECRET`), puis exécute la commande SQL affichée
+   par la page pour publier la clé publique.
+2. La fonction `push-dispatch` est déjà déployée. Il reste à l'appeler régulièrement : dans Supabase →
+   **Integrations → Cron**, crée une tâche toutes les minutes qui envoie une requête POST à
+   `https://<projet>.supabase.co/functions/v1/push-dispatch` avec l'en-tête
+   `Authorization: Bearer <PUSH_CRON_SECRET>`.
+
 Les fonctions locales sont utilisables sans serveur. Les comptes cloud, aventures partagées et notifications exigent leur activation distante. Le script `tools/deploy_v6.py` prépare cette activation avec un jeton administrateur injecté en secret et configure les URL de confirmation/récupération vers GitHub Pages. Il ne transmet aucune requête si le jeton manque.
 
 ## 🔐 Multijoueur et sécurité

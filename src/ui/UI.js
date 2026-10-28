@@ -1,6 +1,7 @@
 // Interface : barre du haut, boutons, bandeau d'outil, feuilles, fenêtres et notifications.
 import { h, clear, costChips, rewardChips } from './dom.js';
 import { BUILDINGS, ROAD_TYPES, levelName } from '../data/buildings.js';
+import { FEATURES } from '../data/progression.js';
 import { RESOURCES } from '../data/resources.js';
 import { fmt, fmtCompact, calendar, SEASONS, hourLabel } from '../core/util.js';
 import { EVENT_INFO } from '../sim/RandomEvents.js';
@@ -944,19 +945,28 @@ export class UI {
           onclick: () => source.click(), 'aria-label': label,
         }, hudIcon(source.dataset.icon), h('span', label), count ? h('i.village-count', count) : null));
       }
-      grid.appendChild(h('button.village-action', { onclick: () => this.openEvent(), 'aria-label': 'Événements' }, hudIcon('event'), h('span', 'Événements')));
-      grid.appendChild(h('button.village-action',{onclick:()=>this.openCity(),'aria-label':'Développer'},hudIcon('village'),h('span','Développer')));
-      grid.appendChild(h('button.village-action',{onclick:()=>this.openPhoto(),'aria-label':'Mode photo'},hudIcon('sun'),h('span','Mode photo')));
-      grid.appendChild(h('button.village-action',{onclick:()=>this.openCooperative(),'aria-label':'Coopératives'},hudIcon('people'),h('span','Coopératives')));
-      grid.appendChild(h('button.village-action',{onclick:()=>this.openTourism(),'aria-label':'Parc et festivals'},hudIcon('event'),h('span','Parc et festivals')));
-      grid.appendChild(h('button.village-action',{onclick:()=>this.openNotifications(),'aria-label':'Notifications'},hudIcon('scroll'),h('span','Notifications')));
-      for (const [label,ic,fn] of [
-        ['Compte et sauvegardes','crate',()=>this.openCloud()],
-        ['Ateliers et recettes','hammer',()=>this.openWorkshops()],
-        ['Mode urbaniste','map',()=>this.openUrbanist()],
-        ['Marché régional','stall',()=>this.openMarket()],
-        ['Aventures en équipe','people',()=>this.openAdventures()],
-      ]) grid.appendChild(h('button.village-action', {onclick:fn,'aria-label':label},hudIcon(ic),h('span',label)));
+      // Une activité verrouillée reste visible, mais indique le niveau qui l'ouvre.
+      const prog = this.game.prog;
+      const action = (label, ic, fn, feature, career = false) => {
+        const need = feature && !prog.libre && !prog.featureUnlocked(feature) ? FEATURES[feature].level : 0;
+        const blocked = career && prog.libre;
+        const why = blocked ? `${label} : cette activité se joue en mode carrière.` : `${label} : se débloque au niveau ${need}`;
+        grid.appendChild(h('button.village-action' + (need || blocked ? '.locked' : ''), {
+          onclick: need || blocked ? () => this.toast(why, 'error') : fn,
+          'aria-label': need ? `${label} (niveau ${need})` : label,
+        }, hudIcon(ic), h('span', label), need ? h('i.village-lock', `🔒 ${need}`) : blocked ? h('i.village-lock', '🔒') : null));
+      };
+      action('Événements', 'event', () => this.openEvent(), 'events');
+      action('Développer', 'village', () => this.openCity(), 'city');
+      action('Mode photo', 'sun', () => this.openPhoto());
+      action('Parc et festivals', 'event', () => this.openTourism(), 'tourism');
+      action('Ateliers et recettes', 'hammer', () => this.openWorkshops(), 'workshops');
+      action('Mode urbaniste', 'map', () => this.openUrbanist(), 'urbanist');
+      action('Marché régional', 'stall', () => this.openMarket(), 'market');
+      action('Coopératives', 'people', () => this.openCooperative(), 'coop', true);
+      action('Aventures en équipe', 'people', () => this.openAdventures(), 'coop', true);
+      action('Notifications', 'scroll', () => this.openNotifications());
+      action('Compte et sauvegardes', 'crate', () => this.openCloud());
       body.appendChild(grid);
     }, { live: true, cls: 'village-sheet' });
   }

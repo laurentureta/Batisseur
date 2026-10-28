@@ -3,6 +3,23 @@ import { parseImport, readSlot } from '../core/save.js';
 const STORE='batisseur.cloud', SESSION='batisseur.cloud.session';
 const PROFILE='batisseur-profile', ONLINE='batisseur.online';
 export function cloudConflict(message){return /cloud conflict/.test(message||'');}
+// Les messages du service d'authentification arrivent en anglais : on les traduit pour le joueur.
+const AUTH_FR = [
+ [/invalid login credentials/i, 'Adresse ou mot de passe incorrect.'],
+ [/email not confirmed/i, 'Confirmez d’abord votre adresse : un courriel vous a été envoyé.'],
+ [/user already registered|already been registered/i, 'Un compte existe déjà avec cette adresse. Connectez-vous.'],
+ [/password should be at least (\d+)/i, 'Le mot de passe doit contenir au moins $1 caractères.'],
+ [/unable to validate email|invalid email/i, 'Cette adresse courriel n’est pas valide.'],
+ [/for security purposes|rate limit|too many requests/i, 'Trop de tentatives : réessayez dans quelques minutes.'],
+ [/signups? not allowed|signup is disabled/i, 'La création de compte est désactivée sur ce serveur.'],
+ [/new password should be different/i, 'Le nouveau mot de passe doit être différent de l’ancien.'],
+ [/token has expired|invalid refresh token/i, 'Votre connexion a expiré. Reconnectez-vous à votre compte.'],
+];
+function frenchMessage(text){
+ const value=String(text||'');
+ for(const [pattern,replacement] of AUTH_FR) if(pattern.test(value)) return value.replace(pattern,replacement);
+ return value;
+}
 export class CloudSave {
  constructor(game,env=globalThis){
   this.game=game;this.env=env;this.authEpoch=0;this.session=null;this.links={};this.rows=[];this.ready=false;this.error='';this.busy=false;this.lastAttempt=0;this.conflicts=new Set();
@@ -14,10 +31,12 @@ export class CloudSave {
  async request(path,body,{auth=false,method='POST'}={}){
   const headers={apikey:PUBLIC_KEY,'Content-Type':'application/json'},epoch=this.authEpoch,owner=this.user?.id;
   if(auth){await this.refreshSession();if(epoch!==this.authEpoch||owner!==this.user?.id)throw new Error('Le compte a changé pendant la connexion.');headers.Authorization='Bearer '+this.session.access_token;}
-  const res=await this.env.fetch(PROJECT_URL+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(15000)});
+  let res;
+  try{res=await this.env.fetch(PROJECT_URL+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(15000)});}
+  catch{throw new Error('Pas de connexion : vérifie ton accès à Internet.');}
   let data;try{data=await res.json();}catch{data=null;}
   if(auth&&(epoch!==this.authEpoch||owner!==this.user?.id))throw new Error('Le compte a changé pendant la connexion.');
-  if(!res.ok){const e=new Error(data?.msg||data?.message||data?.error_description||`Service indisponible (${res.status}).`);e.status=res.status;e.code=data?.code;throw e;}
+  if(!res.ok){const e=new Error(frenchMessage(data?.msg||data?.message||data?.error_description)||`Service indisponible (${res.status}).`);e.status=res.status;e.code=data?.code;throw e;}
   return data;
  }
  async check(){

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clés des notifications · Bâtisseur</title>
+<style>
+  :root { color-scheme: light dark; --bg: #f6f3e5; --card: #fffcf2; --ink: #3d3526; --soft: #7d795e; --line: #dfd8bd; --green: #4a8f4a; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #201d16; --card: #2b2720; --ink: #efe9da; --soft: #a9a391; --line: #403a2d; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 20px 16px 48px; background: var(--bg); color: var(--ink);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 24px; margin: 0 0 6px; }
+  p.lead { color: var(--soft); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin: 14px 0; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--soft); margin: 0 0 10px; }
+  button { font: inherit; font-weight: 700; border: 0; border-radius: 12px; padding: 13px 18px; min-height: 48px; cursor: pointer; }
+  .go { background: var(--green); color: #fff; width: 100%; font-size: 17px; }
+  .copy { background: var(--line); color: var(--ink); padding: 9px 14px; min-height: 40px; }
+  code { display: block; word-break: break-all; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px; background: rgba(125, 121, 94, .12); border-radius: 10px; padding: 10px; margin: 6px 0 10px; }
+  ol { padding-left: 20px; } li { margin: 8px 0; }
+  .warn { border-left: 4px solid #c47f2a; padding-left: 12px; color: var(--soft); font-size: 14px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Clés des notifications</h1>
+  <p class="lead">Cette page fabrique le couple de clés VAPID dont le serveur a besoin pour envoyer les
+    notifications de Bâtisseur. Tout se passe sur ton téléphone : rien n'est envoyé nulle part.</p>
+
+  <button class="go" id="go">Générer mes clés</button>
+
+  <section hidden id="out">
+    <div class="card">
+      <h2>1. Clé publique</h2>
+      <code id="pub"></code>
+      <button class="copy" data-copy="pub">Copier la clé publique</button>
+    </div>
+
+    <div class="card">
+      <h2>2. Clé privée · à garder secrète</h2>
+      <code id="priv"></code>
+      <button class="copy" data-copy="priv">Copier la clé privée</button>
+      <p class="warn">Ne la publie jamais : ni sur GitHub, ni dans une conversation. Elle ne sert
+        qu'une fois, dans les réglages de Supabase.</p>
+    </div>
+
+    <div class="card">
+      <h2>3. Secret du planificateur</h2>
+      <code id="cron"></code>
+      <button class="copy" data-copy="cron">Copier le secret</button>
+    </div>
+
+    <div class="card">
+      <h2>4. Où les coller</h2>
+      <ol>
+        <li>Supabase → <b>Edge Functions</b> → <b>Secrets</b> : ajoute
+          <code>VAPID_PUBLIC_KEY</code><code>VAPID_PRIVATE_KEY</code><code>PUSH_CRON_SECRET</code>
+          avec les trois valeurs ci-dessus.</li>
+        <li>Supabase → <b>SQL Editor</b> : exécute la ligne ci-dessous pour publier la clé publique
+          et allumer le service.</li>
+      </ol>
+      <code id="sql"></code>
+      <button class="copy" data-copy="sql">Copier la commande SQL</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const b64url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+document.getElementById('go').addEventListener('click', async () => {
+  const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+  const raw = await crypto.subtle.exportKey('raw', pair.publicKey);
+  const jwk = await crypto.subtle.exportKey('jwk', pair.privateKey);
+  const token = b64url(crypto.getRandomValues(new Uint8Array(36)));
+  const pub = b64url(raw);
+  document.getElementById('pub').textContent = pub;
+  document.getElementById('priv').textContent = jwk.d;
+  document.getElementById('cron').textContent = token;
+  document.getElementById('sql').textContent =
+    `update public.push_config set vapid_public_key = '${pub}', enabled = true where id;`;
+  document.getElementById('out').hidden = false;
+  document.getElementById('go').textContent = 'Générer de nouvelles clés';
+});
+
+document.addEventListener('click', async (event) => {
+  const button = event.target.closest('.copy');
+  if (!button) return;
+  const text = document.getElementById(button.dataset.copy).textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    const before = button.textContent;
+    button.textContent = '✓ Copié';
+    setTimeout(() => (button.textContent = before), 1600);
+  } catch {
+    button.textContent = 'Sélectionne le texte au-dessus pour le copier';
+  }
+});
+</script>
+</body>
+</html>

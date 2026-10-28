@@ -15,13 +15,14 @@ test('le carnet décrit la version courante et chaque version a un contenu', () 
 
 test('un joueur ne revoit automatiquement que les versions non lues', () => {
   assert.deepEqual(releasesSince(VERSION), []);
-  assert.deepEqual(releasesSince('5.0.0').map(r=>r.version), ['6.0.0']);
-  assert.deepEqual(releasesSince('4.0.0').map((r)=>r.version), ['6.0.0','5.0.0']);
-  assert.deepEqual(releasesSince('3.11.0').map((r)=>r.version), ['6.0.0','5.0.0','4.0.0']);
-  assert.deepEqual(releasesSince('3.10.1').map((r) => r.version), ['6.0.0','5.0.0','4.0.0','3.11.0']);
-  assert.deepEqual(releasesSince('3.10.0').map((r) => r.version), ['6.0.0','5.0.0','4.0.0','3.11.0', '3.10.1']);
-  assert.deepEqual(releasesSince('3.9.1').map((r) => r.version), ['6.0.0','5.0.0','4.0.0','3.11.0', '3.10.1', '3.10.0']);
-  assert.deepEqual(releasesSince('3.9.0').map((r) => r.version), ['6.0.0','5.0.0','4.0.0','3.11.0', '3.10.1', '3.10.0', '3.9.1']);
+  assert.deepEqual(releasesSince('6.0.0').map(r=>r.version), ['6.0.1']);
+  assert.deepEqual(releasesSince('5.0.0').map(r=>r.version), ['6.0.1','6.0.0']);
+  assert.deepEqual(releasesSince('4.0.0').map((r)=>r.version), ['6.0.1','6.0.0','5.0.0']);
+  assert.deepEqual(releasesSince('3.11.0').map((r)=>r.version), ['6.0.1','6.0.0','5.0.0','4.0.0']);
+  assert.deepEqual(releasesSince('3.10.1').map((r) => r.version), ['6.0.1','6.0.0','5.0.0','4.0.0','3.11.0']);
+  assert.deepEqual(releasesSince('3.10.0').map((r) => r.version), ['6.0.1','6.0.0','5.0.0','4.0.0','3.11.0', '3.10.1']);
+  assert.deepEqual(releasesSince('3.9.1').map((r) => r.version), ['6.0.1','6.0.0','5.0.0','4.0.0','3.11.0', '3.10.1', '3.10.0']);
+  assert.deepEqual(releasesSince('3.9.0').map((r) => r.version), ['6.0.1','6.0.0','5.0.0','4.0.0','3.11.0', '3.10.1', '3.10.0', '3.9.1']);
   assert.deepEqual(releasesSince(undefined), RELEASES);
 });
 

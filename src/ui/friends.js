@@ -63,7 +63,9 @@ function renderFriends(ui, body, screen, state, load) {
   ));
   body.appendChild(h('button.btn.wide.fr-add', { onclick: () => addFriendDialog(ui, screen) }, '➕ Ajouter un ami avec son code'));
   if (state.loading && !on.loaded) body.appendChild(h('p.hint.fr-wait', '⏳ Connexion…'));
-  if (state.error) body.appendChild(h('div.fr-error', h('p', `⚠️ ${state.error}`), h('button.btn.small', { onclick: load }, '🔄 Réessayer')));
+  // Capucine marche sans connexion : l'avertissement passe après la liste pour ne pas la masquer.
+  const errorBox = state.error ? h('div.fr-error', h('p', `⚠️ ${state.error}`), h('button.btn.small', { onclick: load }, '🔄 Réessayer')) : null;
+  if (errorBox && screen.tab === 'gifts') body.appendChild(errorBox);
   if (screen.tab === 'gifts') {
     const inbox = on.allInbox();
     if (!inbox.length) {
@@ -115,6 +117,7 @@ function renderFriends(ui, body, screen, state, load) {
       h('p', 'Ajoute tes vrais amis avec leur code : vous pourrez visiter vos villages et vous envoyer un cadeau chaque jour.'),
     ));
   }
+  if (errorBox) body.appendChild(errorBox);
   body.appendChild(h('p.hint', 'Un cadeau par ami et par jour (nouveau jour à minuit). Tes amis voient ton village tel qu\'il était à ta dernière partie.'));
 }
 

@@ -1,5 +1,11 @@
 // Ajouter chaque nouvelle version ici, de la plus récente à la plus ancienne.
 export const RELEASES = [
+  { version: '6.0.1', title: 'Du neuf bien rangé', items: [
+    { icon: 'scroll', title: 'Les activités s’ouvrent à leur tour', text: 'Ateliers, Développer, urbaniste, marchés, parc et coopératives apparaissent dans Village avec le niveau qui les débloque, au lieu d’être tous proposés dès le départ.' },
+    { icon: 'hammer', title: 'Le menu Construire en grand', text: 'En paysage, la fenêtre profite de toute la largeur et les huit familles de bâtiments tiennent à l’écran : plus d’onglet coupé.' },
+    { icon: 'crate', title: 'Des messages compréhensibles', text: 'Les erreurs du service de sauvegarde s’affichent en français, et le jeu prévient tout de suite si le stockage du téléphone est plein.' },
+    { icon: 'event', title: 'Le parc ne se bloque plus', text: 'Un changement d’heure ou de fuseau ne gèle plus les recettes du Parc des Merveilles.' },
+  ] },
   { version: '6.0.0', title: 'Ma ville, ma stratégie', items: [
     { icon: 'map', title: 'Bellerive, une île achevée', text: 'Capucine vous accueille sur une île entièrement recomposée : quartiers architecturaux, monuments, marina, parc et jardins. Tous les types de bâtiments y sont représentés au niveau maximal ; sept points de vue permettent de la découvrir.' },
     { icon: 'hammer', title: 'Des recettes à choisir', text: 'Quatorze recettes et neuf nouvelles marchandises : tissus, vêtements, meubles, viennoiseries et bien plus. Préparez jusqu’à six lots par atelier, avec de véritables ingrédients réservés, des délais réels et un stockage limité.' },

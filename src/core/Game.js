@@ -322,9 +322,14 @@ export class Game extends GameCore {
     if (this.restoringCloud || !this.state || this.isDemo || !this.playing) return false;
     const saved = writeSlot(this.state.slot, serialize(this));
     if (saved) {
+      this.saveWarned = false;
       if (flush) this.notifications.flush();
       else this.notifications.sync();
       this.cloud.sync();
+    } else if (!this.saveWarned) {
+      // Le stockage du téléphone est plein ou refusé : le joueur doit le savoir tout de suite.
+      this.saveWarned = true;
+      this.ui?.toast('⚠️ Sauvegarde impossible : le stockage du téléphone est plein. Libère de la place, ta partie n\'est plus enregistrée.', 'error');
     }
     return saved;
   }

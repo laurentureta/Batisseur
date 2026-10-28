@@ -96,7 +96,7 @@ export class Tourism {
   if(!this.writable()&&!(bot&&this.game.state?.botCity))return;
   const d=this.data,prior=Number.isFinite(d.lastAt)?d.lastAt:now,elapsed=Math.max(0,Math.min(MAX_TOURISM_ABSENCE,now-prior));
   // Avancer le curseur AVANT le crédit évite de rejouer l'absence après une sauvegarde.
-  if(now<prior)return;d.lastAt=now;this.syncFestival(now);this.settleGuests(now);
+  if(now<prior){d.lastAt=now;return;}d.lastAt=now;this.syncFestival(now);this.settleGuests(now);
   const current=this.rates(),last=d.lastRates||current;d.lastRates={visitors:current.visitors,revenue:current.revenue};
   const rate={visitors:Math.min(current.visitors,last.visitors),revenue:Math.min(current.revenue,last.revenue)};if(!elapsed||!rate.visitors)return;
   const count=elapsed/3600000*rate.visitors;d.visitors+=count;
