@@ -1,5 +1,10 @@
 // Ajouter chaque nouvelle version ici, de la plus récente à la plus ancienne.
 export const RELEASES = [
+  { version: '6.1.0', title: 'Une nouvelle lumière', items: [
+    { icon: 'sun', title: 'Le village prend du relief', text: 'Rendu filmique, soleil plus franc et lumière d’ambiance plus discrète : les ombres portées se voient enfin, et les hautes lumières ne brûlent plus.' },
+    { icon: 'map', title: 'Des prairies qui respirent', text: 'La palette du sol s’élargit : herbe tondue claire, verts profonds dans les creux, plaques sèches. Fini le vert uniforme.' },
+    { icon: 'hammer', title: 'Les bâtiments posés au sol', text: 'Une ombre de contact douce sous chaque construction. Elles ne flottent plus au-dessus de l’herbe, même en plein midi.' },
+  ] },
   { version: '6.0.2', title: 'Toujours à jour', items: [
     { icon: 'scroll', title: 'La dernière version s’installe toute seule', text: 'Quand tu ouvres le jeu sans partie en cours, la mise à jour s’applique immédiatement. En pleine partie, elle attend toujours ton accord pour ne rien interrompre.' },
   ] },

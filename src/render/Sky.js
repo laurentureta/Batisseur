@@ -46,8 +46,8 @@ export class Sky {
     this.weather = 'clear';
     this.weatherFactor = 1;
     // réglages d'éclairage (contraste soleil / ambiance)
-    this.sunMul = 2.2;
-    this.hemiMul = 0.95;
+    this.sunMul = 1.6;
+    this.hemiMul = 0.45;
   }
 
   setShadowQuality(size) {
@@ -110,7 +110,7 @@ export class Sky {
     this.sun.intensity = sunI * this.sunMul;
     this.hemi.intensity = amb * (this.hemiMul + this.night * 0.42);
     this.hemi.color.copy(this.top).lerp(new THREE.Color(0xffffff), 0.55);
-    this.hemi.groundColor.setHex(0x5f6b48).lerp(new THREE.Color(0x2a3550), this.night * 0.6);
+    this.hemi.groundColor.setHex(0x8a9456).lerp(new THREE.Color(0x2a3550), this.night * 0.6);
 
     // Zone couverte par les ombres
     const cam = this.sun.shadow.camera;

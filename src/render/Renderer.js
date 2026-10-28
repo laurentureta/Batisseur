@@ -7,6 +7,7 @@ import { CameraController } from './CameraController.js';
 import { Sky } from './Sky.js';
 import { TerrainView } from './TerrainView.js';
 import { RoadView } from './RoadView.js';
+import { Contact } from './Contact.js';
 import { BuildingView, buildingCenter } from './BuildingView.js';
 import { Agents } from './Agents.js';
 import { Particles } from './Particles.js';
@@ -44,8 +45,12 @@ export class Renderer {
     });
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    // Rendu filmique : les hautes lumières s'arrondissent au lieu de brûler, les couleurs
+    // gardent leur éclat. C'est ce qui sépare une maquette plate d'une image de jeu.
+    this.renderer.toneMapping = THREE.NeutralToneMapping;
+    this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.enabled = this.quality !== 'low';
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.localClippingEnabled = true; // chantiers : les murs montent rang par rang
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(36, 1, 0.5, 420);
@@ -54,6 +59,7 @@ export class Renderer {
     this.terrain = new TerrainView(this);
     this.vegetation = new Vegetation(this);
     this.roads = new RoadView(this);
+    this.contact = new Contact(this);
     this.buildings = new BuildingView(this);
     this.agents = new Agents(this);
     this.people = new People(this);
@@ -77,7 +83,7 @@ export class Renderer {
     this.boats = new Boats(this);
     this.train = new Train(this);
     this.scene.add(this.boats.group, this.train.group);
-    this.scene.add(this.terrain.group, this.vegetation.group, this.roads.group, this.buildings.group, this.agents.group, this.people.group, this.worksites.group, this.sites.group, this.animals.group, this.particles.group, this.overlays.group, this.clouds.group);
+    this.scene.add(this.terrain.group, this.vegetation.group, this.contact.group, this.roads.group, this.buildings.group, this.agents.group, this.people.group, this.worksites.group, this.sites.group, this.animals.group, this.particles.group, this.overlays.group, this.clouds.group);
     this.cityView = new CityView(this);
     this.scene.add(this.cityView.group);
     this.tourismView = new TourismView(this);
@@ -293,6 +299,7 @@ export class Renderer {
     this.footprints = new Map();
     for (const b of world.buildings.values()) this.footprints.set(b.id, world.tilesOf(b));
     this.roads.build(world, this.season);
+    this.contact.sync(true);
     this.buildings.setWorld(world, this.season);
     this.sites.clear();
     this.sites.sync();
@@ -587,6 +594,8 @@ export class Renderer {
     const span = Math.min(40, this.cam.distance * 1.1 + 6);
     const sky = this.sky.update(hour, this.cam.target, span, dt);
     this.night = sky.night;
+    this.contact.sync();
+    this.contact.update(this.night);
     this.terrain.update(dt);
     this.vegetation.update(dt, this.camera.position, this.sky.weather, st.time.speed);
     this.updateFog();

@@ -26,15 +26,15 @@ export function topY(world, i) {
 /* ───────── Couleurs (espace linéaire) ───────── */
 const L = (hex) => hexToLin(hex);
 const P = {
-  grassA: L(0xa2c44c), grassB: L(0x87b343), grassC: L(0xb3cf5c), grassDry: L(0xbdb85a), grassDeep: L(0x79a83d),
-  forest: L(0x6a963a), forestB: L(0x7ba23f),
+  grassA: L(0x8fb84e), grassB: L(0x6f9c3c), grassC: L(0xaccb62), grassDry: L(0xb6ad60), grassDeep: L(0x527d30),
+  forest: L(0x4f7b2e), forestB: L(0x5e8a36),
   rock: L(0xafab98), rockB: L(0x9c998b),
   sand: L(0xead5a1), sandB: L(0xdcc38c),
   bed: L(0xd4c290), deepBed: L(0x86a0aa),
   mLow: L(0x8fae4a), mMid: L(0xa49b89), mHigh: L(0xbcb4a6), snow: L(0xf2f5f8), alp: L(0x86a845), rockFace: L(0x8f877a),
   soil: L(0x9a5f40), soilDark: L(0x6e432b), turf: L(0x7f9f3a),
   autumnGrass: L(0xbfa64a), autumnForest: L(0xa47a36), springGrass: L(0x9bdc6a),
-  farForest: L(0x4d7d35), farForestB: L(0x5b8a3a),
+  farForest: L(0x3f6b2c), farForestB: L(0x4c7a33),
   shallow: L(0x5cc3e8), deep: L(0x2f86c2), sea: L(0x2873b0),
   ice: L(0xd3e9f3), iceB: L(0xbcd9ea),
 };
