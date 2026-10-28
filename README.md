@@ -178,8 +178,9 @@ La production en veille se calcule au retour ou à la consultation des régions 
 Les coopératives, les aventures en équipe, les comptes cloud et les notifications ont besoin de leurs
 tables côté serveur. Tout est réuni dans un seul fichier :
 [`supabase/migrations/v6_installation_complete.sql`](supabase/migrations/v6_installation_complete.sql)
-(migrations 004 à 007). Ouvre le projet Supabase → **SQL Editor** → colle le fichier → **Run**.
-Le script est rejouable sans risque et ne supprime aucune donnée.
+(migrations 004 à 007). Le plus simple depuis un téléphone : ouvrir
+[`tools/installer.html`](tools/installer.html), toucher **Copier tout le script**, puis le coller dans
+Supabase → **SQL Editor** → **Run**. Le script est rejouable sans risque et ne supprime aucune donnée.
 
 Les notifications demandent deux étapes de plus :
 

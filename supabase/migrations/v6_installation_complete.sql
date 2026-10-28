@@ -476,5 +476,8 @@ revoke all on function public.bat_cloud_capabilities(),public.bat_cloud_list(),p
 grant execute on function public.bat_cloud_capabilities() to anon,authenticated;
 grant execute on function public.bat_cloud_list(),public.bat_cloud_read(int,int),public.bat_cloud_save(int,jsonb,jsonb,jsonb,int) to authenticated;
 
+-- Nettoyage : fonction témoin laissée par un test de connexion.
+drop function if exists public._bat_probe();
+
 commit;
 notify pgrst, 'reload schema';
