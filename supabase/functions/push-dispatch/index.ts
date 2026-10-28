@@ -20,9 +20,25 @@ async function sameSecret(a: string,b: string) {
  const encoder = new TextEncoder(), [x,y] = await Promise.all([crypto.subtle.digest('SHA-256',encoder.encode(a)),crypto.subtle.digest('SHA-256',encoder.encode(b))]);
  const xx=new Uint8Array(x),yy=new Uint8Array(y);let mismatch=0;for(let i=0;i<xx.length;i++)mismatch|=xx[i]^yy[i];return mismatch===0;
 }
+// Deux planificateurs possibles : un secret d'environnement, ou celui que la base a tiré au sort
+// pour sa propre tâche (jamais affiché nulle part). Le résultat est gardé en mémoire.
+let storedSecret: string|null = null;
+async function cronSecrets() {
+ const list=[Deno.env.get('PUSH_CRON_SECRET')||''];
+ if(storedSecret===null){
+  try{const value=await rpc('bat_push_cron_secret');storedSecret=typeof value==='string'?value:'';}
+  catch{storedSecret=null;}
+ }
+ if(storedSecret)list.push(storedSecret);
+ return list.filter((value)=>value.length>=32);
+}
+async function authorized(req: Request) {
+ const header=req.headers.get('Authorization')||'';
+ for(const secret of await cronSecrets()) if(await sameSecret(header,`Bearer ${secret}`)) return true;
+ return false;
+}
 Deno.serve(async(req: Request)=>{
- const secret=Deno.env.get('PUSH_CRON_SECRET')||'';
- if(req.method!=='POST'||secret.length<32||!await sameSecret(req.headers.get('Authorization')||'',`Bearer ${secret}`))return new Response('Unauthorized',{status:401});
+ if(req.method!=='POST'||!await authorized(req))return new Response('Unauthorized',{status:401});
  const publicKey=Deno.env.get('VAPID_PUBLIC_KEY'),privateKey=Deno.env.get('VAPID_PRIVATE_KEY');
  if(!publicKey||!privateKey)return new Response('Push not configured',{status:503});
  webpush.setVapidDetails(Deno.env.get('VAPID_SUBJECT')||'https://laurentureta.github.io/Batisseur/',publicKey,privateKey);
