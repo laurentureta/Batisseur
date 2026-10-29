@@ -1,5 +1,8 @@
 // Ajouter chaque nouvelle version ici, de la plus récente à la plus ancienne.
 export const RELEASES = [
+  { version: '6.3.0', title: 'De la vraie pelouse', items: [
+    { icon: 'map', title: 'L’herbe a du grain', text: 'Le sol n’est plus un aplat de vert. Brins croisés, touffes plus claires et plus sombres, grain fin : la pelouse se regarde de près. Le détail s’efface doucement avec la distance pour éviter le fourmillement, et la terre comme le sable en profitent aussi.' },
+  ] },
   { version: '6.2.0', title: 'La résidence', items: [
     { icon: 'people', title: 'Un immeuble de logements', text: 'La Résidence se débloque au niveau 18 : huit logements, deux par palier, sur quatre niveaux. Balcons à panneaux colorés, cage d’escalier vitrée, toit-terrasse et panneaux solaires dès la première amélioration. Beaucoup d’habitants sur deux cases, mais des loyers modestes.' },
   ] },

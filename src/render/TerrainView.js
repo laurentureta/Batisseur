@@ -7,6 +7,7 @@ import { RING, FAR, FAR_STEP } from '../world/landscape.js';
 import { hexToLin } from './geom.js';
 import { waterMaterial, WATER_UNIFORMS } from './shaders.js';
 import { valueNoise, hash2 } from '../core/rng.js';
+import { groundTexture, applyGroundDetail } from './groundDetail.js';
 
 const HALF = SIZE / 2;
 const W = SIZE + 2 * RING; // côté de la grille carte + couronne
@@ -116,6 +117,10 @@ export class TerrainView {
     this.group = new THREE.Group();
     this.landMat = new THREE.MeshLambertMaterial({ vertexColors: true });
     this.farMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    // grain du sol : la pelouse et la terre cessent d'être des aplats
+    this.groundTex = groundTexture();
+    applyGroundDetail(this.landMat, this.groundTex, { strength: 1.8 });
+    applyGroundDetail(this.farMat, this.groundTex, { strength: 1.0, near: 60, far: 150 });
     this.waterMat = waterMaterial();
     this.iceMat = new THREE.MeshLambertMaterial({ vertexColors: true });
     this.chunks = [];
