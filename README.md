@@ -211,6 +211,25 @@ Le sol n'est plus seulement peint : de vraies touffes d'herbe sont semées autou
 
 Réglage **Options → Qualité** : touffue en Haute, allégée en Moyenne, coupée en Économie.
 
+## 🌊 La houle — v6.5
+
+Les vagues ne sont plus écrites à la main : elles viennent d'une simulation d'océan fournie avec
+le projet (`water_waves.glb`, 500 images d'un maillage de 81 × 81). Le fichier d'origine pesait
+163 Mo parce qu'il gardait la position de **chaque sommet à chaque image** — et au passage, Git
+refuse tout fichier de plus de 100 Mo, donc il n'aurait même pas pu être publié.
+
+`tools/bake_waves.py` n'en garde que le champ de hauteur et l'analyse en transformée de Fourier à
+trois dimensions. Le résultat est net : 99 % de l'énergie tient dans les fréquences temporelles
+inférieures à 10, et 99 % dans les nombres d'onde inférieurs à 16. Reconstruit sur une grille de
+96 × 96 et 64 instants, le champ devient **parfaitement périodique en espace comme en temps** : la
+mer se répète sans couture visible et la boucle n'a pas de raccord. 1,3 Mo au lieu de 163.
+
+La texture (`assets/water/waves.png`, atlas de 8 × 8 blocs relu en texture 3D) porte par texel
+la hauteur et les deux pentes. Les pentes sont **cuites**, jamais dérivées à l'écran : dériver une
+hauteur codée sur huit bits donnerait un escalier dans les reflets. Le maillage de l'eau n'a qu'un
+sommet par case, donc il ne porte que la grande houle ; pente, reflets et écume se calculent pour
+chaque pixel. Réglages à chaud dans `WAVE_TUNE` (`src/render/shaders.js`).
+
 ## 🔐 Multijoueur et sécurité
 
 - Le compte en ligne est créé au premier passage dans l'écran Amis : un identifiant et un secret aléatoires sont gardés sur le téléphone (jamais affichés). Changer de téléphone ou vider les données du navigateur crée un nouveau compte (nouveau code ami).
@@ -223,9 +242,10 @@ Jeu créé avec [Three.js](https://threejs.org) (licence MIT, voir `lib/THREE-LI
 
 Modèles 3D : packs gratuits et libres de droits (CC0) de **KayKit** par Kay Lousberg (Medieval Hexagon, City Builder Bits, Halloween Bits, Restaurant Bits) et de **Kenney** (voir `assets/CREDITS.md`). Ils sont regroupés dans `assets/models.bin` par `tools/bake_models.py`.
 
-Textures d'herbe (`assets/grass/`) : extraites d'un modèle `realtime_grass.glb` fourni par
-l'auteur du jeu. **Leur licence d'origine n'a pas été vérifiée** — à confirmer avant toute
-diffusion large, ou à remplacer par des images CC0 équivalentes.
+Textures d'herbe (`assets/grass/`) et champ de houle (`assets/water/waves.png`) : dérivés de
+`realtime_grass.glb` et `water_waves.glb`, deux modèles fournis par l'auteur du jeu.
+**Leur licence d'origine n'a pas été vérifiée** — à confirmer avant toute diffusion large, ou à
+remplacer par des sources CC0 équivalentes.
 
 Icônes : dessinées pour le jeu en SVG (`src/ui/iconDefs.js`).
 

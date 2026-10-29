@@ -1,5 +1,6 @@
 // Shaders partagés : végétation vivante (vent, secousse, chute et repousse des arbres) et eau animée.
 import * as THREE from 'three';
+import { waveTexture } from './waves.js';
 
 /** Uniformes communs à toute la végétation (mis à jour à chaque image). */
 export const VEG_UNIFORMS = {
@@ -86,55 +87,84 @@ export const WATER_UNIFORMS = {
   uFrozen: { value: 0 },
 };
 
+// Réglages de la houle, modifiables à chaud depuis la console pendant la mise au point.
+// x, y : périodes spatiales (en cases) de la nappe principale et du détail
+// z, w : pente rendue par chacune
+export const WAVE_TUNE = {
+  uWave: { value: new THREE.Vector4(8.5, 3.0, 0.58, 0.30) },
+  // x : période de la houle qui soulève le maillage, y : son amplitude,
+  // z : force de l'écume de crête, w : contraste creux / crête sur la couleur
+  uSwell: { value: new THREE.Vector4(44.0, 0.022, 0.055, 0.22) },
+  // durée de la boucle, en secondes : la simulation d'origine durait 16,7 s
+  uLoop: { value: 21.0 },
+};
+
 /**
- * Eau : petites vagues calculées pour chaque pixel (pas d'effet de grille), reflets du soleil,
- * courant des rivières, écume près des rives, scintillement.
- * Attribut aWater : x = profondeur (0 rive … 1 large), y = vitesse du courant, z, w = direction du courant
+ * Eau : la forme des vagues vient de la simulation d'océan fournie avec le projet, cuite en
+ * texture 3D (voir waves.js). Le maillage ne porte qu'une case par sommet : la houle le soulève
+ * à grande échelle, et tout le détail — pente, reflets, écume — se calcule pour chaque pixel.
+ * Attribut aWater : x = profondeur (0 rive … 1 large), y = vitesse du courant, z, w = direction
  */
 export function waterMaterial() {
   const mat = new THREE.MeshPhongMaterial({
-    vertexColors: true, transparent: true, opacity: 0.86, shininess: 90, specular: 0x86c4ea,
+    vertexColors: true, transparent: true, opacity: 0.86, shininess: 110, specular: 0x8fcdf0,
     emissive: 0x0b3550, emissiveIntensity: 0.3, depthWrite: false,
   });
   mat.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, WATER_UNIFORMS);
+    Object.assign(shader.uniforms, WATER_UNIFORMS, WAVE_TUNE);
+    shader.uniforms.uWaves = { value: waveTexture() };
+    const COMMON = /* glsl */ `
+uniform float uTime;
+uniform float uFrozen;
+uniform float uLoop;
+uniform vec4 uWave;
+uniform vec4 uSwell;
+uniform sampler3D uWaves;
+// hauteur, pentes et courbure de la mer à un point et un instant donnés
+vec4 wSea(vec2 p, float period, float t) {
+  return texture(uWaves, vec3(p / period, t)) * 2.0 - 1.0;
+}`;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
 attribute vec4 aWater;
-uniform float uTime;
 varying vec4 vWater;
-varying vec2 vWorld;`)
+varying vec2 vWorld;
+${COMMON}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
 vWater = aWater;
 vWorld = position.xz;
-transformed.y += (sin(position.x * 0.62 + uTime * 0.9) + cos(position.z * 0.47 + uTime * 0.7)) * 0.008 * (0.3 + 0.7 * aWater.x);`);
+{
+  // Seule la grande houle peut être portée par le maillage : il n'a qu'un sommet par case,
+  // et une vague plus courte que deux cases s'y replierait en escalier. Le reste est en pixels.
+  float t = uTime / uLoop;
+  float h = wSea(position.xz, uSwell.x, t).r;
+  transformed.y += h * uSwell.y * (0.25 + 0.75 * aWater.x) * (1.0 - uFrozen);
+}`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-uniform float uTime;
-uniform float uFrozen;
 varying vec4 vWater;
 varying vec2 vWorld;
+${COMMON}
 float wHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float wNoise(vec2 p) {
   vec2 i = floor(p), f = fract(p);
   f = f * f * (3.0 - 2.0 * f);
   return mix(mix(wHash(i), wHash(i + vec2(1.0, 0.0)), f.x), mix(wHash(i + vec2(0.0, 1.0)), wHash(i + vec2(1.0, 1.0)), f.x), f.y);
 }
-vec2 wFlow() { return vWater.zw * vWater.y * uTime * 0.45; }
-// pente de la surface (somme de vagues), atténuée au loin pour éviter le scintillement
-vec2 wGrad(vec2 p, float t, float fw) {
-  vec2 g = vec2(0.0);
-  const vec2 d1 = vec2(0.8, 0.6), d2 = vec2(-0.5, 0.866), d3 = vec2(0.17, -0.985), d4 = vec2(-0.93, -0.37);
-  g += d1 * cos(dot(d1, p) * 2.1 + t * 1.5) * 0.07 * smoothstep(1.6, 0.5, fw);
-  g += d2 * cos(dot(d2, p) * 3.3 + t * 2.0) * 0.05 * smoothstep(0.9, 0.3, fw);
-  g += d3 * cos(dot(d3, p) * 5.1 + t * 2.6) * 0.035 * smoothstep(0.5, 0.15, fw);
-  g += d4 * cos(dot(d4, p) * 7.3 + t * 3.4) * 0.025 * smoothstep(0.32, 0.08, fw);
-  return g;
-}`)
+// une rivière emporte sa houle avec elle
+vec2 wFlow() { return vWater.zw * vWater.y * uTime * 0.45; }`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
 {
   float fw = length(fwidth(vWorld));
-  vec2 g = wGrad(vWorld - wFlow(), uTime, fw) * (1.0 - uFrozen);
+  float t = uTime / uLoop;
+  vec2 q = vWorld - wFlow();
+  // deux échelles de la même mer : la nappe large, puis un détail plus serré et décalé,
+  // qui s'efface le premier quand la caméra s'éloigne pour éviter le fourmillement
+  vec2 g = wSea(q, uWave.x, t).gb * uWave.z * smoothstep(1.4, 0.35, fw);
+  g += wSea(q * 1.07 + vec2(37.0, 11.0), uWave.y, t * 1.31 + 0.37).gb * uWave.w * smoothstep(0.55, 0.12, fw);
+  // la houle ne s'éteint qu'un peu près du bord : la profondeur est interpolée par quadrilatère,
+  // et s'en servir trop fort redessinerait la grille des cases à la surface
+  g *= (1.0 - uFrozen) * (0.72 + 0.28 * vWater.x);
   vec3 nW = normalize(vec3(-g.x, 1.0, -g.y));
   normal = normalize((viewMatrix * vec4(nW, 0.0)).xyz);
 }`)
@@ -142,20 +172,28 @@ vec2 wGrad(vec2 p, float t, float fw) {
 specularStrength *= 0.25 + 0.75 * smoothstep(1.1, 0.25, length(fwidth(vWorld)));`)
       .replace('#include <color_fragment>', `#include <color_fragment>
 if (uFrozen < 0.5) {
-  vec2 p = vWorld * 2.2 - wFlow() * 2.2;
   float fw = length(fwidth(vWorld));
-  float n = wNoise(p + vec2(uTime * 0.21, uTime * 0.17)) * 0.6 + wNoise(p * 2.3 - vec2(uTime * 0.31, -uTime * 0.12)) * 0.4;
-  diffuseColor.rgb *= 0.93 + n * 0.14;
-  // écume près des rives
+  float t = uTime / uLoop;
+  vec2 q = vWorld - wFlow();
+  vec4 sea = wSea(q, uWave.x, t);
+  // un creux est plus sombre et plus bleu, une crête plus claire : c'est ce qui donne du
+  // volume à une nappe d'eau vue de dessus
+  float lift = sea.r * uSwell.w * smoothstep(1.6, 0.4, fw);
+  diffuseColor.rgb *= 1.0 + lift;
+  diffuseColor.b += max(0.0, -lift) * 0.12;
+  // écume : sur les crêtes marquées (forte courbure) et le long des rives
   float shore = 1.0 - smoothstep(0.0, 0.3, vWater.x);
+  // une crête, c'est une bosse haute et raide : l'écume s'y accroche
+  vec2 sg = wSea(q, uWave.x, t).gb;
+  float crest = smoothstep(0.30, 0.85, sea.r) * smoothstep(0.12, 0.42, length(sg)) * uSwell.z * smoothstep(0.7, 0.18, fw);
   float foam = shore * smoothstep(0.5, 0.78, wNoise(vWorld * 5.0 + vec2(uTime * 0.6, -uTime * 0.4))) * smoothstep(0.6, 0.2, fw);
-  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.97, 1.0), foam * 0.5 + shore * 0.1);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.97, 1.0), clamp(foam * 0.5 + shore * 0.1 + crest * 0.45, 0.0, 0.9));
   // petits éclats de lumière
   float sp = smoothstep(0.88, 0.97, wNoise(vWorld * 6.0 - wFlow() * 6.0 + vec2(uTime * 0.9, uTime * 0.7))) * smoothstep(0.4, 0.1, fw);
-  diffuseColor.rgb += sp * 0.18;
+  diffuseColor.rgb += sp * vec3(0.09, 0.13, 0.17); // bleuté : un éclat blanc vire au rose sur l'eau
   diffuseColor.a = mix(diffuseColor.a, 0.97, smoothstep(0.35, 1.0, vWater.x) * 0.5);
 }`);
   };
-  mat.customProgramCacheKey = () => 'water-v3c';
+  mat.customProgramCacheKey = () => 'water-v4';
   return mat;
 }

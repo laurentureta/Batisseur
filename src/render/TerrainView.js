@@ -512,11 +512,35 @@ export class TerrainView {
         }
       }
     }
+    // La distance à la rive est un nombre entier de cases : utilisée telle quelle, elle
+    // découpe le plan d'eau en terrasses rectangulaires bien visibles. On la lisse deux fois
+    // par moyenne 3 x 3 pour obtenir une pente continue du bord vers le large.
+    let DS = new Float32Array(W * W);
+    for (let k = 0; k < DS.length; k++) DS[k] = D[k] === 255 ? 4 : D[k];
+    for (let pass = 0; pass < 2; pass++) {
+      const out = new Float32Array(W * W);
+      for (let z = 0; z < W; z++) {
+        for (let x = 0; x < W; x++) {
+          let sum = 0, n = 0;
+          for (let dz = -1; dz <= 1; dz++) {
+            const nz = z + dz;
+            if (nz < 0 || nz >= W) continue;
+            for (let dx = -1; dx <= 1; dx++) {
+              const nx = x + dx;
+              if (nx < 0 || nx >= W) continue;
+              sum += DS[nz * W + nx];
+              n++;
+            }
+          }
+          out[z * W + x] = sum / n;
+        }
+      }
+      DS = out;
+    }
     const dOf = (x, z, fallback) => {
       const gx = x + RING, gz = z + RING;
       if (gx < 0 || gz < 0 || gx >= W || gz >= W) return fallback;
-      const v = D[gz * W + gx];
-      return v === 255 ? 4 : v;
+      return DS[gz * W + gx];
     };
     const liquid = new Buf();
     const ice = new Buf();

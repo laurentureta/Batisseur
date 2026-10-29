@@ -1,5 +1,9 @@
 // Ajouter chaque nouvelle version ici, de la plus récente à la plus ancienne.
 export const RELEASES = [
+  { version: '6.5.0', title: 'La mer prend le large', items: [
+    { icon: 'map', title: 'De vraies vagues', text: 'La houle du jeu vient maintenant d’une simulation d’océan : crêtes qui accrochent le soleil, écume sur les plus raides, creux plus sombres et plus bleus. Les rivières emportent leurs vagues avec le courant, et la mer gelée de l’hiver reste intacte.' },
+    { icon: 'sun', title: 'Un plan d’eau sans marches', text: 'La profondeur près des rives est lissée : fini les terrasses rectangulaires qui redessinaient la grille des cases à la surface de l’eau.' },
+  ] },
   { version: '6.4.0', title: 'De l’herbe qui pousse', items: [
     { icon: 'map', title: 'Une pelouse en trois dimensions', text: 'De vraies touffes d’herbe photographiées poussent autour de la caméra : elles prennent la couleur du sol et la saison qu’elles recouvrent, se couchent sous le vent avec les arbres et s’effacent doucement au loin. Zoome sur un jardin pour les voir de près.' },
     { icon: 'sun', title: 'Réglable depuis les options', text: 'La pelouse suit le réglage Qualité : touffue en Haute, allégée en Moyenne, désactivée en Économie si ton téléphone peine.' },
