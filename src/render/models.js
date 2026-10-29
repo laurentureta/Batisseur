@@ -10,6 +10,7 @@ import { BUILDINGS } from '../data/buildings.js';
 import { ROOF_THEMES } from '../data/cosmetics.js';
 import { KM, hasKitModel, treeKit } from './kitModels.js';
 import './eventModels.js'; // décorations des événements de la semaine
+import { addModernModels } from './modernModels.js';
 
 export const P = {
   wood: 0x9b6b43, woodDark: 0x6e4a2f, woodLight: 0xc49a6c, plank: 0xb98a5a,
@@ -1012,6 +1013,8 @@ MODELS.arch = (g, L, ctx, out) => {
   for (const s of [-1, 1]) g.box(s * 0.6, 0.4, 0.31, 0.3, 0.45, 0.01, shade(c, 0.85));
   g.box(0, 1.35, 0.305, 1.2, 0.08, 0.01, P.gold);
 };
+
+addModernModels(MODELS);
 
 MODELS.fallback = (g, L, ctx, out) => {
   plot(g, 0.96, 0.96, ctx.ground(P.lawn));

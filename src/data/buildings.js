@@ -121,6 +121,24 @@ def({
   desc: 'Loge des habitants qui paient des impôts. Améliore-la pour accueillir plus de monde.',
 });
 def({
+  id: 'hlm', name: 'Résidence', icon: '🏢', cat: 'housing', unlock: 18, maxLevel: 3, size: [2, 1],
+  levelNames: ['Résidence', 'Grande résidence', 'Tour résidentielle'],
+  costs: [
+    { coins: 1800, planks: 90, bricks: 140, tools: 35 },
+    { coins: 3400, bricks: 260, tools: 90 },
+    { coins: 6200, bricks: 420, tools: 170 },
+  ],
+  residents: [24, 36, 42],
+  tax: [5.4, 5.7, 6],
+  upgradeNeeds: [
+    ['water', 'paved'],
+    ['water', 'commerce', 'education', 'health', 'paved'],
+    ['water', 'commerce', 'leisure', 'education', 'health', 'security', 'paved'],
+  ],
+  xp: 14,
+  desc: 'Huit logements, deux par palier, sur quatre niveaux. Beaucoup d\'habitants pour peu de place, mais des loyers modestes : moins d\'impôts par personne qu\'une villa.',
+});
+def({
   id: 'manor', name: 'Manoir', icon: '🏰', cat: 'housing', unlock: 25, maxLevel: 3, size: [2, 2],
   levelNames: ['Manoir', 'Grand manoir', 'Palais'],
   costs: [

@@ -1,5 +1,8 @@
 // Ajouter chaque nouvelle version ici, de la plus récente à la plus ancienne.
 export const RELEASES = [
+  { version: '6.2.0', title: 'La résidence', items: [
+    { icon: 'people', title: 'Un immeuble de logements', text: 'La Résidence se débloque au niveau 18 : huit logements, deux par palier, sur quatre niveaux. Balcons à panneaux colorés, cage d’escalier vitrée, toit-terrasse et panneaux solaires dès la première amélioration. Beaucoup d’habitants sur deux cases, mais des loyers modestes.' },
+  ] },
   { version: '6.1.0', title: 'Une nouvelle lumière', items: [
     { icon: 'sun', title: 'Le village prend du relief', text: 'Rendu filmique, soleil plus franc et lumière d’ambiance plus discrète : les ombres portées se voient enfin, et les hautes lumières ne brûlent plus.' },
     { icon: 'map', title: 'Des prairies qui respirent', text: 'La palette du sol s’élargit : herbe tondue claire, verts profonds dans les creux, plaques sèches. Fini le vert uniforme.' },
