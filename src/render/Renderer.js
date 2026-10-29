@@ -8,6 +8,7 @@ import { Sky } from './Sky.js';
 import { TerrainView } from './TerrainView.js';
 import { RoadView } from './RoadView.js';
 import { Contact } from './Contact.js';
+import { GrassField } from './GrassField.js';
 import { BuildingView, buildingCenter } from './BuildingView.js';
 import { Agents } from './Agents.js';
 import { Particles } from './Particles.js';
@@ -60,6 +61,7 @@ export class Renderer {
     this.vegetation = new Vegetation(this);
     this.roads = new RoadView(this);
     this.contact = new Contact(this);
+    this.grass = new GrassField(this);
     this.buildings = new BuildingView(this);
     this.agents = new Agents(this);
     this.people = new People(this);
@@ -83,7 +85,7 @@ export class Renderer {
     this.boats = new Boats(this);
     this.train = new Train(this);
     this.scene.add(this.boats.group, this.train.group);
-    this.scene.add(this.terrain.group, this.vegetation.group, this.contact.group, this.roads.group, this.buildings.group, this.agents.group, this.people.group, this.worksites.group, this.sites.group, this.animals.group, this.particles.group, this.overlays.group, this.clouds.group);
+    this.scene.add(this.terrain.group, this.grass.group, this.vegetation.group, this.contact.group, this.roads.group, this.buildings.group, this.agents.group, this.people.group, this.worksites.group, this.sites.group, this.animals.group, this.particles.group, this.overlays.group, this.clouds.group);
     this.cityView = new CityView(this);
     this.scene.add(this.cityView.group);
     this.tourismView = new TourismView(this);
@@ -153,6 +155,11 @@ export class Renderer {
     this.renderer.shadowMap.enabled = shadows > 0;
     this.sky.setShadowQuality(shadows);
     this.particles.enabled = q !== 'low';
+    // la pelouse en volume est le poste le plus lourd en remplissage : elle suit la qualité
+    if (this.grass) {
+      this.grass.quality = q === 'high' ? 1 : q === 'medium' ? 0.72 : 0;
+      this.grass.sync(true);
+    }
     if (this.crowd) {
       this.crowd.setShadows(q !== 'low');
       this.people.lodDist2 = q === 'low' ? 0 : q === 'medium' ? 8 * 8 : 11 * 11;
@@ -300,6 +307,7 @@ export class Renderer {
     for (const b of world.buildings.values()) this.footprints.set(b.id, world.tilesOf(b));
     this.roads.build(world, this.season);
     this.contact.sync(true);
+    this.grass.sync(true);
     this.buildings.setWorld(world, this.season);
     this.sites.clear();
     this.sites.sync();
@@ -596,6 +604,8 @@ export class Renderer {
     this.night = sky.night;
     this.contact.sync();
     this.contact.update(this.night);
+    this.grass.sync();
+    this.grass.update(this.cam.distance);
     this.terrain.update(dt);
     this.vegetation.update(dt, this.camera.position, this.sky.weather, st.time.speed);
     this.updateFog();

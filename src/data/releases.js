@@ -1,5 +1,9 @@
 // Ajouter chaque nouvelle version ici, de la plus récente à la plus ancienne.
 export const RELEASES = [
+  { version: '6.4.0', title: 'De l’herbe qui pousse', items: [
+    { icon: 'map', title: 'Une pelouse en trois dimensions', text: 'De vraies touffes d’herbe photographiées poussent autour de la caméra : elles prennent la couleur du sol et la saison qu’elles recouvrent, se couchent sous le vent avec les arbres et s’effacent doucement au loin. Zoome sur un jardin pour les voir de près.' },
+    { icon: 'sun', title: 'Réglable depuis les options', text: 'La pelouse suit le réglage Qualité : touffue en Haute, allégée en Moyenne, désactivée en Économie si ton téléphone peine.' },
+  ] },
   { version: '6.3.0', title: 'De la vraie pelouse', items: [
     { icon: 'map', title: 'L’herbe a du grain', text: 'Le sol n’est plus un aplat de vert. Brins croisés, touffes plus claires et plus sombres, grain fin : la pelouse se regarde de près. Le détail s’efface doucement avec la distance pour éviter le fourmillement, et la terre comme le sable en profitent aussi.' },
   ] },

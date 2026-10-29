@@ -195,6 +195,22 @@ Les notifications demandent deux étapes de plus :
 
 Les fonctions locales sont utilisables sans serveur. Les comptes cloud, aventures partagées et notifications exigent leur activation distante. Le script `tools/deploy_v6.py` prépare cette activation avec un jeton administrateur injecté en secret et configure les URL de confirmation/récupération vers GitHub Pages. Il ne transmet aucune requête si le jeton manque.
 
+## 🌱 La pelouse en volume — v6.4
+
+Le sol n'est plus seulement peint : de vraies touffes d'herbe sont semées autour de la caméra
+(`src/render/GrassField.js`). Trois points de méthode :
+
+- **Semis déterministe.** La position de chaque touffe est tirée des coordonnées de sa case, pas
+  d'un hasard renouvelé : la pelouse ne « nage » donc pas quand la caméra se déplace.
+- **Couleur du sol, forme de la photo.** La photo ne fournit que la découpe des brins et leur
+  ombrage ; la couleur vient de la case recouverte. La pelouse suit ainsi la palette du jeu, les
+  saisons et la neige sans retoucher une seule image.
+- **Budget fixe.** Au plus 7 800 touffes, en trois maillages instanciés — trois appels de rendu.
+  Le rayon suit le zoom, les touffes du bord se tassent au lieu de disparaître d'un coup, et tout
+  s'éteint au-delà d'une certaine hauteur de caméra.
+
+Réglage **Options → Qualité** : touffue en Haute, allégée en Moyenne, coupée en Économie.
+
 ## 🔐 Multijoueur et sécurité
 
 - Le compte en ligne est créé au premier passage dans l'écran Amis : un identifiant et un secret aléatoires sont gardés sur le téléphone (jamais affichés). Changer de téléphone ou vider les données du navigateur crée un nouveau compte (nouveau code ami).
@@ -206,6 +222,10 @@ Les fonctions locales sont utilisables sans serveur. Les comptes cloud, aventure
 Jeu créé avec [Three.js](https://threejs.org) (licence MIT, voir `lib/THREE-LICENSE.txt`).
 
 Modèles 3D : packs gratuits et libres de droits (CC0) de **KayKit** par Kay Lousberg (Medieval Hexagon, City Builder Bits, Halloween Bits, Restaurant Bits) et de **Kenney** (voir `assets/CREDITS.md`). Ils sont regroupés dans `assets/models.bin` par `tools/bake_models.py`.
+
+Textures d'herbe (`assets/grass/`) : extraites d'un modèle `realtime_grass.glb` fourni par
+l'auteur du jeu. **Leur licence d'origine n'a pas été vérifiée** — à confirmer avant toute
+diffusion large, ou à remplacer par des images CC0 équivalentes.
 
 Icônes : dessinées pour le jeu en SVG (`src/ui/iconDefs.js`).
 
