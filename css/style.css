@@ -1,22 +1,45 @@
 /* Bâtisseur : interface pensée pour l'iPhone (zones sûres, gros boutons, panneaux du bas). */
 @font-face { font-family: 'Lilita One'; src: url('../fonts/LilitaOne.woff') format('woff'); font-display: swap; }
 @font-face { font-family: 'Fredoka'; src: url('../fonts/Fredoka.woff') format('woff'); font-weight: 300 700; font-display: swap; }
+/* Lora (SIL OFL) : le romain à empattements des enseignes et des titres du village. */
+@font-face { font-family: 'Lora'; src: url('../fonts/Lora.woff') format('woff'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Lora'; src: url('../fonts/Lora-Bold.woff') format('woff'); font-weight: 700; font-display: swap; }
 :root {
   --display: 'Lilita One', 'Fredoka', ui-rounded, system-ui, sans-serif;
-  --ink: #2f2622;
-  --ink-soft: #6f5f55;
-  --panel: rgba(255, 250, 241, 0.93);
-  --panel-solid: #fffaf1;
-  --panel-2: #f5ecdc;
-  --line: rgba(80, 55, 30, 0.12);
-  --green: #43a047;
-  --green-dark: #2e7d32;
-  --gold: #f2b632;
-  --gold-dark: #c98a10;
-  --red: #e53935;
-  --blue: #1e88e5;
-  --shadow: 0 6px 18px rgba(40, 28, 16, 0.22);
+  /* Les titres sont en romain à empattements : c'est ce qui donne le ton d'enseigne peinte.
+     Georgia et Iowan Old Style sont déjà sur l'iPhone, aucune police à télécharger. */
+  --title: 'Lora', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+  --ink: #3a2a18;
+  --ink-soft: #7b6344;
+  --panel: rgba(245, 230, 203, 0.96);
+  --panel-solid: #f5e6cb;
+  --panel-2: #e8d2a9;
+  --line: rgba(80, 55, 30, 0.2);
+  --green: #4e9a3a;
+  --green-dark: #35702a;
+  --gold: #d9a63f;
+  --gold-dark: #a97c28;
+  --red: #a8392a;
+  --blue: #256295;
+  --shadow: 0 6px 18px rgba(30, 16, 4, 0.34);
   --radius: 16px;
+
+  /* ── Matières du décor : tout est peint en CSS, aucune image à charger ── */
+  --bark: #2a1709;                     /* le cerne presque noir autour de chaque pièce de bois */
+  --wood: linear-gradient(180deg, #8a5527 0%, #6d401c 38%, #52300f 78%, #45280d 100%);
+  --wood-dark: linear-gradient(180deg, #4a2d14 0%, #321d0b 60%, #241305 100%);
+  --wood-light: linear-gradient(180deg, #a06a33 0%, #87552a 55%, #6d401c 100%);
+  --parch: radial-gradient(130% 150% at 28% -10%, #fbf0d8 0%, #f2dfbb 48%, #e3c99e 100%);
+  --brass: linear-gradient(180deg, #f0d48c 0%, #d2a549 48%, #a97c28 100%);
+  --cream: #f4e7cd;
+  /* veines du bois : deux trames fines superposées, moins coûteuses qu'une texture */
+  --veins: repeating-linear-gradient(92deg, rgba(255, 228, 184, 0.07) 0 2px, rgba(0, 0, 0, 0) 2px 7px),
+           repeating-linear-gradient(88deg, rgba(40, 20, 4, 0.14) 0 1px, rgba(0, 0, 0, 0) 1px 11px);
+  /* un relief de bois complet : cerne sombre, lumière du haut, ombre portée */
+  --wood-edge: 0 0 0 2px var(--bark), inset 0 1px 0 rgba(255, 216, 160, 0.3),
+               inset 0 -2px 3px rgba(0, 0, 0, 0.35), 0 5px 14px rgba(25, 12, 2, 0.42);
+  --parch-edge: inset 0 0 0 1px rgba(120, 85, 40, 0.3), inset 0 1px 0 rgba(255, 255, 240, 0.7),
+                inset 0 -6px 12px rgba(150, 110, 60, 0.18);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
@@ -162,46 +185,68 @@ input, textarea { font: inherit; -webkit-user-select: text; user-select: text; }
   height: 46px;
   flex: none;
   border-radius: 50%;
-  background: var(--panel);
-  box-shadow: var(--shadow);
+  /* médaillon de laiton : le seul rond de l'interface, pour qu'on le repère tout de suite */
+  background-image: var(--brass);
+  box-shadow: 0 0 0 2px var(--bark), inset 0 2px 0 rgba(255, 245, 210, 0.55),
+              inset 0 -3px 5px rgba(90, 55, 10, 0.45), 0 5px 12px rgba(25, 12, 2, 0.42);
   display: grid;
   place-items: center;
 }
 .lvl .ring { position: absolute; inset: 0; transform: rotate(-90deg); }
 .lvl .ring circle { fill: none; stroke-width: 4; }
-.lvl .ring .bg { stroke: rgba(0, 0, 0, 0.08); }
-.lvl .ring .fg { stroke: var(--gold); stroke-linecap: round; transition: stroke-dashoffset 0.4s; }
-.lvl .num { position: relative; font-weight: 900; font-size: 17px; }
+.lvl .ring .bg { stroke: rgba(60, 35, 5, 0.3); }
+.lvl .ring .fg { stroke: #fff3cd; stroke-linecap: round; transition: stroke-dashoffset 0.4s; }
+.lvl .num { position: relative; font-family: var(--title); font-weight: 700; font-size: 18px; color: #3d2608; text-shadow: 0 1px 0 rgba(255, 240, 200, 0.6); }
 .lvl .badge { position: absolute; top: -2px; right: -2px; }
-.stats { flex: 1; display: flex; gap: 6px; min-width: 0; }
+/* Les ressources sont gravées sur une seule planche, séparées par des entailles : c'est plus
+   lisible qu'une série de pastilles, et ça laisse la carte respirer derrière. */
+.stats {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  position: relative;
+  padding: 3px 10px;
+  border-radius: 13px;
+  background-image: var(--veins), var(--wood);
+  box-shadow: var(--wood-edge);
+}
 .chip-stat {
   flex: 1 1 0;
   min-width: 0;
-  height: 40px;
+  height: 36px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   padding: 0 8px;
-  background: var(--panel);
-  border-radius: 14px;
-  box-shadow: var(--shadow);
+  background: none;
+  box-shadow: none;
   white-space: nowrap;
   overflow: hidden;
+  color: var(--cream);
 }
-.chip-stat .ic { font-size: 18px; flex: none; }
+.chip-stat + .chip-stat { box-shadow: inset 1px 0 0 rgba(255, 224, 176, 0.14), inset 2px 0 0 rgba(0, 0, 0, 0.3); }
+.chip-stat .ic { font-size: 19px; flex: none; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45)); }
 .chip-stat .v { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; line-height: 1.05; }
-.chip-stat b { font-size: 15px; font-weight: 900; }
-.chip-stat small { font-size: 10px; color: var(--ink-soft); font-weight: 800; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.chip-stat.neg small { color: var(--red); }
+.chip-stat b {
+  font-family: var(--title);
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff6e2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+.chip-stat small { font-size: 10px; color: #8fe07a; font-weight: 800; overflow: hidden; text-overflow: ellipsis; max-width: 100%; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5); }
+.chip-stat.neg small { color: #ff9b8a; }
 .icon-btn {
   width: 40px;
   height: 40px;
   flex: none;
-  border-radius: 14px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
+  border-radius: 13px;
+  background-image: var(--veins), var(--wood);
+  box-shadow: var(--wood-edge);
+  color: var(--cream);
   font-size: 20px;
   font-weight: 800;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 .hud-sub { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .quest-tracker {
@@ -211,42 +256,46 @@ input, textarea { font: inherit; -webkit-user-select: text; user-select: text; }
   align-items: center;
   gap: 6px;
   height: 34px;
-  padding: 0 10px;
-  border-radius: 12px;
-  background: rgba(47, 38, 34, 0.68);
-  color: #fff;
+  padding: 0 12px;
+  border-radius: 10px;
+  background-image: var(--parch);
+  color: var(--ink);
   font-size: 13px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--parch-edge), 0 0 0 2px var(--bark), 0 5px 12px rgba(25, 12, 2, 0.4);
   text-align: left;
 }
 .quest-tracker .qt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
-.quest-tracker em { font-style: normal; font-weight: 800; color: #ffe08a; white-space: nowrap; }
-.quest-tracker.ready { background: linear-gradient(90deg, #f9a825, #fb8c00); animation: pulse 1.4s ease-in-out infinite; }
-.quest-tracker.ready em { color: #fff; }
+.quest-tracker .qt { font-family: var(--title); font-weight: 600; }
+.quest-tracker em { font-style: normal; font-family: var(--title); font-weight: 700; color: #8a5a12; white-space: nowrap; }
+.quest-tracker.ready { background-image: linear-gradient(180deg, #f3c768, #d79a2c); animation: pulse 1.4s ease-in-out infinite; }
+.quest-tracker.ready em { color: #4a2c06; }
 .time { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 .time-chip {
   height: 34px;
-  padding: 0 10px;
-  border-radius: 12px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
+  padding: 0 11px;
+  border-radius: 10px;
+  background-image: var(--veins), var(--wood);
+  box-shadow: var(--wood-edge);
+  color: var(--cream);
+  font-family: var(--title);
   font-size: 12.5px;
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 .speed-btn {
   height: 34px;
   min-width: 46px;
   padding: 0 8px;
-  border-radius: 12px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
+  border-radius: 10px;
+  background-image: var(--brass);
+  box-shadow: 0 0 0 2px var(--bark), inset 0 1px 0 rgba(255, 245, 210, 0.5), 0 4px 10px rgba(25, 12, 2, 0.4);
   font-size: 12px;
   font-weight: 900;
   letter-spacing: -2px;
-  color: var(--green-dark);
+  color: #43280a;
 }
-.speed-btn.paused { background: #ffe0b2; color: #e65100; letter-spacing: 0; }
+.speed-btn.paused { background-image: linear-gradient(180deg, #e8e0cf, #bfb09a); color: #5a3b10; letter-spacing: 0; }
 .alerts { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px; }
 .alert {
   display: flex;
@@ -278,9 +327,10 @@ input, textarea { font: inherit; -webkit-user-select: text; user-select: text; }
   position: relative;
   width: 46px;
   height: 46px;
-  border-radius: 15px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
+  border-radius: 13px;
+  /* carton de parchemin dans son cadre de bois : le bois est le liseré, le parchemin le fond */
+  background-image: var(--parch);
+  box-shadow: var(--parch-edge), 0 0 0 3px #6d401c, 0 0 0 5px var(--bark), 0 5px 12px rgba(25, 12, 2, 0.45);
   font-size: 21px;
   display: grid;
   place-items: center;
@@ -306,6 +356,36 @@ input, textarea { font: inherit; -webkit-user-select: text; user-select: text; }
 }
 @keyframes pop { from { transform: scale(0.4); } to { transform: scale(1); } }
 
+
+/* ───────── Bois, parchemin, laiton ─────────
+   Le décor de l'interface imite une enseigne de village : des pièces de bois cernées de noir,
+   des cartons de parchemin, du laiton pour ce qui compte. Tout est peint en dégradés : aucune
+   image, donc rien à télécharger et rien à redessiner pour les écrans à forte densité. */
+.wood {
+  background-image: var(--veins), var(--wood);
+  box-shadow: var(--wood-edge);
+}
+.wood-dark { background-image: var(--veins), var(--wood-dark); box-shadow: var(--wood-edge); }
+.parch {
+  background-image: var(--parch);
+  box-shadow: var(--parch-edge);
+  color: var(--ink);
+}
+/* Les clous des quatre coins. Posés en pseudo-élément pour ne rien ajouter au HTML. */
+.rivets::before, .rivets::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  width: 5px;
+  border-radius: 3px;
+  background: radial-gradient(circle at 50% 18%, #f4dba4 0 28%, #b98c3c 45%, #6b4a14 100%) 0 0 / 5px 5px repeat-y;
+  opacity: 0.85;
+  pointer-events: none;
+}
+.rivets::before { left: 5px; }
+.rivets::after { right: 5px; }
+
 /* ───────── Barre du bas ───────── */
 .bottom-bar {
   position: absolute;
@@ -316,10 +396,10 @@ input, textarea { font: inherit; -webkit-user-select: text; user-select: text; }
   align-items: flex-end;
   justify-content: space-between;
   gap: 6px;
-  padding: 6px;
-  border-radius: 22px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
+  padding: 7px 14px;
+  border-radius: 18px;
+  background-image: var(--veins), var(--wood);
+  box-shadow: var(--wood-edge);
 }
 .playing .bottom-bar { display: flex; }
 .tb {
@@ -329,25 +409,29 @@ input, textarea { font: inherit; -webkit-user-select: text; user-select: text; }
   align-items: center;
   gap: 2px;
   padding: 6px 2px 5px;
-  border-radius: 16px;
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--ink-soft);
+  border-radius: 11px;
+  font-family: var(--title);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #5a3f20;
+  background-image: var(--parch);
+  box-shadow: var(--parch-edge), 0 2px 4px rgba(25, 12, 2, 0.35);
 }
 .tb .i { font-size: 22px; line-height: 1.1; }
-.tb.active { background: #ffe8b3; color: var(--ink); box-shadow: inset 0 0 0 2px var(--gold); }
-.tb.disabled { opacity: 0.4; }
+.tb.active { background-image: linear-gradient(180deg, #f6d890, #e0b354); color: #40260a; box-shadow: var(--parch-edge), inset 0 0 0 2px #8a5a12; }
+.tb.disabled { opacity: 0.45; }
 .tb.big {
   flex: 1.25;
-  margin-top: -18px;
-  padding: 10px 2px 7px;
-  background: linear-gradient(180deg, #66bb6a, #388e3c);
-  color: #fff;
-  box-shadow: 0 4px 0 #1b5e20, 0 8px 16px rgba(0, 0, 0, 0.25);
-  border-radius: 20px;
+  margin-top: -16px;
+  padding: 9px 2px 7px;
+  background-image: linear-gradient(180deg, #6ea84a, #3f7a2c 60%, #336322);
+  color: #f6f1dd;
+  box-shadow: 0 0 0 2px var(--bark), inset 0 1px 0 rgba(220, 255, 190, 0.35), 0 5px 12px rgba(25, 12, 2, 0.45);
+  border-radius: 13px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 .tb.big .i { font-size: 26px; }
-.tb.big.active { box-shadow: 0 4px 0 #1b5e20, 0 0 0 3px #ffe08a; }
+.tb.big.active { box-shadow: 0 0 0 2px var(--bark), 0 0 0 4px #e8c067, 0 5px 12px rgba(25, 12, 2, 0.45); }
 
 .tool-banner {
   position: absolute;
@@ -2155,6 +2239,218 @@ input.range::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; b
   .landscape-ui .side-btn[data-icon='crate'], .landscape-ui .side-btn[data-icon='people'] { top: calc(var(--safe-top) + 156px); }
   .landscape-ui .bottom-bar { bottom: calc(var(--safe-bottom) + 7px); }
 }
+
+
+/* ═══════════ v6.6 — Habillage « bois et parchemin » du jeu en paysage ═══════════
+   Même disposition qu'avant : rien ne bouge, rien ne change de taille. Seules les matières
+   changent. Trois règles tiennent tout l'ensemble :
+     • ce qui porte un chiffre de ressource est gravé sur une planche de bois sombre ;
+     • ce sur quoi on appuie est un carton de parchemin dans un cadre de bois ;
+     • ce qui est précieux (niveau, vitesse) est en laiton.
+   Tout est peint en dégradés CSS : aucune image, donc rien à télécharger et rien à refaire
+   pour les écrans à forte densité. */
+
+/* ── Le médaillon de niveau : laiton gravé ── */
+.landscape-ui .lvl { border: 0; background: none; background-image: var(--brass); box-shadow: 0 0 0 2px var(--bark), inset 0 2px 0 #fff3cfaa, inset 0 -3px 6px #5a370a66, 0 4px 10px #190c0266; }
+.landscape-ui .lvl .ring .bg { stroke: #7a561c; }
+.landscape-ui .lvl .ring .fg { stroke: #fff6d8; }
+.landscape-ui .lvl .lv-disc { border: 1px solid #2a1709; background: linear-gradient(#6d401c, #3c2210); box-shadow: inset 0 2px #c9924d55; }
+.landscape-ui .lvl .num { font: 700 20px/1 var(--title); color: #ffeec4; text-shadow: 0 1px 2px #00000088; }
+
+/* ── Le nom du village : une enseigne peinte ── */
+.landscape-ui .hud-town-name { font: 700 17px/1.1 var(--title); color: #fdf1d6; letter-spacing: .3px; text-shadow: 0 2px 4px #1c0d0299, 0 1px 0 #2b190a; }
+
+/* ── Les petites jauges civiques : plaquettes de bois ── */
+.landscape-ui .hud-civic .chip-stat { height: 23px; border: 0; background: none; background-image: var(--veins), var(--wood); box-shadow: 0 0 0 1.5px var(--bark), inset 0 1px 0 #ffd79e33, 0 2px 5px #190c0255; }
+.landscape-ui .hud-civic .chip-stat b { font: 700 11px/1 var(--title); color: var(--cream); text-shadow: 0 1px 1px #0008; }
+
+/* ── La planche des ressources : un seul morceau de bois, des entailles pour séparer ── */
+.landscape-ui .stats { gap: 0; padding: 0 4px; border-radius: 13px; background-image: var(--veins), var(--wood); box-shadow: var(--wood-edge); }
+.landscape-ui .stats .chip-stat { height: 38px; padding: 0 11px; gap: 6px; border: 0; border-radius: 0; background: none; box-shadow: none; overflow: hidden; }
+.landscape-ui .stats .chip-stat + .chip-stat { box-shadow: inset 1.5px 0 0 #2a170988, inset 3px 0 0 #ffd79e22; }
+.landscape-ui .stats .chip-stat .ic { position: static; width: 27px; height: 27px; top: auto; left: auto; filter: drop-shadow(0 1px 2px #0009); }
+.landscape-ui .stats .chip-stat b { font: 700 18px/1 var(--title); color: #fff3da; text-shadow: 0 1px 2px #000000aa; }
+.landscape-ui .stats .st-gems { background: none; border: 0; box-shadow: inset 1.5px 0 0 #2a170988, inset 3px 0 0 #ffd79e22; }
+.landscape-ui .stats .st-gems b { color: #e4ccff; }
+
+/* ── Boutons de bois : menu, heure ── */
+.landscape-ui .hud .menu-btn { border: 0; background: none; background-image: var(--veins), var(--wood); box-shadow: var(--wood-edge); }
+.landscape-ui .hud .menu-btn .ico { filter: brightness(0) invert(1) drop-shadow(0 1px 1px #0008); opacity: .92; }
+.landscape-ui .time-chip { border: 0; color: var(--cream); background: none; background-image: var(--veins), var(--wood); box-shadow: 0 0 0 1.5px var(--bark), inset 0 1px 0 #ffd79e2e, 0 2px 6px #190c0255; }
+.landscape-ui .time-chip .tt { font: 700 10px var(--title); text-shadow: 0 1px 1px #0008; }
+.landscape-ui .time-chip .tc-ico { filter: brightness(0) invert(1); opacity: .85; }
+.landscape-ui .speed-btn { border: 0; background-image: var(--brass); box-shadow: 0 0 0 1.5px var(--bark), inset 0 1px 0 #fff3cf99, 0 2px 6px #190c0255; }
+.landscape-ui .speed-btn .ico { filter: drop-shadow(0 1px 0 #fff6); }
+
+/* ── Parchemin dans un cadre de bois : la forme de tout ce sur quoi on appuie ── */
+.landscape-ui .quest-tracker,
+.landscape-ui .side-btn,
+.landscape-ui .event-chip .ec-ico {
+  border: 0;
+  background: none;
+  background-image: var(--parch);
+  box-shadow: var(--parch-edge), 0 0 0 3px #6d401c, 0 0 0 4.5px var(--bark), 0 4px 10px #190c0255;
+}
+.landscape-ui .quest-tracker .qt { font: 600 12px/1.15 var(--title); color: #4a3418; }
+.landscape-ui .quest-tracker em { background-image: var(--brass); color: #43280a; font: 700 10px var(--title); box-shadow: 0 0 0 1px #2a170966; }
+.landscape-ui .side-btn.shop-btn { background-image: linear-gradient(#ffeaa8, #e8b84a 60%, #c98f23); }
+.landscape-ui .side-btn.pass-btn { background-image: linear-gradient(#f3e4ff, #cfa9e6 60%, #a97fc4); }
+.landscape-ui .side-btn .sl { font: 600 11px/1 var(--title); color: #fdf1d6; text-shadow: 0 2px 4px #1c0d02cc, 0 1px 0 #2b190a; }
+.landscape-ui .event-chip .ec-text b { font: 600 10px/1.1 var(--title); color: #fdf1d6; text-shadow: 0 2px 4px #1c0d02cc, 0 1px 0 #2b190a; }
+
+/* ── La barre d'outils : une planche, et des cartons de parchemin posés dessus ── */
+.landscape-ui .bottom-bar { border: 0; background: none; background-image: var(--veins), var(--wood); box-shadow: var(--wood-edge); }
+.landscape-ui .tb .tb-face { border: 0; background-image: var(--parch); box-shadow: var(--parch-edge), 0 0 0 1.5px var(--bark), 0 2px 4px #190c0266; }
+.landscape-ui .tb-village .tb-face { background-image: radial-gradient(130% 150% at 28% -10%, #e8f3fb, #cfe2f0 55%, #b2cbdf); }
+.landscape-ui .tb.big .tb-face { border: 0; background-image: linear-gradient(#8fc766, #4f8e36 55%, #3c6f28); box-shadow: 0 0 0 2px var(--bark), inset 0 2px 0 #d9f8b588, 0 4px 9px #190c0266; }
+.landscape-ui .tb .l, .landscape-ui .tb.big .l { font: 600 10px/1 var(--title); color: #f7e8c9; text-shadow: 0 1px 3px #1c0d02cc, 0 1px 0 #2b190a; }
+.landscape-ui .tb.active .tb-face { outline: 2px solid #e8c067; outline-offset: 2px; }
+.landscape-ui .tb-village.has-notice::after { box-shadow: 0 0 0 2px #2a1709; }
+
+/* ── Messages et bandeau d'outil : du parchemin, toujours ── */
+.landscape-ui .tool-banner,
+.landscape-ui .toast {
+  border: 0;
+  color: #4a3418;
+  background-image: var(--parch);
+  box-shadow: var(--parch-edge), 0 0 0 2px var(--bark), 0 5px 14px #190c0255;
+}
+.landscape-ui .toast { font: 600 12px/1.4 var(--title); }
+.landscape-ui .alert { border: 0; box-shadow: 0 0 0 1.5px var(--bark), 0 2px 6px #190c0255; }
+
+/* ── Les activités du village : des cartes de parchemin dans leur cadre ── */
+.landscape-ui .village-action { border: 0; color: #4a3418; font: 600 11px var(--title); background-image: var(--parch); box-shadow: var(--parch-edge), 0 0 0 2px #6d401c, 0 0 0 3.5px var(--bark), 0 3px 8px #190c0244; }
+.landscape-ui .village-count { background-image: var(--brass); color: #43280a; font: 700 9px var(--title); box-shadow: 0 0 0 1px #2a170966; }
+
+
+/* ═══════════ v6.6 — Panneaux : le parchemin dans son cadre ═══════════
+   Les feuilles et les fenêtres reprennent la même grammaire que le HUD. Un panneau est une
+   grande feuille de parchemin, coiffée d'un bandeau de bois qui porte son titre ; ce qu'on
+   touche à l'intérieur est un carton plus clair, cerné d'un filet brun. */
+.sheet {
+  background: var(--panel-solid);
+  background-image: var(--parch);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -2px 0 2px var(--bark), inset 0 1px 0 #fffdf2, 0 -10px 34px #190c0266;
+}
+.sheet-head {
+  margin: 0;
+  padding: 13px 14px 11px;
+  border-radius: 18px 18px 0 0;
+  background-image: var(--veins), var(--wood);
+  box-shadow: inset 0 1px 0 #ffd79e33, 0 2px 0 var(--bark), 0 4px 10px #190c0244;
+}
+.grip { background: #ffe0ad55; }
+.sheet-title { font: 700 19px/1.15 var(--title); color: #fdf1d6; text-shadow: 0 2px 3px #00000066; }
+.sheet-close {
+  background: none;
+  background-image: var(--parch);
+  color: #6b3a22;
+  box-shadow: var(--parch-edge), 0 0 0 2px var(--bark), 0 2px 5px #190c0255;
+}
+.modal-card {
+  background: var(--panel-solid);
+  background-image: var(--parch);
+  border-radius: 20px;
+  box-shadow: inset 0 1px 0 #fffdf2, 0 0 0 2px var(--bark), 0 0 0 5px #6d401c, 0 18px 44px #190c0288;
+}
+.modal-title { font: 700 20px/1.2 var(--title); }
+.section-title { font: 700 13px/1 var(--title); color: #8a6a3c; text-transform: none; letter-spacing: .2px; }
+
+/* ── Onglets, segments : cartons de parchemin ; l'onglet actif passe au laiton ── */
+.tab, .seg, .sheet .seg, .start .seg, .modal-card .seg {
+  background: none;
+  background-image: linear-gradient(#fdf4e0, #efdcbb);
+  color: #5a3f20;
+  font-family: var(--title);
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 #fffdf2, 0 0 0 1.5px #a9814a, 0 2px 0 #c0a271;
+}
+.tab.on, .seg.on, .sheet .seg.on, .start .seg.on {
+  background-image: var(--brass);
+  color: #432808;
+  box-shadow: inset 0 1px 0 #fff3cf, 0 0 0 1.5px var(--bark), 0 2px 0 #8a6420;
+}
+.seg.locked { opacity: .5; }
+
+/* ── Les cartes du catalogue ── */
+.card {
+  background: none;
+  background-image: linear-gradient(#fdf5e3, #f0e0c2);
+  border: 0;
+  border-radius: 13px;
+  box-shadow: inset 0 1px 0 #fffdf4, 0 0 0 1.5px #a9814a, 0 3px 0 #c0a271, 0 4px 8px #190c0222;
+}
+.card-name { font: 600 13px/1.15 var(--title); color: #45301a; }
+.card-pic { background: radial-gradient(120% 130% at 50% 0%, #fbf3df, #e6dcc2); box-shadow: inset 0 0 0 1px #c3a87b88; }
+.chip { background: none; background-image: linear-gradient(#fdf4e0, #ecd9b5); color: #5a3f20; box-shadow: inset 0 1px 0 #fffdf2, 0 0 0 1px #b08f5c; }
+.chip.short { background-image: linear-gradient(#f6d2cb, #e8b1a6); color: #7d2416; box-shadow: inset 0 1px 0 #fff0ec, 0 0 0 1px #a8392a; }
+.reward .chip { background-image: linear-gradient(#e2f0cf, #c9e0ad); color: #35702a; box-shadow: inset 0 1px 0 #f2fae6, 0 0 0 1px #6f9a4e; }
+
+/* ── Boutons : bois pour les actions ordinaires, vert pour celle qui engage ── */
+.btn {
+  background: none;
+  background-image: linear-gradient(#fdf4e0, #ecd9b5);
+  color: #4a3418;
+  border: 0;
+  border-radius: 12px;
+  font-family: var(--title);
+  font-weight: 700;
+  box-shadow: inset 0 1px 0 #fffdf2, 0 0 0 1.5px #a9814a, 0 3px 0 #bb9a66;
+}
+.btn.primary { background-image: linear-gradient(#7cb85a, #4a8a33 60%, #3c6f28); color: #f7f3e2; box-shadow: inset 0 1px 0 #d4f3b8aa, 0 0 0 1.5px var(--bark), 0 3px 0 #2c531d; text-shadow: 0 1px 2px #00000055; }
+.btn.danger { background-image: linear-gradient(#c2614f, #9c3425 60%, #83281b); color: #fbeee9; box-shadow: inset 0 1px 0 #f0b9ab88, 0 0 0 1.5px var(--bark), 0 3px 0 #671d13; text-shadow: 0 1px 2px #00000055; }
+.btn.danger-soft { color: #8f2c1e; }
+.btn:active { transform: translateY(2px); }
+
+/* ── Champs de saisie : du parchemin creusé ── */
+.sheet input, .sheet select, .sheet textarea, .modal-card input, .modal-card select, .modal-card textarea {
+  background-image: linear-gradient(#f3e7cd, #fbf4e4);
+  color: var(--ink);
+  border: 0;
+  box-shadow: inset 0 2px 4px #8a6a3c33, 0 0 0 1.5px #a9814a;
+}
+
+/* ── Messages : le vert et le rouge restent lisibles, mais sur parchemin teinté ── */
+.toast { font-family: var(--title); font-weight: 600; box-shadow: 0 0 0 2px var(--bark), 0 6px 16px #190c0266; }
+.toast.good { background: linear-gradient(#dcefc6, #bcdd9c); color: #2d5f21; }
+.toast.bad, .toast.error { background: linear-gradient(#f6d5cd, #e8b0a3); color: #7d2416; }
+.toast.info { background: linear-gradient(#d4e6f3, #b0cde4); color: #1d4a6b; }
+
+
+/* ── Le contenu des panneaux : du vélin, jamais du blanc pur. Le blanc d'écran à côté du
+   parchemin fait tache ; un fond crème très clair garde la lecture nette sans rompre le ton. */
+.info-rows, .quest-card, .mission, .ach, .order, .stock-item, .layer-btn, .zc, .tr,
+.unlock, .slot, .trade-row, .text {
+  background: linear-gradient(#fffdf6, #f8f1e0);
+  border: 0;
+  box-shadow: inset 0 1px 0 #fff, 0 0 0 1.5px #c2a87c, 0 2px 0 #d8c6a3;
+}
+.info-rows { box-shadow: inset 0 1px 0 #fff, 0 0 0 1.5px #c2a87c; }
+.text { box-shadow: inset 0 2px 4px #8a6a3c2e, 0 0 0 1.5px #a9814a; }
+/* l'onglet choisi doit se voir du premier coup d'œil : laiton franc et filet noir */
+.tab.on, .seg.on, .sheet .seg.on, .start .seg.on {
+  background-image: linear-gradient(#f7dc9a 0%, #dcb055 45%, #b98c2e 100%);
+  box-shadow: inset 0 1px 0 #fff6d8, 0 0 0 2px var(--bark), 0 3px 0 #8a6420;
+}
+
+
+/* ── Les clous des planches. Quatre têtes de laiton aux coins : c'est le détail qui fait
+   lire la barre comme une pièce de bois clouée plutôt que comme un rectangle brun. ── */
+.landscape-ui .stats::after,
+.landscape-ui .bottom-bar::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 10px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle 3.5px at 0 0, #f6e2b0 0 35%, #a67b32 62%, #4a3210 78%, transparent 82%),
+    radial-gradient(circle 3.5px at 100% 0, #f6e2b0 0 35%, #a67b32 62%, #4a3210 78%, transparent 82%),
+    radial-gradient(circle 3.5px at 0 100%, #f6e2b0 0 35%, #a67b32 62%, #4a3210 78%, transparent 82%),
+    radial-gradient(circle 3.5px at 100% 100%, #f6e2b0 0 35%, #a67b32 62%, #4a3210 78%, transparent 82%);
+}
+.landscape-ui .bottom-bar { position: absolute; }
 
 #ui.landscape-ui > .side { pointer-events: none; }
 #ui.landscape-ui > .hud { pointer-events: none; }

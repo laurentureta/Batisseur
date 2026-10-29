@@ -230,6 +230,23 @@ hauteur codée sur huit bits donnerait un escalier dans les reflets. Le maillage
 sommet par case, donc il ne porte que la grande houle ; pente, reflets et écume se calculent pour
 chaque pixel. Réglages à chaud dans `WAVE_TUNE` (`src/render/shaders.js`).
 
+## 🪵 L'interface « bois et parchemin » — v6.6
+
+L'habillage du jeu suit trois règles, et s'y tient partout :
+
+- **ce qui porte un chiffre de ressource** est gravé sur une planche de bois cloutée ;
+- **ce sur quoi on appuie** est un carton de parchemin dans un cadre de bois ;
+- **ce qui est précieux** — le niveau, la vitesse, l'onglet choisi — est en laiton.
+
+Les panneaux reprennent la même grammaire : une grande feuille de parchemin coiffée d'un bandeau
+de bois qui porte son titre. Tout le décor est peint en dégradés CSS (`--wood`, `--parch`,
+`--brass`, `--veins`) : aucune image, donc rien à télécharger et rien à redessiner pour les écrans
+à forte densité. Le thème vit dans une seule section de `css/style.css`, après la disposition
+paysage : il ne change que les matières, jamais les positions ni les tailles.
+
+Les textes passent à **Lora**, un romain à empattements, sous-ensemblé en latin + latin étendu
+(2 × 31 Ko).
+
 ## 🔐 Multijoueur et sécurité
 
 - Le compte en ligne est créé au premier passage dans l'écran Amis : un identifiant et un secret aléatoires sont gardés sur le téléphone (jamais affichés). Changer de téléphone ou vider les données du navigateur crée un nouveau compte (nouveau code ami).
@@ -249,4 +266,4 @@ remplacer par des sources CC0 équivalentes.
 
 Icônes : dessinées pour le jeu en SVG (`src/ui/iconDefs.js`).
 
-Polices : **Lilita One** et **Fredoka** (Google Fonts, licence SIL OFL, voir `fonts/`). Sons générés en code.
+Polices : **Lilita One**, **Fredoka** et **Lora** (Google Fonts, licence SIL OFL, voir `fonts/`). Sons générés en code.

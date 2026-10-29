@@ -1,5 +1,9 @@
 // Ajouter chaque nouvelle version ici, de la plus récente à la plus ancienne.
 export const RELEASES = [
+  { version: '6.6.0', title: 'Bois, parchemin et laiton', items: [
+    { icon: 'scroll', title: 'Une interface de village', text: 'Fini les pastilles blanches : les ressources sont gravées sur une planche cloutée, les boutons sont des cartons de parchemin dans leur cadre de bois, le niveau et la vitesse sont en laiton. Les panneaux sont coiffés d’un bandeau de bois qui porte leur titre.' },
+    { icon: 'star', title: 'Les textes en romain', text: 'Titres, libellés et chiffres passent à une typographie à empattements (Lora), comme les enseignes peintes d’un bourg. Tout le décor est dessiné en CSS : rien de plus à télécharger, et c’est net sur n’importe quel écran.' },
+  ] },
   { version: '6.5.0', title: 'La mer prend le large', items: [
     { icon: 'map', title: 'De vraies vagues', text: 'La houle du jeu vient maintenant d’une simulation d’océan : crêtes qui accrochent le soleil, écume sur les plus raides, creux plus sombres et plus bleus. Les rivières emportent leurs vagues avec le courant, et la mer gelée de l’hiver reste intacte.' },
     { icon: 'sun', title: 'Un plan d’eau sans marches', text: 'La profondeur près des rives est lissée : fini les terrasses rectangulaires qui redessinaient la grille des cases à la surface de l’eau.' },
