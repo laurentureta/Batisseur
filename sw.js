@@ -31,6 +31,7 @@ const FILES = [
   './src/core/EventBus.js',
   './src/core/Game.js',
   './src/core/GameCore.js',
+  './src/core/ambience.js',
   './src/core/audio.js',
   './src/core/cityState.js',
   './src/core/demo.js',

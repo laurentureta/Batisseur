@@ -176,9 +176,14 @@ export class Player {
   supply(res) {
     if (!res) return false;
     const d = this.g.sim.d;
-    // rates[res] est un objet { prod, cons } : le comparer à 0 ne donnait jamais rien,
-    // et le bot empilait les producteurs d'une ressource déjà abondante.
-    if ((d.rates?.[res]?.prod ?? 0) >= (d.rates?.[res]?.cons ?? 0)) return false;
+    // rates[res] est un objet { prod, cons } : le comparer à 0 ne donnait jamais rien, et le
+    // bot empilait les producteurs d'une ressource déjà abondante — 62 scieries pour 37
+    // ouvriers. Mais s'arrêter dès que prod ≥ cons est l'excès inverse : cons ne compte que
+    // ce que consomment les bâtiments, et les planches ou la pierre partent surtout dans les
+    // améliorations, qui n'apparaissent pas là. On regarde donc aussi le stock.
+    const rate = d.rates?.[res];
+    const stock = this.g.state.res[res] || 0;
+    if (rate && rate.prod > rate.cons && stock > 150) return false;
     const already = [...this.g.world.buildings.values()]
       .some((b) => BUILDINGS[b.type]?.produces?.[res] && b.cons && !b.cons.ready);
     if (already) return false;
@@ -314,6 +319,7 @@ export class Player {
     let best = null;
     for (const b of g.world.buildings.values()) {
       if (b.cons || b.fire) continue;
+      if (!g.sim.info.get(b.id)?.connected) continue;          // un atelier non relié refuse tout
       if (g.workshop.queue(b.id).length >= 2) continue;        // on laisse de la marge dans la file
       for (const r of g.workshop.recipesFor(b)) {
         if (g.state.level < r.level) continue;
@@ -373,11 +379,13 @@ export class Player {
     if (this.broke()) { this.idleActions++; this.note('sans le sou'); return null; }
     if (this.store()) return 'entrepôt';
     if (this.workOnQuest()) return 'quête';
-    if (this.craft()) return 'atelier';
     if (this.feed()) return 'nourriture';
     if (this.houseOrWork()) return 'logement';
     if (this.upgradeCheapest()) return 'amélioration';
     if (this.supply(this.bottleneck())) return 'production';
+    // l'atelier passe après le village : placé plus haut, il absorbait toutes les décisions
+    // et la ligne de quêtes stagnait — un joueur fabrique quand il n'a rien de plus urgent
+    if (this.craft()) return 'atelier';
     if (this.town.grow()) return 'rue';
     // à court de parcelles : on achète du terrain, comme le ferait un joueur
     if (this.cramped() && this.unlockZone()) return 'terrain';

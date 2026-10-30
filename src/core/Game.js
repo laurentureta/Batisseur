@@ -4,6 +4,7 @@ import { Renderer } from '../render/Renderer.js';
 import { UI } from '../ui/UI.js';
 import { Input } from '../input/Input.js';
 import { Sound } from './audio.js';
+import { calendar } from './util.js';
 import { Music, pickMood } from './music.js';
 import { Cooperative } from '../net/Cooperative.js';
 import { Notifications } from '../net/Notifications.js';
@@ -15,7 +16,7 @@ import { loadSettings, readSlot, writeSlot, serialize } from './save.js';
 import { createNewState } from './state.js';
 import { populateDemo } from './demo.js';
 import { showWelcome } from '../ui/Panels.js';
-import { DAY_SECONDS } from '../world/constants.js';
+import { DAY_SECONDS, SIZE, T } from '../world/constants.js';
 import { BUILDING_LIST } from '../data/buildings.js';
 import { Meta } from './meta.js';
 import { RESOURCES } from '../data/resources.js';
@@ -128,6 +129,45 @@ export class Game extends GameCore {
     login();
   }
 
+  /** Le contexte que le lit d'ambiance écoute : hiver, eau sous la caméra, population.
+      Rien ici n'est coûteux — l'eau est échantillonnée sur une petite grille, une fois par
+      seconde, et le résultat est gardé entre deux mesures. */
+  ambienceInfo() {
+    const st = this.state;
+    if (!st) return null;
+    const season = calendar(st.time?.day || 0).season;
+    const now = (this._ambTick = (this._ambTick || 0) + 1);
+    if (this._ambWater === undefined || now - (this._ambAt || 0) >= 60) {   // ~1 s à 60 images/s
+      this._ambAt = now;
+      this._ambWater = this.waterNearCamera();
+    }
+    return {
+      winter: season === 3 ? 1 : 0,
+      water: this._ambWater,
+      population: this.sim?.d?.population || 0,
+    };
+  }
+
+  /** Part d'eau dans un carré de 16 cases autour du point que regarde la caméra. */
+  waterNearCamera() {
+    const w = this.world;
+    const cam = this.renderer?.cam;
+    if (!w || !cam) return 0;
+    const half = SIZE / 2;
+    const cx = Math.round(cam.target.x + half), cz = Math.round(cam.target.z + half);
+    let wet = 0, seen = 0;
+    for (let dz = -8; dz <= 8; dz += 2) {
+      for (let dx = -8; dx <= 8; dx += 2) {
+        const x = cx + dx, z = cz + dz;
+        if (!w.inside(x, z)) continue;
+        seen++;
+        const t = w.terrain[w.idx(x, z)];
+        if (t === T.WATER || t === T.DEEP) wet++;
+      }
+    }
+    return seen ? Math.min(1, (wet / seen) * 2.2) : 0;
+  }
+
   update(dt) {
     if (this.restoringCloud) return;
     if (document.documentElement.classList.contains('needs-landscape')) return;
@@ -156,7 +196,7 @@ export class Game extends GameCore {
     this.meta.tick(dt);
     this.renderer.frame(dt);
     this.ui.update(dt);
-    this.sound.ambience(dt, this.renderer.night, this.renderer.cam.distance < 24);
+    this.sound.ambience(dt, this.renderer.night, this.renderer.cam.distance < 24, this.ambienceInfo());
     try {
       this.music.update(dt, pickMood(this));
     } catch (err) {

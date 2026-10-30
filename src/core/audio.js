@@ -1,4 +1,7 @@
-// Sons synthétisés (aucun fichier audio) : clics, construction, pièces, niveau, ambiance.
+// Sons synthétisés : clics, construction, pièces, niveau. L'ambiance de fond peut venir de
+// vrais enregistrements (voir ambience.js) ; faute de fichiers, elle reste synthétisée ici.
+import { Ambience } from './ambience.js';
+
 export class Sound {
   constructor(settings) {
     this.settings = settings;
@@ -6,6 +9,7 @@ export class Sound {
     this.master = null;
     this.ambTimer = 0;
     this.night = 0;
+    this.amb = new Ambience(this);
   }
 
   unlock() {
@@ -20,6 +24,7 @@ export class Sound {
       this.master = this.ctx.createGain();
       this.master.gain.value = 0.5;
       this.master.connect(this.ctx.destination);
+      this.amb.start();
     } catch {
       this.ctx = null;
     }
@@ -409,9 +414,19 @@ export class Sound {
     };
   }
 
-  /** Petits bruits d'ambiance : oiseaux le jour, grillons la nuit. */
-  ambience(dt, night, zoomedIn) {
+  /** Ambiance de fond. Si des enregistrements sont présents, ce sont eux qui jouent ; sinon
+      on garde les petits bruits synthétisés : oiseaux le jour, grillons la nuit.
+      `info` porte le contexte (hiver, eau sous la caméra, population) ; il peut manquer. */
+  ambience(dt, night, zoomedIn, info = null) {
     if (!this.settings.sound || !this.settings.ambience || !this.ctx || this.ctx.state !== 'running') return;
+    this.amb.update(dt, {
+      night,
+      winter: info?.winter || 0,
+      close: zoomedIn ? 1 : 0,
+      water: info?.water || 0,
+      population: info?.population || 0,
+    });
+    if (this.amb.playing) return;   // de vrais enregistrements : plus besoin des bips
     this.ambTimer -= dt;
     if (this.ambTimer > 0) return;
     this.ambTimer = 2.5 + Math.random() * 5;

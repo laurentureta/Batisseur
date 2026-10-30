@@ -429,6 +429,14 @@ export class UI {
         }]);
       }
       if (d.jobs > 0 && d.staffing < 0.6) alerts.push(['👷', 'Manque de main-d\'œuvre : construis des maisons', 'warn', () => this.openStock()]);
+      // Les ateliers à l'arrêt : le banc d'essai a montré que c'est là que part le temps mort.
+      // Laine, tissu, vêtements, céramiques, machines — rien de tout ça ne se produit tout
+      // seul, il faut mettre un lot en file, et rien ne le disait au joueur.
+      const idleShops = this.idleWorkshops();
+      if (idleShops) {
+        alerts.push(['🔨', idleShops === 1 ? 'Un atelier est à l\'arrêt : lance un lot'
+          : `${idleShops} ateliers à l'arrêt : lance un lot`, 'warn', () => this.openWorkshops()]);
+      }
       if (st.events.merchant) alerts.push(['🛒', 'Un marchand ambulant est là !', 'info', () => this.openMerchant()]);
       for (const ev of st.events.active) {
         const info = EVENT_INFO[ev.kind];
@@ -925,6 +933,29 @@ export class UI {
   openNotifications() { this.closeSheet(true); return openNotifications(this); }
   openCloud() { this.closeSheet(true); return openCloud(this); }
   openWorkshops(id) { this.closeSheet(true); return openWorkshops(this,id); }
+
+  /** Combien d'ateliers terminés, reliés et dotés d'une recette possible ont la file vide.
+      Recompté au plus une fois par seconde : la boucle d'alertes tourne à chaque image. */
+  idleWorkshops() {
+    const game = this.game;
+    const now = Date.now();
+    if (this._idleShopsAt && now - this._idleShopsAt < 1000) return this._idleShops || 0;
+    this._idleShopsAt = now;
+    let n = 0;
+    for (const b of game.world.buildings.values()) {
+      if (b.cons || b.fire) continue;
+      if (game.workshop.hasActive(b.id)) continue;
+      if (!game.sim.info.get(b.id)?.connected) continue;
+      const recipes = game.workshop.recipesFor(b);
+      if (!recipes.length) continue;
+      // au moins une recette doit être atteignable : sinon l'alerte serait un reproche
+      const can = recipes.some((r) => game.state.level >= r.level
+        && Object.entries(r.inputs).every(([res, q]) => (game.state.res[res] || 0) >= q));
+      if (can) n++;
+    }
+    this._idleShops = n;
+    return n;
+  }
   openUrbanist(tab,id) { this.closeSheet(true); return openUrbanist(this,tab,id); }
   openMarket(region) { this.closeSheet(true); return openMarket(this,region); }
   openAdventures() { this.closeSheet(true); return openAdventures(this); }
