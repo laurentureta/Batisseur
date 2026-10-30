@@ -1,5 +1,8 @@
 // Ajouter chaque nouvelle version ici, de la plus récente à la plus ancienne.
 export const RELEASES = [
+  { version: '6.6.1', title: 'La chaîne de l’argile', items: [
+    { icon: 'hammer', title: 'Une quête manquait', text: 'La quête demandait une briqueterie sans jamais avoir demandé l’argilière qui la nourrit : beaucoup de joueurs se retrouvaient avec une usine à l’arrêt, et la mairie bloquée faute de briques. « Trouver l’argile » arrive maintenant juste avant, et rappelle qu’une argilière se pose au bord de l’eau ou du sable, puis se relie par la route.' },
+  ] },
   { version: '6.6.0', title: 'Bois, parchemin et laiton', items: [
     { icon: 'scroll', title: 'Une interface de village', text: 'Fini les pastilles blanches : les ressources sont gravées sur une planche cloutée, les boutons sont des cartons de parchemin dans leur cadre de bois, le niveau et la vitesse sont en laiton. Les panneaux sont coiffés d’un bandeau de bois qui porte leur titre.' },
     { icon: 'star', title: 'Les textes en romain', text: 'Titres, libellés et chiffres passent à une typographie à empattements (Lora), comme les enseignes peintes d’un bourg. Tout le décor est dessiné en CSS : rien de plus à télécharger, et c’est net sur n’importe quel écran.' },
