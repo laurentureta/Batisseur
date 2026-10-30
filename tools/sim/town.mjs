@@ -74,27 +74,54 @@ export class Town {
     return 1;
   }
 
+  /** Les positions candidates pour une emprise w x d, le long des rues ouvertes. */
+  slots(w, d) {
+    const key = `${w}x${d}:${this.rows.size}`;
+    let list = this._slots?.get(key);
+    if (list) return list;
+    list = [];
+    for (let k = 0; k < 14; k++) {
+      if (!this.rows.has(k)) continue;
+      const z = this.rowZ(k);
+      for (const zz of [z - d, z + 1]) {
+        for (let off = 1; off <= 14; off++) {
+          for (const s of [1, -1]) {
+            const x = this.cx + s * off;
+            if (x === this.cx) continue;             // la dorsale reste libre
+            list.push([x, zz]);
+          }
+        }
+      }
+    }
+    (this._slots ||= new Map()).set(key, list);
+    return list;
+  }
+
+  /** L'emprise est-elle libre ? Test bon marché, avant d'appeler la validation complète. */
+  clear(x, z, w, d) {
+    const W = this.world;
+    for (let dz = 0; dz < d; dz++) {
+      for (let dx = 0; dx < w; dx++) {
+        const tx = x + dx, tz = z + dz;
+        if (!W.inside(tx, tz)) return false;
+        const i = W.idx(tx, tz);
+        if (W.occ[i] >= 0 || W.road[i]) return false;
+      }
+    }
+    return true;
+  }
+
   /** Cherche où poser `type` : une parcelle libre qui borde une rue. */
   spot(type) {
     const def = BUILDINGS[type];
     if (!def) return null;
     for (let rot = 0; rot < 2; rot++) {
       const [w, d] = sizeOf(def, rot);
-      for (let k = 0; k < 14; k++) {
-        const z = this.rowZ(k);
-        if (!this.rows.has(k)) continue;
-        // une rangée au nord de la rue, une au sud
-        for (const zz of [z - d, z + 1]) {
-          for (let off = 1; off <= 12; off++) {
-            for (const s of [1, -1]) {
-              const x = this.cx + s * off;
-              if (x === this.cx) continue; // on garde la dorsale libre
-              const chk = this.g.actions.checkPlacement(type, x, zz, rot);
-              if (chk.ok) return { x, z: zz, rot };
-            }
-          }
-        }
+      for (const [x, z] of this.slots(w, d)) {
+        if (!this.clear(x, z, w, d)) continue;
+        if (this.g.actions.checkPlacement(type, x, z, rot).ok) return { x, z, rot };
       }
+      if (w === d) break;   // emprise carrée : la rotation ne change rien
     }
     return null;
   }

@@ -39,7 +39,7 @@ function run(profile, seed) {
         p.decide();
         decisions++;
         if (p.idleActions > before) idle++;
-        play(g, 15);
+        play(g, 15, 1);
       }
       away(g, gapHours * 3600 - profile.minutes * 60);
     }
