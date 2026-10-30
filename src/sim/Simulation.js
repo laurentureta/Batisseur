@@ -22,6 +22,10 @@ const HOUSE_NEEDS = ['water', 'commerce', 'leisure', 'education', 'health', 'sec
 
 // Priorité d'embauche : la nourriture d'abord, puis la production, les commerces, les services.
 export const TIER_NAMES = ['Nourriture', 'Production', 'Commerces', 'Services'];
+/** Part de main-d'œuvre réservée à chaque niveau de priorité : nourriture, production,
+    commerce, le reste. Elle n'est qu'un plancher — le surplus remonte vers les plus urgents. */
+const TIER_SHARE = [0.52, 0.28, 0.12, 0.08];
+
 export function workTier(def) {
   if (def.produces && (def.produces.food || def.produces.wheat || def.produces.flour)) return 0;
   if (def.produces || def.storage) return 1;
@@ -330,12 +334,30 @@ export class Simulation {
     d.workforce = Math.floor(pop * WORK_RATIO);
     d.staffing = jobs > 0 ? Math.min(1, d.workforce / jobs) : 1;
     d.unemployment = d.workforce > 0 ? Math.max(0, (d.workforce - jobs) / d.workforce) : 0;
-    // embauche par priorité
-    let remaining = d.workforce;
-    for (let t = 0; t < 4; t++) {
-      d.staffTier[t] = jobsTier[t] > 0 ? Math.min(1, remaining / jobsTier[t]) : 1;
-      remaining = Math.max(0, remaining - jobsTier[t]);
+    // Embauche. La priorité à la nourriture était absolue : tant qu'un poste de ferme restait
+    // vacant, aucune scierie, aucune forge, aucun commerce n'avait le moindre ouvrier. Neuf
+    // parties mesurées montraient 87 postes nourriciers pourvus à 97 %, et les 33 autres à 0 %
+    // — donc pas une planche produite, donc plus aucune amélioration possible, donc des maisons
+    // qui restent petites, donc plus d'habitants à nourrir. Le village s'enfermait.
+    // Chaque niveau de priorité reçoit maintenant une part réservée ; le surplus redescend
+    // ensuite vers les plus urgents. La nourriture reste servie la première, mais plus seule.
+    const give = [0, 0, 0, 0];
+    let share = 0;
+    for (let t = 0; t < 4; t++) if (jobsTier[t] > 0) share += TIER_SHARE[t];
+    let pool = d.workforce;
+    if (share > 0) {
+      for (let t = 0; t < 4; t++) {
+        if (jobsTier[t] <= 0) continue;
+        give[t] = Math.min(jobsTier[t], d.workforce * (TIER_SHARE[t] / share));
+        pool -= give[t];
+      }
     }
+    for (let t = 0; t < 4 && pool > 0.001; t++) {
+      const add = Math.min(jobsTier[t] - give[t], pool);
+      give[t] += add;
+      pool -= add;
+    }
+    for (let t = 0; t < 4; t++) d.staffTier[t] = jobsTier[t] > 0 ? Math.min(1, give[t] / jobsTier[t]) : 1;
     d.jobsTier = jobsTier;
     d.bonus = bonus;
     // caisses vides (avec une marge pour éviter le clignotement)
