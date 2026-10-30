@@ -10,16 +10,20 @@ export function xpToNext(level) {
 }
 
 // Rangs de la mairie (niveau 1 à 8) : conditions et coûts pour y accéder.
+// Les seuils d'habitants faisaient un bond de 100 à 250 d'un rang à l'autre — le plus raide
+// de toute l'échelle. Or améliorer un bâtiment au rang 4 réclame la mairie « Petite ville » :
+// les villages mesurés plafonnaient à 190 habitants et restaient bloqués là, riches à un
+// million de pièces et sans rien à en faire. La montée est adoucie jusqu'au milieu du jeu.
 export const RANKS = [
   { name: 'Hameau', level: 1, pop: 0, cost: {} },
   { name: 'Village', level: 4, pop: 30, cost: { coins: 500, wood: 120, stone: 80 } },
   { name: 'Bourg', level: 8, pop: 100, cost: { coins: 1500, wood: 200, stone: 200, planks: 80 } },
-  { name: 'Petite ville', level: 13, pop: 250, cost: { coins: 4000, stone: 300, planks: 200, bricks: 120 } },
-  { name: 'Ville', level: 18, pop: 500, cost: { coins: 9000, planks: 350, bricks: 300, tools: 60 } },
-  { name: 'Grande ville', level: 24, pop: 900, cost: { coins: 18000, planks: 500, bricks: 600, tools: 150 } },
-  { name: 'Cité', level: 30, pop: 1500, cost: { coins: 35000, stone: 1000, bricks: 1000, tools: 300 } },
-  { name: 'Métropole', level: 38, pop: 2500, cost: { coins: 70000, planks: 1500, bricks: 1800, tools: 600 } },
-  { name: 'Capitale', level: 55, pop: 3500, cost: { coins: 140000, planks: 2500, bricks: 3000, tools: 1200 } },
+  { name: 'Petite ville', level: 13, pop: 180, cost: { coins: 4000, stone: 300, planks: 200, bricks: 120 } },
+  { name: 'Ville', level: 18, pop: 340, cost: { coins: 9000, planks: 350, bricks: 300, tools: 60 } },
+  { name: 'Grande ville', level: 24, pop: 620, cost: { coins: 18000, planks: 500, bricks: 600, tools: 150 } },
+  { name: 'Cité', level: 30, pop: 1050, cost: { coins: 35000, stone: 1000, bricks: 1000, tools: 300 } },
+  { name: 'Métropole', level: 38, pop: 1800, cost: { coins: 70000, planks: 1500, bricks: 1800, tools: 600 } },
+  { name: 'Capitale', level: 55, pop: 2900, cost: { coins: 140000, planks: 2500, bricks: 3000, tools: 1200 } },
   { name: 'Mégapole', level: 75, pop: 5000, cost: { coins: 260000, planks: 4000, bricks: 5000, tools: 2200 } },
 ];
 
