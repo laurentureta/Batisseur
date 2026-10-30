@@ -19,7 +19,7 @@ const PROFILES = [
   { name: 'régulier', sessions: 3, minutes: 18 },
   { name: 'acharné', sessions: 10, minutes: 12 },
 ];
-const SEEDS = [7, 4242, 90125];
+const SEEDS = (process.env.SEEDS || '7,4242,90125').split(',').map(Number);
 
 /** Une partie complète pour un profil et une graine. */
 function run(profile, seed) {
@@ -112,9 +112,9 @@ line('\nQUÊTES — celles sur lesquelles on reste bloqué (jours passés dessus
 const questStay = {};
 for (const r of runs) {
   const ids = Object.keys(r.questDay);
-  for (let i = 0; i < ids.length; i++) {
-    const stay = (i + 1 < ids.length ? r.questDay[ids[i + 1]] : DAYS + 1) - r.questDay[ids[i]];
-    (questStay[ids[i]] ||= []).push(stay);
+  // la dernière quête est encore en cours à la fin : la compter fausserait la moyenne
+  for (let i = 0; i + 1 < ids.length; i++) {
+    (questStay[ids[i]] ||= []).push(r.questDay[ids[i + 1]] - r.questDay[ids[i]]);
   }
 }
 const stuck = Object.entries(questStay)

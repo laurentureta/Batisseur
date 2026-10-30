@@ -11,9 +11,9 @@ function digest(data) {
   const stuck = {};
   for (const run of r) {
     const ids = Object.keys(run.questDay);
-    for (let i = 0; i < ids.length; i++) {
-      const stay = (i + 1 < ids.length ? run.questDay[ids[i + 1]] : data.days + 1) - run.questDay[ids[i]];
-      (stuck[ids[i]] ||= []).push(stay);
+    // on ignore la quête encore en cours au dernier jour : sa durée n'est pas connue
+    for (let i = 0; i + 1 < ids.length; i++) {
+      (stuck[ids[i]] ||= []).push(run.questDay[ids[i + 1]] - run.questDay[ids[i]]);
     }
   }
   const worst = Object.entries(stuck).map(([id, a]) => [id, avg(a)]).sort((a, b) => b[1] - a[1])[0] || ['—', 0];
