@@ -288,8 +288,11 @@ def({
   // Le cinquième rang réclamait des briques, donc une briqueterie, donc une carrière d'argile,
   // donc des ouvriers — que le village n'a pas tant que sa production part à la poubelle faute
   // de place. Cette boucle fermée bloquait 25 000 décisions sur neuf parties mesurées.
-  workers: 1, storage: [400, 800, 1300, 1900, 2700, 3700, 5000, 6600, 8600, 11000], upkeep: 3,
-  levelReq: [2, 4, 7, 10, 15, 22, 30, 42, 55, 70], // niveau du village pour chaque niveau d'entrepôt
+  workers: 1, storage: [500, 1000, 1700, 2600, 3800, 5400, 7400, 9800, 12800, 16500], upkeep: 3,
+  // Les paliers d'avant (niveau 15 puis 22 du village) laissaient sept niveaux entiers sans
+  // aucun agrandissement possible, pendant que la production, elle, continuait de grossir :
+  // tout débordait et partait à la poubelle. La marche est maintenant régulière.
+  levelReq: [2, 4, 6, 9, 12, 16, 21, 28, 38, 50], // niveau du village pour chaque rang d'entrepôt
   desc: 'Le seul bâtiment de stockage du village : toutes les marchandises y sont rangées. Chaque amélioration agrandit le stock de tout.',
 });
 def({
