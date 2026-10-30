@@ -113,6 +113,39 @@ export class Town {
     return true;
   }
 
+  /** Les cases buildables qui touchent une des terres demandées (eau, sable, montagne…).
+      Sans ça le joueur automatique ne posait jamais d'argilière ni de mine : il ne bâtit que
+      le long de ses rues, et ses rues sont toutes à l'intérieur des terres. Un vrai joueur,
+      lui, va jusqu'à la rive. */
+  shore(types, radius) {
+    const key = types.join(',') + ':' + radius;
+    let list = this._shore?.get(key);
+    if (list) return list;
+    const W = this.world;
+    const want = new Set(types.map((t) => T[t.toUpperCase()]).filter((v) => v !== undefined));
+    list = [];
+    for (let z = 0; z < SIZE; z++) {
+      for (let x = 0; x < SIZE; x++) {
+        const i = W.idx(x, z);
+        const t = W.terrain[i];
+        if (t === T.WATER || t === T.DEEP || t === T.MOUNTAIN) continue;
+        if (W.occ[i] >= 0 || W.road[i]) continue;
+        let near = false;
+        for (let dz = -radius; dz <= radius && !near; dz++) {
+          for (let dx = -radius; dx <= radius; dx++) {
+            if (!W.inside(x + dx, z + dz)) continue;
+            if (want.has(W.terrain[W.idx(x + dx, z + dz)])) { near = true; break; }
+          }
+        }
+        if (near) list.push([x, z, (x - this.cx) ** 2 + (z - this.cz) ** 2]);
+      }
+    }
+    list.sort((a, b) => a[2] - b[2]);   // le plus près du village d'abord
+    list = list.slice(0, 400);          // au-delà, ce n'est plus un village mais une colonie
+    (this._shore ||= new Map()).set(key, list);
+    return list;
+  }
+
   /** Cherche où poser `type` : une parcelle libre qui borde une rue. */
   spot(type) {
     const def = BUILDINGS[type];
@@ -125,7 +158,33 @@ export class Town {
       }
       if (w === d) break;   // emprise carrée : la rotation ne change rien
     }
+    // rien le long des rues : si le bâtiment réclame une ressource de terrain, on va la chercher
+    if (def.near) {
+      const [w, d] = sizeOf(def, 0);
+      for (const [x, z] of this.shore(def.near.types, def.near.radius)) {
+        if (!this.clear(x, z, w, d)) continue;
+        if (this.g.actions.checkPlacement(type, x, z, 0).ok) return { x, z, rot: 0, away: true };
+      }
+    }
     return null;
+  }
+
+  /** Relie une parcelle isolée (argilière au bord de l'eau, mine au pied d'un mont) au
+      réseau : sans route, un bâtiment ne tourne pas du tout. Chemin en L vers la dorsale. */
+  connect(x, z, w, d) {
+    const W = this.world;
+    const tiles = [];
+    const zr = z + d;                          // on longe le bâtiment par le sud
+    const [x0, x1] = x < this.cx ? [x, this.cx] : [this.cx, x + w - 1];
+    for (let xx = x0; xx <= x1; xx++) if (W.inside(xx, zr)) tiles.push(W.idx(xx, zr));
+    const za = Math.min(zr, this.spineMin), zb = Math.max(zr, this.spineMax);
+    for (let zz = za; zz <= zb; zz++) if (W.inside(this.cx, zz)) tiles.push(W.idx(this.cx, zz));
+    const res = this.g.actions.placeRoads(tiles, this.bestRoad());
+    if (res?.ok !== false) {
+      this.spineMin = Math.min(this.spineMin, za);
+      this.spineMax = Math.max(this.spineMax, zb);
+    }
+    return res?.ok !== false;
   }
 
   /** Fait de la place : on allonge d'abord ce qui existe, on n'ouvre une rue qu'ensuite. */

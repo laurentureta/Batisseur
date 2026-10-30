@@ -4,7 +4,7 @@
 //
 // Ce qui nous intéresse n'est pas qu'il joue bien, mais qu'il joue comme un humain ordinaire :
 // ce sont ses moments de blocage et d'ennui qui révèlent les défauts d'équilibrage.
-import { BUILDINGS } from '../../src/data/buildings.js';
+import { BUILDINGS, sizeOf } from '../../src/data/buildings.js';
 import { Town } from './town.mjs';
 
 /** Bâtiments candidats pour un besoin, du moins cher au plus cher, parmi ceux débloqués. */
@@ -81,6 +81,10 @@ export class Player {
     }
     const res = this.g.actions.placeBuilding(type, spot.x, spot.z, spot.rot);
     if (res?.ok === false) { this.note(res.reason || 'refus de construction'); return false; }
+    if (spot.away) {
+      const [w, d] = sizeOf(def, spot.rot);
+      this.town.connect(spot.x, spot.z, w, d);   // sans route, elle ne tournerait pas
+    }
     this.actionsDone++;
     return true;
   }
@@ -103,6 +107,19 @@ export class Player {
         for (const [res, need] of Object.entries(chk.cost)) {
           if ((this.g.state.res[res] || 0) < need) miss.set(res, (miss.get(res) || 0) + 1);
         }
+      }
+    }
+    // une usine à l'arrêt faute d'intrant compte lourd : le joueur voit « manque d'argile »
+    // écrit sur sa briqueterie et va creuser une argilière. Le premier bot ne regardait que
+    // le coût des améliorations, qui ne demande jamais ni argile, ni fer, ni outils — il a
+    // donc bâti trente-sept briqueteries qui n'ont jamais cuit une seule brique.
+    for (const b of this.g.world.buildings.values()) {
+      const need = BUILDINGS[b.type]?.consumes;
+      if (!need) continue;
+      for (const res of Object.keys(need)) {
+        if ((this.g.state.res[res] || 0) >= need[res]) continue;
+        if ((this.g.sim.d.rates?.[res] ?? 0) > 0) continue;
+        miss.set(res, (miss.get(res) || 0) + 3);
       }
     }
     let bottleneck = null;
