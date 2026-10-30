@@ -396,7 +396,8 @@ export class Progression {
     else if (!this.libre && st.level < levelReq) reason = `Niveau ${levelReq} requis`;
     else if (!this.game.actions.canAfford(cost)) reason = 'Pas assez de pièces';
     return {
-      zi, name: world.zoneName(zi), comp: world.zoneDescription(zi), cost, levelReq, unlocked, adjacent,
+      zi, name: world.zoneName(zi), comp: world.zoneDescription(zi), offers: world.zoneOffers(zi),
+      cost, levelReq, unlocked, adjacent,
       ok: !reason, reason,
     };
   }

@@ -5,6 +5,7 @@
 // Ce qui nous intéresse n'est pas qu'il joue bien, mais qu'il joue comme un humain ordinaire :
 // ce sont ses moments de blocage et d'ennui qui révèlent les défauts d'équilibrage.
 import { BUILDINGS, sizeOf } from '../../src/data/buildings.js';
+import { RESOURCES } from '../../src/data/resources.js';
 import { Town } from './town.mjs';
 
 /** Bâtiments candidats pour un besoin, du moins cher au plus cher, parmi ceux débloqués. */
@@ -118,7 +119,7 @@ export class Player {
       if (!need) continue;
       for (const res of Object.keys(need)) {
         if ((this.g.state.res[res] || 0) >= need[res]) continue;
-        if ((this.g.sim.d.rates?.[res] ?? 0) > 0) continue;
+        if ((this.g.sim.d.rates?.[res]?.prod ?? 0) > 0) continue;
         miss.set(res, (miss.get(res) || 0) + 3);
       }
     }
@@ -175,7 +176,9 @@ export class Player {
   supply(res) {
     if (!res) return false;
     const d = this.g.sim.d;
-    if ((d.rates?.[res] ?? 0) > 0) return false;
+    // rates[res] est un objet { prod, cons } : le comparer à 0 ne donnait jamais rien,
+    // et le bot empilait les producteurs d'une ressource déjà abondante.
+    if ((d.rates?.[res]?.prod ?? 0) >= (d.rates?.[res]?.cons ?? 0)) return false;
     const already = [...this.g.world.buildings.values()]
       .some((b) => BUILDINGS[b.type]?.produces?.[res] && b.cons && !b.cons.ready);
     if (already) return false;
@@ -301,6 +304,42 @@ export class Player {
     return false;
   }
 
+  /** Lancer un lot à l'atelier. Toute l'économie tardive du jeu passe par là — laine, tissu,
+      vêtements, céramiques, machines — et aucun bâtiment ne les produit tout seul : il faut
+      mettre un lot en file. Le premier joueur automatique l'ignorait complètement, et la
+      campagne concluait donc « zéro marchandise avancée », ce qui mesurait le bot, pas le jeu. */
+  craft() {
+    const g = this.g;
+    if (!g.workshop) return false;
+    let best = null;
+    for (const b of g.world.buildings.values()) {
+      if (b.cons || b.fire) continue;
+      if (g.workshop.queue(b.id).length >= 2) continue;        // on laisse de la marge dans la file
+      for (const r of g.workshop.recipesFor(b)) {
+        if (g.state.level < r.level) continue;
+        let ok = true;
+        for (const [res, n] of Object.entries(r.inputs)) {
+          // on garde une réserve : un joueur ne vide pas son grenier pour un lot
+          if ((g.state.res[res] || 0) < n * 3) { ok = false; break; }
+        }
+        if (!ok) continue;
+        let value = 0;
+        for (const [res, n] of Object.entries(r.outputs)) {
+          const unit = RESOURCES[res]?.value ?? RESOURCES[res]?.price ?? 1;
+          // une marchandise qu'on n'a jamais vue vaut qu'on s'y mette
+          value += n * unit * ((g.state.res[res] || 0) > 0 ? 1 : 4);
+        }
+        const score = value / r.seconds;
+        if (!best || score > best.score) best = { id: b.id, recipe: r.id, score };
+      }
+    }
+    if (!best) { this.note('rien à fabriquer'); return false; }
+    const res = g.workshop.enqueue(best.id, best.recipe);
+    if (res?.ok === false) { this.note(res.reason || 'refus de fabrication'); return false; }
+    this.actionsDone++;
+    return true;
+  }
+
   /** Réserve de sécurité : un joueur ne dépense jamais sa dernière pièce. */
   broke() {
     return this.g.state.res.coins < 25;
@@ -334,6 +373,7 @@ export class Player {
     if (this.broke()) { this.idleActions++; this.note('sans le sou'); return null; }
     if (this.store()) return 'entrepôt';
     if (this.workOnQuest()) return 'quête';
+    if (this.craft()) return 'atelier';
     if (this.feed()) return 'nourriture';
     if (this.houseOrWork()) return 'logement';
     if (this.upgradeCheapest()) return 'amélioration';

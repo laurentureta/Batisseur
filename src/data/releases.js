@@ -1,7 +1,10 @@
 // Ajouter chaque nouvelle version ici, de la plus récente à la plus ancienne.
 export const RELEASES = [
-  { version: '6.6.1', title: 'La chaîne de l’argile', items: [
-    { icon: 'hammer', title: 'Une quête manquait', text: 'La quête demandait une briqueterie sans jamais avoir demandé l’argilière qui la nourrit : beaucoup de joueurs se retrouvaient avec une usine à l’arrêt, et la mairie bloquée faute de briques. « Trouver l’argile » arrive maintenant juste avant, et rappelle qu’une argilière se pose au bord de l’eau ou du sable, puis se relie par la route.' },
+  { version: '6.7.0', title: 'La chaîne de l’argile', items: [
+    { icon: 'hammer', title: 'Une quête manquait', text: 'La quête demandait une briqueterie sans jamais avoir demandé l’argilière qui la nourrit : on se retrouvait avec une usine à l’arrêt, et la mairie bloquée faute de briques. « Trouver l’argile » arrive maintenant juste avant, et rappelle qu’une argilière se pose au bord de l’eau ou du sable, puis se relie par la route.' },
+    { icon: 'map', title: 'Les zones disent ce qu’elles cachent', text: 'La boîte d’achat d’une zone affichait « Eau 18 % » sans dire à quoi ça sert. Elle annonce désormais ce qu’on pourra y bâtir et nulle part ailleurs — argilière, mine, pêcheur, phare — avec le niveau requis. Comme la zone de départ n’a presque jamais d’eau, savoir de quel côté aller change tout.' },
+    { icon: 'people', title: 'Des ouvriers pour tous les métiers', text: 'La main-d’œuvre allait d’abord entièrement aux métiers prioritaires : les autres ateliers restaient vides tant que les champs n’étaient pas tous servis. Chaque niveau de priorité reçoit maintenant sa part, et ce qui reste va aux plus urgents.' },
+    { icon: 'star', title: 'Le milieu de partie respire', text: 'Les paliers d’habitants des rangs de mairie étaient trop raides — il fallait 250 habitants pour « Petite ville » alors que les villages plafonnaient bien avant. Les quatre premiers paliers sont adoucis, et la mairie comme l’entrepôt tiennent plus de stock.' },
   ] },
   { version: '6.6.0', title: 'Bois, parchemin et laiton', items: [
     { icon: 'scroll', title: 'Une interface de village', text: 'Fini les pastilles blanches : les ressources sont gravées sur une planche cloutée, les boutons sont des cartons de parchemin dans leur cadre de bois, le niveau et la vitesse sont en laiton. Les panneaux sont coiffés d’un bandeau de bois qui porte leur titre.' },

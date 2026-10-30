@@ -406,9 +406,17 @@ export function openZoneDialog(ui, zi) {
   const info = game.prog.zoneInfo(zi);
   const comp = h('div.zone-comp');
   for (const c of info.comp.slice(0, 5)) comp.appendChild(h('div.zc', h('span', TERRAIN_ICONS[c.t]), h('small', c.name), h('b', `${c.pct} %`)));
+  // ce que la zone permet de bâtir : sans ça, « Eau 18 % » ne dit rien au joueur, et la
+  // chaîne de l'argile — qui exige une rive — reste introuvable
+  const offers = info.offers.length
+    ? h('p.zone-offers', h('b', 'À bâtir ici : '),
+        info.offers.map((d) => `${d.icon} ${d.name}`
+          + (game.state.level < (d.unlock || 1) ? ` (niv ${d.unlock})` : '')).join(', '))
+    : null;
   const body = h('div',
     h('p', 'Agrandis ton territoire pour construire plus loin et profiter de nouvelles ressources.'),
     comp,
+    offers,
     h('div.zone-cost', costChips(info.cost, game.state.res), h('span.req' + (game.state.level >= info.levelReq ? '.ok' : ''), `Niveau ${info.levelReq} requis`)),
     info.ok || info.reason.startsWith('Niveau') ? null : h('p.hint.err', info.reason),
   );

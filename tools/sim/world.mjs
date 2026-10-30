@@ -34,4 +34,5 @@ export function away(game, seconds) {
   clock.advance(seconds * 1000);
   game.construction.lastReal = 0;
   game.construction.realTick();
+  game.workshop.tick();   // les lots de l'atelier cuisent aussi quand le jeu est fermé
 }

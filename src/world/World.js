@@ -208,6 +208,30 @@ export class World {
       .sort((a, b) => b.pct - a.pct);
   }
 
+  /** Ce qu'une zone permet de bâtir qu'on ne peut pas bâtir n'importe où : l'argilière veut
+      de l'eau ou du sable, la mine une montagne. Le détail de composition du terrain était
+      déjà affiché, mais rien ne disait à quoi il servait — et comme la zone de départ n'a
+      presque jamais d'eau, la chaîne de l'argile restait introuvable. */
+  zoneOffers(zi) {
+    const r = this.zoneRect(zi);
+    const out = [];
+    for (const def of Object.values(BUILDINGS)) {
+      if (!def.near || def.notBuildable) continue;
+      let found = false;
+      for (let z = r.z; z < r.z + ZONE && !found; z++) {
+        for (let x = r.x; x < r.x + ZONE; x++) {
+          const t = this.terrain[this.idx(x, z)];
+          if (t === T.WATER || t === T.DEEP || t === T.MOUNTAIN) continue;
+          if (this.countTerrainAround(x, z, 1, 1, def.near.types, def.near.radius) === 0) continue;
+          found = true;
+          break;
+        }
+      }
+      if (found) out.push(def);
+    }
+    return out.sort((a, b) => (a.unlock || 1) - (b.unlock || 1));
+  }
+
   /** Une zone est achetable si elle touche une zone déjà débloquée. */
   zoneAdjacentUnlocked(zi) {
     const zx = zi % ZONES, zz = Math.floor(zi / ZONES);

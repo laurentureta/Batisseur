@@ -37,17 +37,21 @@ export class Town {
     for (let x = this.cx - width; x <= this.cx + width; x++) {
       if (this.world.inside(x, z)) tiles.push(this.world.idx(x, z));
     }
-    // la dorsale verticale relie la nouvelle rue à celles déjà tracées
-    const z0 = Math.min(this.spineMin, z), z1 = Math.max(this.spineMax, z);
-    for (let zz = z0; zz <= z1; zz++) {
-      if (this.world.inside(this.cx, zz)) tiles.push(this.world.idx(this.cx, zz));
-    }
+    // La rue d'abord, le raccord ensuite, en deux opérations : mélangées, il suffisait que la
+    // dorsale soit déjà entièrement pavée pour que placeRoads réponde « rien à construire »
+    // et que l'ouverture de la rue soit comptée comme un échec.
     const res = this.g.actions.placeRoads(tiles, roadType);
     if (res?.ok === false) return false;
+    const z0 = Math.min(this.spineMin, z), z1 = Math.max(this.spineMax, z);
+    const link = [];
+    for (let zz = z0; zz <= z1; zz++) {
+      if (this.world.inside(this.cx, zz)) link.push(this.world.idx(this.cx, zz));
+    }
+    this.g.actions.placeRoads(link, roadType);
     this.rows.add(k);
     this.width.set(k, width);
-    this.spineMin = z0;
-    this.spineMax = z1;
+    this.spineMin = Math.min(this.spineMin, z);
+    this.spineMax = Math.max(this.spineMax, z);
     return true;
   }
 
@@ -141,7 +145,8 @@ export class Town {
       }
     }
     list.sort((a, b) => a[2] - b[2]);   // le plus près du village d'abord
-    list = list.slice(0, 400);          // au-delà, ce n'est plus un village mais une colonie
+    // on reste dans un rayon marchable : au-delà, ce n'est plus un village mais une colonie
+    list = list.filter((e) => e[2] <= 26 * 26).slice(0, 400);
     (this._shore ||= new Map()).set(key, list);
     return list;
   }
@@ -177,13 +182,13 @@ export class Town {
     const zr = z + d;                          // on longe le bâtiment par le sud
     const [x0, x1] = x < this.cx ? [x, this.cx] : [this.cx, x + w - 1];
     for (let xx = x0; xx <= x1; xx++) if (W.inside(xx, zr)) tiles.push(W.idx(xx, zr));
+    // On ne touche PAS à spineMin/spineMax : l'éperon vers la rive reste à part. Sinon chaque
+    // nouvelle rue tentait de repaver toute la longueur jusqu'au rivage, placeRoads ne trouvait
+    // plus rien à faire, grow() échouait, et le village cessait de s'étendre — une graine est
+    // passée de 285 à 46 habitants avant que la cause ne soit comprise.
     const za = Math.min(zr, this.spineMin), zb = Math.max(zr, this.spineMax);
     for (let zz = za; zz <= zb; zz++) if (W.inside(this.cx, zz)) tiles.push(W.idx(this.cx, zz));
     const res = this.g.actions.placeRoads(tiles, this.bestRoad());
-    if (res?.ok !== false) {
-      this.spineMin = Math.min(this.spineMin, za);
-      this.spineMax = Math.max(this.spineMax, zb);
-    }
     return res?.ok !== false;
   }
 

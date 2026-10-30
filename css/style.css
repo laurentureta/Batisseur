@@ -761,6 +761,9 @@ input, textarea { font: inherit; -webkit-user-select: text; user-select: text; }
 .zc { display: flex; flex-direction: column; align-items: center; padding: 8px 4px; border-radius: 12px; background: #fff; border: 1px solid var(--line); font-size: 20px; }
 .zc small { font-size: 11px; font-weight: 700; color: var(--ink-soft); }
 .zc b { font-size: 13px; }
+.zone-offers { margin: 2px 0 10px; font-size: 13px; line-height: 1.5; padding: 8px 10px;
+  border-radius: 10px; background: var(--parch, #fff); border: 1px solid var(--parch-edge, var(--line)); }
+.zone-offers b { font-weight: 800; }
 .zone-cost { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .trade { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 14px 0; }
 .tr { display: flex; flex-direction: column; align-items: center; padding: 10px 14px; border-radius: 14px; background: #fff; border: 1px solid var(--line); }
