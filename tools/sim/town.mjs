@@ -4,7 +4,9 @@
 import { BUILDINGS, sizeOf } from '../../src/data/buildings.js';
 import { SIZE, T } from '../../src/world/constants.js';
 
-const ROW = 4; // une rue horizontale tous les quatre rangs
+const ROW = 4;    // une rue horizontale tous les quatre rangs
+const ROWS = 30;  // jusqu'où le village peut s'étendre du nord au sud
+const SPAN = 44;  // et d'est en ouest
 
 export class Town {
   constructor(game) {
@@ -52,7 +54,7 @@ export class Town {
   /** Allonge une rue existante de quelques cases : moins cher que d'en ouvrir une. */
   extendRow(k, by = 3) {
     const w = this.width.get(k) || 6;
-    if (w > 18) return false;
+    if (w > SPAN) return false;
     const z = this.rowZ(k);
     const tiles = [];
     for (let x = this.cx - w - by; x <= this.cx + w + by; x++) {
@@ -80,11 +82,11 @@ export class Town {
     let list = this._slots?.get(key);
     if (list) return list;
     list = [];
-    for (let k = 0; k < 14; k++) {
+    for (let k = 0; k < ROWS; k++) {
       if (!this.rows.has(k)) continue;
       const z = this.rowZ(k);
       for (const zz of [z - d, z + 1]) {
-        for (let off = 1; off <= 14; off++) {
+        for (let off = 1; off <= SPAN; off++) {
           for (const s of [1, -1]) {
             const x = this.cx + s * off;
             if (x === this.cx) continue;             // la dorsale reste libre
@@ -129,7 +131,7 @@ export class Town {
   /** Fait de la place : on allonge d'abord ce qui existe, on n'ouvre une rue qu'ensuite. */
   grow() {
     for (const k of [...this.rows].sort((a, b) => a - b)) if (this.extendRow(k)) return true;
-    for (let k = 0; k < 14; k++) if (!this.rows.has(k) && this.openRow(k)) return true;
+    for (let k = 0; k < ROWS; k++) if (!this.rows.has(k) && this.openRow(k)) return true;
     return false;
   }
 

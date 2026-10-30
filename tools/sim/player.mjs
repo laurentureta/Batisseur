@@ -30,6 +30,7 @@ export class Player {
     this.actionsDone = 0;
     this.blocked = new Map(); // raison → nombre de décisions concernées
     this.pending = new Set();
+    this.counts = new Map();
     this.town.openRow(0);
   }
 
@@ -54,12 +55,25 @@ export class Player {
     return n;
   }
 
+  /** Combien d'exemplaires de ce type un joueur sensé possède-t-il ? Le premier joueur
+      automatique en avait bâti 399 du même, faute de cette borne. */
+  tooMany(type) {
+    const def = BUILDINGS[type];
+    const n = this.counts.get(type) || 0;
+    if (def.residents) return n >= 6 + Math.floor(this.g.sim.d.population / 6);
+    if (def.workers) return n >= 2 + Math.floor(this.g.sim.d.workforce / (def.workers * 4));
+    return n >= 8;
+  }
+
   build(type, retry = true) {
     // checkPlacement refuse aussi pour cause de bourse vide : sans ce test préalable, tous les
     // emplacements paraîtraient mauvais et on mettrait « plus de place » pour « pas les moyens ».
     const def = BUILDINGS[type];
     if (!def) return false;
     if (!this.g.actions.canAfford(def.costs?.[0] || {})) { this.note(`pas les moyens : ${type}`); return false; }
+    if (this.tooMany(type)) { this.note(`déjà assez de ${type}`); return false; }
+    // un atelier sans ouvrier ne produit rien : inutile d'en ajouter si les postes sont vides
+    if (def.workers && this.g.sim.d.staffing < 0.85) { this.note('pas assez de bras'); return false; }
     const spot = this.town.spot(type);
     if (!spot) {
       if (!retry || !this.town.grow()) { this.note('plus de place'); return false; }
@@ -71,21 +85,86 @@ export class Player {
     return true;
   }
 
-  /** Améliore le bâtiment améliorable le moins cher. */
-  upgradeCheapest() {
+  /** Un seul balayage des améliorations par décision : qui est améliorable le moins cher,
+      et quelle ressource manque le plus souvent. Deux parcours séparés rendaient la campagne
+      quadratique — des centaines de bâtiments fois des milliers de décisions. */
+  scanUpgrades() {
+    if (this._scan) return this._scan;
     let best = null;
+    const miss = new Map();
     for (const b of this.g.world.buildings.values()) {
       const chk = this.g.actions.checkUpgrade(b);
-      if (!chk?.ok) continue;
-      const c = chk.cost || {};
-      const price = (c.coins || 0) + (c.wood || 0) * 2 + (c.stone || 0) * 3 + (c.planks || 0) * 6 + (c.bricks || 0) * 8;
-      if (!best || price < best.price) best = { id: b.id, price };
+      if (!chk || chk.max || !chk.cost) continue;
+      if (chk.ok) {
+        const c = chk.cost;
+        const price = (c.coins || 0) + (c.wood || 0) * 2 + (c.stone || 0) * 3 + (c.planks || 0) * 6 + (c.bricks || 0) * 8;
+        if (!best || price < best.price) best = { id: b.id, price };
+      } else {
+        for (const [res, need] of Object.entries(chk.cost)) {
+          if ((this.g.state.res[res] || 0) < need) miss.set(res, (miss.get(res) || 0) + 1);
+        }
+      }
     }
+    let bottleneck = null;
+    for (const [res, n] of miss) if (!bottleneck || n > miss.get(bottleneck)) bottleneck = res;
+    return (this._scan = { best, bottleneck });
+  }
+
+  upgradeCheapest() {
+    const best = this.scanUpgrades().best;
     if (!best) { this.note('rien à améliorer'); return false; }
     const r = this.g.actions.upgrade(best.id);
     if (r?.ok === false) { this.note(r.reason || 'refus d\'amélioration'); return false; }
     this.actionsDone++;
     return true;
+  }
+
+  bottleneck() { return this.scanUpgrades().bottleneck; }
+
+  /** Agrandir le stock quand les ressources plafonnent : sans entrepôt, toute la production
+      part à la poubelle. Le jeu n'a qu'un seul bâtiment de stockage, à améliorer. */
+  store() {
+    const full = this.g.sim.d.fullGoods || [];
+    if (full.length < 2) return false;
+    const dep = [...this.g.world.buildings.values()].find((b) => BUILDINGS[b.type]?.storage);
+    if (!dep) {
+      for (const [type, def] of Object.entries(BUILDINGS)) {
+        if (def.storage && this.g.prog.isUnlocked(type) && this.build(type)) return true;
+      }
+      this.note('pas d\'entrepôt possible');
+      return false;
+    }
+    if (this.g.actions.checkUpgrade(dep)?.ok && this.g.actions.upgrade(dep.id)?.ok !== false) {
+      this.actionsDone++;
+      return true;
+    }
+    this.note('entrepôt saturé');
+    return false;
+  }
+
+  /** Éteindre les incendies. Sans ça, le village se vide tout seul : la première campagne
+      a vu la population tomber de 44 à 10 habitants en trois semaines, faute de pompier. */
+  fight() {
+    let n = 0;
+    for (const b of this.g.world.buildings.values()) {
+      if (!b.fire) continue;
+      if (this.g.actions.extinguish(b.id)?.ok !== false) { n++; this.actionsDone++; }
+    }
+    return n;
+  }
+
+  /** Construit un producteur de la ressource qui bloque. Un joueur qui lit « il manque des
+      planches » va bâtir une scierie ; le premier joueur automatique, lui, attendait. */
+  supply(res) {
+    if (!res) return false;
+    const d = this.g.sim.d;
+    if ((d.rates?.[res] ?? 0) > 0) return false;
+    const already = [...this.g.world.buildings.values()]
+      .some((b) => BUILDINGS[b.type]?.produces?.[res] && b.cons && !b.cons.ready);
+    if (already) return false;
+    const makers = candidates(this.g, (def) => def.produces?.[res]);
+    for (const c of makers) if (this.build(c.type)) return true;
+    return false;
   }
 
   /** Livrer les commandes qu'on peut honorer : c'est une bonne part du revenu du jeu. */
@@ -160,7 +239,8 @@ export class Player {
 
   houseOrWork() {
     const d = this.g.sim.d;
-    if (d.population >= d.capacity * 0.85) {
+    // des postes vides : ce sont des habitants qu'il faut, pas des bâtiments
+    if (d.staffing < 0.85 || d.population >= d.capacity * 0.85) {
       const homes = candidates(this.g, (def) => def.residents);
       for (const c of homes.slice(-3).reverse()) if (this.build(c.type)) return true;
       for (const c of homes) if (this.build(c.type)) return true;
@@ -218,21 +298,29 @@ export class Player {
 
   decide() {
     this.pending.clear();
+    // recensement une fois par décision : le compter à chaque tentative rendait la campagne
+    // quadratique, et un joueur sait de tête combien de scieries il possède
+    this._scan = null;
+    this.counts = new Map();
+    for (const b of this.g.world.buildings.values()) this.counts.set(b.type, (this.counts.get(b.type) || 0) + 1);
     const what = this.step();
     for (const r of this.pending) this.blocked.set(r, (this.blocked.get(r) || 0) + 1);
     return what;
   }
 
   step() {
+    if (this.fight()) return 'incendie';
     if (this.inaugurate()) return 'inauguration';
     if (this.claim()) return 'récompense';
     if (this.deliver()) return 'commande';
     if (this.g.sim.d.starving && this.feed()) return 'famine';
     if (this.broke()) { this.idleActions++; this.note('sans le sou'); return null; }
+    if (this.store()) return 'entrepôt';
     if (this.workOnQuest()) return 'quête';
     if (this.feed()) return 'nourriture';
     if (this.houseOrWork()) return 'logement';
     if (this.upgradeCheapest()) return 'amélioration';
+    if (this.supply(this.bottleneck())) return 'production';
     if (this.town.grow()) return 'rue';
     // à court de parcelles : on achète du terrain, comme le ferait un joueur
     if (this.cramped() && this.unlockZone()) return 'terrain';
