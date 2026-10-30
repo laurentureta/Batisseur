@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GameCore } from '../src/core/GameCore.js';
+import { BASE_STORAGE, TOWNHALL_STORAGE } from '../src/world/constants.js';
+// même raison qu'ailleurs : la capacité se calcule, elle ne se recopie pas
+const BASE = BASE_STORAGE + TOWNHALL_STORAGE;
 import { CityDevelopment } from '../src/sim/CityDevelopment.js';
 import { createNewState } from '../src/core/state.js';
 import { serialize } from '../src/core/save.js';
@@ -54,8 +57,8 @@ test('veille : plafond de huit heures, stockage plein et absence d’intrants',(
   advance(bounded,NOW+REGIONAL_MAX_MS);
   close(long.res.planks,bounded.res.planks);close(long.res.wood,bounded.res.wood);
   close(long.time.day,bounded.time.day);
-  const full=saved(g);full.res.planks=400;advance(full,NOW+REGIONAL_DAY_MS);
-  assert.equal(full.res.planks,400);assert.equal(full.res.wood,100);
+  const full=saved(g);full.res.planks=BASE;advance(full,NOW+REGIONAL_DAY_MS);
+  assert.equal(full.res.planks,BASE);assert.equal(full.res.wood,100);
   const empty=saved(g);empty.res.wood=0;advance(empty,NOW+REGIONAL_DAY_MS);
   assert.equal(empty.res.planks,0);assert.equal(empty.res.wood,0);
 });

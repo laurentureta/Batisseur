@@ -39,7 +39,7 @@ export const DAY_SECONDS = 90; // une journée de jeu = 90 s à vitesse normale
 export const WORK_RATIO = 0.7; // part des habitants qui travaillent
 export const FOOD_PER_RESIDENT = 0.5; // nourriture mangée par habitant et par jour
 export const BASE_STORAGE = 250;
-export const TOWNHALL_STORAGE = 150; // par niveau de mairie
+export const TOWNHALL_STORAGE = 300; // par niveau de mairie (150 avant : le stock étranglait tout)
 
 export function isWater(t) {
   return t === T.WATER || t === T.DEEP;

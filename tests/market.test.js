@@ -8,7 +8,10 @@ import { advanceRegionalState } from '../src/sim/RegionalEconomy.js';
 import { CityDevelopment } from '../src/sim/CityDevelopment.js';
 import { MARKET_SLOT_MS, MARKET_DAY_MS, MARKET_DAILY_UNITS, marketOfferRule, marketDemand, marketIndex, initialMarketOffer, unitPriceCents } from '../src/data/market.js';
 import { GOODS } from '../src/data/resources.js';
-import { SIZE } from '../src/world/constants.js';
+import { BUILDINGS } from '../src/data/buildings.js';
+import { SIZE, BASE_STORAGE, TOWNHALL_STORAGE } from '../src/world/constants.js';
+// le stock de départ se déduit des constantes : le figer en dur casse à chaque réglage
+const BASE = BASE_STORAGE + TOWNHALL_STORAGE;
 
 const NOW=1800000000000;
 function fixture(state){
@@ -117,7 +120,7 @@ test('validation : quantité, ressources, village, capacité, fonds et visites p
   assert.equal(g.market.trade('home','wood','invalid',1).ok,false);
   assert.deepEqual(g.state.res,stocks);
   g.state.res.coins=0;assert.equal(g.market.trade('home','wood','buy',1).ok,false);
-  g.state.res.coins=100000;g.state.res.wood=400;assert.equal(g.market.trade('home','wood','buy',1).ok,false);
+  g.state.res.coins=100000;g.state.res.wood=BASE;assert.equal(g.market.trade('home','wood','buy',1).ok,false);
   g.state.res.wood=0;assert.equal(g.market.trade('home','wood','sell',1).ok,false);
   g.visit={};assert.equal(g.market.trade('home','wood','buy',1).ok,false);
 });
@@ -146,11 +149,11 @@ test('régions : chaque comptoir utilise les stocks du village sélectionné',(t
 
 test('stockage distant : seul un entrepôt réellement relié augmente la capacité',(t)=>{
   lockTime(t);const g=fixture();add(g,'depot',56,50,2);
-  let state=JSON.parse(serialize(g));assert.equal(regionalMarketStorage(state),400);
+  let state=JSON.parse(serialize(g));assert.equal(regionalMarketStorage(state),BASE);
   for(let x=54;x<=57;x++)g.world.setRoad(52*SIZE+x,1);g.world.setRoad(53*SIZE+54,1);
-  state=JSON.parse(serialize(g));assert.equal(regionalMarketStorage(state),1200);
+  state=JSON.parse(serialize(g));assert.equal(regionalMarketStorage(state),BASE+BUILDINGS.depot.storage[1]);
   state.buildings.find(b=>b.type==='depot').cons={k:'new'};
-  assert.equal(regionalMarketStorage(state),400);
+  assert.equal(regionalMarketStorage(state),BASE);
 });
 
 test('veille : une file de fabrication réservée supprime la production automatique de cet atelier',(t)=>{

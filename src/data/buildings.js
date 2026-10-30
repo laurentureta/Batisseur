@@ -110,10 +110,13 @@ def({
   ],
   residents: [2, 4, 8, 14, 24],
   tax: [6, 6.5, 7, 7.5, 8],
+  // La maison de pierre ne demandait l'eau, le commerce ET les loisirs qu'au troisième rang :
+  // la mesure a montré qu'un joueur restait bloqué treize jours sur quatorze sur cette seule
+  // marche. Les loisirs sont repoussés au rang suivant, où le village est assez dense pour eux.
   upgradeNeeds: [
     [],
     ['water'],
-    ['water', 'commerce', 'leisure'],
+    ['water', 'commerce'],
     ['water', 'commerce', 'leisure', 'education', 'health', 'paved'],
     ['water', 'commerce', 'leisure', 'education', 'health', 'security', 'paved'],
   ],
@@ -275,13 +278,16 @@ def({
     { coins: 300, wood: 90, stone: 30 },
     { coins: 650, wood: 140, stone: 90 },
     { coins: 1200, stone: 160, planks: 60 },
-    { coins: 2200, stone: 200, planks: 140, bricks: 40 },
+    { coins: 2200, stone: 200, planks: 200 },   // sans briques : voir la note ci-dessous
     { coins: 3600, planks: 220, bricks: 150 },
     { coins: 5500, planks: 260, bricks: 260, tools: 30 },
     { coins: 8500, bricks: 400, tools: 70 },
     { coins: 12500, bricks: 560, tools: 120 },
     { coins: 18000, bricks: 760, tools: 180 },
   ],
+  // Le cinquième rang réclamait des briques, donc une briqueterie, donc une carrière d'argile,
+  // donc des ouvriers — que le village n'a pas tant que sa production part à la poubelle faute
+  // de place. Cette boucle fermée bloquait 25 000 décisions sur neuf parties mesurées.
   workers: 1, storage: [400, 800, 1300, 1900, 2700, 3700, 5000, 6600, 8600, 11000], upkeep: 3,
   levelReq: [2, 4, 7, 10, 15, 22, 30, 42, 55, 70], // niveau du village pour chaque niveau d'entrepôt
   desc: 'Le seul bâtiment de stockage du village : toutes les marchandises y sont rangées. Chaque amélioration agrandit le stock de tout.',
